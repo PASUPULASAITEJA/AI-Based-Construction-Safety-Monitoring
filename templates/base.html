@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AI Construction Safety Monitor{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Left Navigation Sidebar -->
+  <aside class="app-sidebar">
+    <div class="brand-header">
+      <div class="brand-icon">🛡️</div>
+      <div>
+        <div class="brand-title">MindGuard AI</div>
+        <div class="brand-subtitle">Construction Safety</div>
+      </div>
+    </div>
+
+    <ul class="nav-links">
+      <li class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_view') }}" id="nav-dashboard">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'monitor' %}active{% endif %}">
+        <a href="{{ url_for('monitor_view') }}" id="nav-monitor">
+          <span class="nav-icon">📹</span>
+          <span>Live Monitor</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'upload' %}active{% endif %}">
+        <a href="{{ url_for('upload_view') }}" id="nav-upload">
+          <span class="nav-icon">📁</span>
+          <span>Upload Studio</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'incidents' %}active{% endif %}">
+        <a href="{{ url_for('incidents_view') }}" id="nav-incidents">
+          <span class="nav-icon">🚨</span>
+          <span>Incident Log</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'analytics' %}active{% endif %}">
+        <a href="{{ url_for('analytics_view') }}" id="nav-analytics">
+          <span class="nav-icon">📈</span>
+          <span>Analytics</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'settings' %}active{% endif %}">
+        <a href="{{ url_for('settings_view') }}" id="nav-settings">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <span>AI Engine Active</span>
+      <div class="status-dot" title="YOLO + ByteTrack Online"></div>
+    </div>
+  </aside>
+
+  <!-- Main Wrapper -->
+  <div class="main-wrapper">
+    <header class="top-navbar">
+      <div class="page-header-title">
+        {% block page_title %}Safety Monitoring Dashboard{% endblock %}
+      </div>
+      <div class="top-actions">
+        {% block top_actions %}{% endblock %}
+      </div>
+    </header>
+
+    <main class="content-container">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- Snapshot Viewer Modal -->
+  <div id="snapshot-modal" class="modal-backdrop" onclick="closeSnapshotModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeSnapshotModal()">&times;</button>
+      <h3 id="modal-incident-title" style="margin-bottom: 16px;">Incident Snapshot</h3>
+      <div style="text-align: center; max-height: 480px; overflow: hidden; border-radius: 8px;">
+        <img id="modal-snapshot-img" src="" alt="Snapshot" style="max-width: 100%; max-height: 450px; object-fit: contain;">
+      </div>
+      <div id="modal-incident-meta" style="margin-top: 14px; font-size: 13px; color: var(--text-secondary);"></div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

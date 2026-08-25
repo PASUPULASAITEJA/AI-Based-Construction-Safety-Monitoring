@@ -1,0 +1,17 @@
+download: https://github.com/ultralytics/assets/releases/download/v0.0.0/construction-ppe.zip
+names:
+  0: helmet
+  1: gloves
+  2: vest
+  3: boots
+  4: goggles
+  5: none
+  6: Person
+  7: no_helmet
+  8: no_goggle
+  9: no_gloves
+  10: no_boots
+path: D:\Safety Monitoring\construction
+test: images/test
+train: images/train
+val: images/val

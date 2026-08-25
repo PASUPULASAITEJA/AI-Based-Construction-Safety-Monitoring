@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}📈 Safety Compliance & Trend Analytics{% endblock %}
+
+{% block content %}
+<!-- Analytics Summary KPI Cards -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-header"><span>Total Incidents</span><span class="metric-icon">🚨</span></div>
+    <div class="metric-value">{{ summary.total_incidents|default(0) }}</div>
+    <div class="metric-footer">Lifetime logged violations</div>
+  </div>
+
+  <div class="metric-card warning">
+    <div class="metric-header"><span>Missing Helmets</span><span class="metric-icon">🪖</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('NO_HELMET', 0) }}</div>
+    <div class="metric-footer">Rule 1 breaches</div>
+  </div>
+
+  <div class="metric-card warning">
+    <div class="metric-header"><span>Missing Vests</span><span class="metric-icon">🦺</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('NO_VEST', 0) }}</div>
+    <div class="metric-footer">Rule 2 inferred breaches</div>
+  </div>
+
+  <div class="metric-card danger">
+    <div class="metric-header"><span>Zone Incursions</span><span class="metric-icon">⛔</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('RESTRICTED_ZONE_BREACH', 0) + summary.type_distribution.get('HAZARD_ZONE_ENTRY', 0) }}</div>
+    <div class="metric-footer">Restricted area entries</div>
+  </div>
+
+  <div class="metric-card critical">
+    <div class="metric-header"><span>Critical Breaches</span><span class="metric-icon">🔥</span></div>
+    <div class="metric-value">{{ summary.severity_distribution.get('CRITICAL', 0) }}</div>
+    <div class="metric-footer">High hazard without PPE</div>
+  </div>
+</div>
+
+<!-- Charts Grid -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+  <!-- Chart 1: Violations by Type -->
+  <div class="card">
+    <div class="card-title">
+      <span>Violation Distribution by Type</span>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="chart-violation-types"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 2: Severity Distribution -->
+  <div class="card">
+    <div class="card-title">
+      <span>Incident Severity Classification</span>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="chart-severity-dist"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Chart 3: Incident Timeline -->
+<div class="card">
+  <div class="card-title">
+    <span>Safety Violations Frequency Timeline (Last 7 Days)</span>
+  </div>
+  <div style="height: 260px; position: relative;">
+    <canvas id="chart-timeline"></canvas>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const analyticsData = {{ summary|tojson }};
+
+// 1. Violations by Type Chart
+const typeCtx = document.getElementById('chart-violation-types').getContext('2d');
+const typeLabels = Object.keys(analyticsData.type_distribution || {});
+const typeValues = Object.values(analyticsData.type_distribution || {});
+
+new Chart(typeCtx, {
+  type: 'doughnut',
+  data: {
+    labels: typeLabels.length > 0 ? typeLabels : ['No Violations'],
+    datasets: [{
+      data: typeValues.length > 0 ? typeValues : [1],
+      backgroundColor: ['#d29922', '#e36209', '#f85149', '#388bfd', '#8957e5', '#ff2a51'],
+      borderWidth: 1,
+      borderColor: '#161b22'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#8b949e', font: { family: 'Inter', size: 12 } } }
+    }
+  }
+});
+
+// 2. Severity Chart
+const sevCtx = document.getElementById('chart-severity-dist').getContext('2d');
+const sevLabels = Object.keys(analyticsData.severity_distribution || {});
+const sevValues = Object.values(analyticsData.severity_distribution || {});
+
+new Chart(sevCtx, {
+  type: 'pie',
+  data: {
+    labels: sevLabels.length > 0 ? sevLabels : ['None'],
+    datasets: [{
+      data: sevValues.length > 0 ? sevValues : [1],
+      backgroundColor: ['#388bfd', '#d29922', '#e36209', '#f85149'],
+      borderWidth: 1,
+      borderColor: '#161b22'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#8b949e', font: { family: 'Inter', size: 12 } } }
+    }
+  }
+});
+
+// 3. Timeline Chart
+const timeCtx = document.getElementById('chart-timeline').getContext('2d');
+const timeLabels = Object.keys(analyticsData.timeline || {});
+const timeValues = Object.values(analyticsData.timeline || {});
+
+new Chart(timeCtx, {
+  type: 'line',
+  data: {
+    labels: timeLabels.length > 0 ? timeLabels : ['Today'],
+    datasets: [{
+      label: 'Violations Logged',
+      data: timeValues.length > 0 ? timeValues : [0],
+      borderColor: '#00d2ff',
+      backgroundColor: 'rgba(0, 210, 255, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.35,
+      pointRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } },
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
+</script>
+{% endblock %}
