@@ -1,9 +1,10 @@
 import os
 from cv.pipeline import SafetyPipeline
 
-pipeline = SafetyPipeline(model_path='d:/Safe/model/best.pt', conf=0.035)
+pipeline = SafetyPipeline(model_path='d:/Safe/model/best.pt', conf=0.015)
 
 tests = [
+    ("image806.jpg (Overhead Accident: Worker 1 Kneeling with Helmet & Vest, Worker 2 Lying with Vest & No Helmet)", "d:/Safe/uploads/upload_20260825_101220_image806.jpg"),
     ("image886.jpeg (Worker 1: Helmet + Lime Vest, Worker 2: Helmet + Blue Overalls)", "d:/Safe/uploads/upload_20260825_095059_image886.jpeg"),
     ("image1005.jpeg (Foreground worker carrying mud, background worker)", "d:/Safe/uploads/upload_20260824_225326_image1005.jpeg"),
     ("image1003.jpg (Standard Construction Worker with PPE)", "d:/Safe/construction/images/test/image1003.jpg"),

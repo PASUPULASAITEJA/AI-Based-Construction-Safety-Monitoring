@@ -83,7 +83,7 @@ class ConstructionDetector:
         Run inference on a single image (numpy array or filepath).
         Returns a list of structured detection dictionaries with class-specific filtering.
         """
-        c_thresh = conf if conf is not None else 0.035
+        c_thresh = conf if conf is not None else self.conf
         i_thresh = iou if iou is not None else self.iou
 
         results = self.model.predict(
@@ -104,6 +104,7 @@ class ConstructionDetector:
         if boxes is None or len(boxes) == 0:
             return []
 
+        orig_h, orig_w = r.orig_shape
         raw_candidates = []
         for box in boxes:
             xyxy = box.xyxy[0].cpu().numpy().tolist()
@@ -133,8 +134,8 @@ class ConstructionDetector:
 
         # Class-specific confidence filtering
         min_thresholds = {
-            "person": 0.20,      # Captures side-by-side and partially occluded workers
-            "helmet": 0.10,      # Filters false turban/cloth detections while keeping hardhats
+            "person": 0.08,      # Sensitive for crouching, seated, and overhead workers
+            "helmet": 0.025,     # High recall for aerial/overhead hardhats (chromatic validator confirms)
             "vest": 0.04,        # Sensitive for safety vests (chromatic validator confirms high-vis)
             "no_helmet": 0.25,
             "other": 0.15
@@ -151,17 +152,28 @@ class ConstructionDetector:
             d for d in raw_candidates 
             if d["category"] == "person" and d["confidence"] >= min_thresholds["person"]
         ]
-        person_candidates = sorted(person_candidates, key=lambda x: x["confidence"], reverse=True)
+        
+        vests_list = [d for d in filtered_ppe if d["category"] == "vest"]
 
         clean_persons = []
-        for cand in person_candidates:
+        for cand in sorted(person_candidates, key=lambda x: x["confidence"], reverse=True):
             b1 = cand["bbox"]
             w1 = b1[2] - b1[0]
             h1 = b1[3] - b1[1]
             cx1 = (b1[0] + b1[2]) / 2
             a1 = max(1, w1 * h1)
-            keep = True
 
+            # Skip merged group box if it contains multiple horizontally separated vests
+            contained_vests = [
+                v for v in vests_list 
+                if b1[0] <= (v["bbox"][0] + v["bbox"][2]) / 2 <= b1[2] and b1[1] <= (v["bbox"][1] + v["bbox"][3]) / 2 <= b1[3]
+            ]
+            if len(contained_vests) >= 2:
+                v_cxs = [(v["bbox"][0] + v["bbox"][2]) / 2 for v in contained_vests]
+                if max(v_cxs) - min(v_cxs) > 0.25 * w1:
+                    continue  # Skip multi-person group merge box!
+
+            keep = True
             for kept in clean_persons:
                 b2 = kept["bbox"]
                 w2 = b2[2] - b2[0]
@@ -179,35 +191,40 @@ class ConstructionDetector:
                 iou_val = inter / union if union > 0 else 0
                 containment = inter / min(a1, a2) if min(a1, a2) > 0 else 0
 
-                # Suppress if heavily nested (>70%) or high IoU (>0.45)
-                if containment > 0.70 or iou_val > 0.45:
+                # Suppress if heavily nested (>65%) or high IoU (>0.40)
+                if containment > 0.65 or iou_val > 0.40:
                     keep = False
                     break
 
                 # Suppress if moderate overlap in the same vertical column (dx < 25% width)
-                if (containment > 0.50 or iou_val > 0.30) and dx < 0.25 * min(w1, w2):
+                if (containment > 0.45 or iou_val > 0.25) and dx < 0.25 * min(w1, w2):
                     keep = False
                     break
 
             if keep:
                 clean_persons.append(cand)
 
-        # 3. Recover any partially occluded / background worker wearing a confirmed vest
+        # 3. Recover any partially occluded / background / lying worker wearing a confirmed vest
         for v in filtered_ppe:
-            if v["category"] == "vest" and v["confidence"] >= 0.08:
+            if v["category"] == "vest" and v["confidence"] >= 0.04:
+                from cv.ppe_association import validate_high_vis_vest
+                if not validate_high_vis_vest(image_or_frame, v["bbox"], v["confidence"]):
+                    continue
+
                 vx1, vy1, vx2, vy2 = v["bbox"]
                 vw, vh = vx2 - vx1, vy2 - vy1
-                is_covered = False
-                for p in clean_persons:
-                    px1, py1, px2, py2 = p["bbox"]
-                    if not (vx2 < px1 or vx1 > px2 or vy2 < py1 or vy1 > py2):
-                        is_covered = True
-                        break
+                # Skip small corner debris artifacts
+                if vh < 90 or vw < 70 or vw > 1.6 * vh:
+                    continue
+
+                vc_x = (vx1 + vx2) / 2
+                vc_y = (vy1 + vy2) / 2
+                is_covered = any(p["bbox"][0] <= vc_x <= p["bbox"][2] and p["bbox"][1] <= vc_y <= p["bbox"][3] for p in clean_persons)
                 if not is_covered:
-                    px1 = max(0, vx1 - int(vw * 0.25))
-                    py1 = max(0, vy1 - int(vh * 0.45))
-                    px2 = vx2 + int(vw * 0.25)
-                    py2 = vy2 + int(vh * 0.85)
+                    px1 = max(0, vx1 - int(vw * 0.15))
+                    py1 = max(0, vy1 - int(vh * 0.30))
+                    px2 = min(orig_w, vx2 + int(vw * 0.80))
+                    py2 = min(orig_h, vy2 + int(vh * 0.90))
                     clean_persons.append({
                         "bbox": [px1, py1, px2, py2],
                         "confidence": v["confidence"],
