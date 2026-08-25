@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Live Monitor | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}📹 Real-Time Live Monitoring Workstation{% endblock %}
+
+{% block top_actions %}
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <select id="camera-source-select" class="form-select" style="width: 210px; padding: 7px 12px; font-size: 13px;" onchange="switchCameraSource(this.value)">
+      <option value="webcam">📸 Hardware Webcam</option>
+      <option value="browser">🌐 Browser Camera (WebRTC)</option>
+      <option value="simulator">🏗️ Construction-PPE Simulator</option>
+    </select>
+    <button id="btn-camera-start" class="btn btn-primary" onclick="startCamera()">
+      ▶ Start Camera
+    </button>
+    <button id="btn-camera-stop" class="btn btn-danger" onclick="stopCamera()">
+      ⏹ Stop Camera
+    </button>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="monitor-layout">
+  <!-- Left Column: Video Stream & Interactive Zone Canvas -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div class="card" style="padding: 12px; margin-bottom: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+          LIVE AI INFERENCE STREAM (YOLO + BYTETRACK + SPATIAL PPE)
+        </div>
+        <div id="live-stream-badge" class="badge badge-compliant">Camera Online</div>
+      </div>
+
+      <div class="video-feed-container" id="stream-wrapper">
+        <img id="live-video-stream" src="{{ url_for('video_feed') }}" alt="Live Monitoring Feed" class="video-stream-img">
+        <video id="browser-webcam-element" autoplay playsinline muted style="display: none;"></video>
+        <canvas id="browser-capture-canvas" style="display: none;"></canvas>
+        <canvas id="zone-drawing-canvas" class="zone-canvas-overlay"></canvas>
+      </div>
+    </div>
+
+    <!-- Zone Drawing Control Bar -->
+    <div class="card" style="padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <strong style="font-size: 13px; color: var(--text-primary);">Zone Drawing:</strong>
+          <select id="zone-type-select" class="form-select" style="width: 140px; padding: 6px 10px; font-size: 12px;">
+            <option value="RESTRICTED">RESTRICTED</option>
+            <option value="HAZARD">HAZARD</option>
+            <option value="SAFE">SAFE</option>
+          </select>
+          <input type="text" id="zone-name-input" class="form-input" placeholder="Zone Name (e.g. Scaffolding)" style="width: 180px; padding: 6px 10px; font-size: 12px;">
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button id="btn-draw-mode" class="btn btn-sm btn-secondary" onclick="toggleDrawMode()">
+            ✏️ New Polygon
+          </button>
+          <button id="btn-save-zone" class="btn btn-sm btn-primary" onclick="saveCurrentZone()" disabled>
+            💾 Save Zone
+          </button>
+          <button id="btn-clear-draw" class="btn btn-sm btn-secondary" onclick="clearActiveDrawing()">
+            ❌ Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Zones List -->
+      <div id="active-zones-container" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <!-- Dynamically rendered zones badges -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Real-Time Worker Status Roster -->
+  <div class="card" style="padding: 18px; display: flex; flex-direction: column;">
+    <div class="card-title">
+      <span>👷 Tracked Personnel</span>
+      <span class="badge badge-low" id="worker-count-badge">0 Active</span>
+    </div>
+
+    <div class="worker-status-panel" id="worker-roster-list">
+      <div style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
+        No workers currently detected in camera view.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/zones.js') }}"></script>
+<script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}🛡️ Executive Safety Dashboard{% endblock %}
+
+{% block top_actions %}
+  <a href="{{ url_for('monitor_view') }}" class="btn btn-primary" id="btn-goto-monitor">
+    📹 Launch Live Monitor
+  </a>
+  <a href="{{ url_for('upload_view') }}" class="btn btn-secondary" id="btn-goto-upload">
+    📁 Upload Media
+  </a>
+{% endblock %}
+
+{% block content %}
+<!-- Executive Metrics Cards -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-header">
+      <span>Workers Observed</span>
+      <span class="metric-icon">👷</span>
+    </div>
+    <div class="metric-value" id="card-workers-count">{{ stats.workers_count|default(0) }}</div>
+    <div class="metric-footer">Active tracked site personnel</div>
+  </div>
+
+  <div class="metric-card success">
+    <div class="metric-header">
+      <span>PPE Compliance</span>
+      <span class="metric-icon">✅</span>
+    </div>
+    <div class="metric-value" id="card-compliance-rate">{{ stats.compliance_rate|default(100) }}%</div>
+    <div class="metric-footer">Helmet & Vest spatial compliance</div>
+  </div>
+
+  <div class="metric-card warning">
+    <div class="metric-header">
+      <span>Active Violations</span>
+      <span class="metric-icon">⚠️</span>
+    </div>
+    <div class="metric-value" id="card-violations-count">{{ stats.violations_count|default(0) }}</div>
+    <div class="metric-footer">Temporal buffer verified breaches</div>
+  </div>
+
+  <div class="metric-card critical">
+    <div class="metric-header">
+      <span>Critical Alerts</span>
+      <span class="metric-icon">🚨</span>
+    </div>
+    <div class="metric-value" id="card-critical-count">{{ stats.critical_count|default(0) }}</div>
+    <div class="metric-footer">Hazard zone / compound violations</div>
+  </div>
+</div>
+
+<!-- Main Split: Live Camera Preview & Recent Safety Incidents -->
+<div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px;">
+  <!-- Live Stream Widget -->
+  <div class="card">
+    <div class="card-title">
+      <span>📹 Live Site Camera Stream</span>
+      <span class="badge badge-compliant" id="stream-status-badge">AI Pipeline Active</span>
+    </div>
+    <div class="video-feed-container" style="max-height: 380px;">
+      <img id="dashboard-stream-img" src="{{ url_for('video_feed') }}" alt="Live Feed" class="video-stream-img" onerror="this.src='/static/images/stream_offline.png'">
+    </div>
+    <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 13px; color: var(--text-secondary);">Source: Primary Camera 01 (OpenCV RTSP/Webcam)</span>
+      <a href="{{ url_for('monitor_view') }}" class="btn btn-sm btn-secondary">Open Full Workstation &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Recent Alerts Feed -->
+  <div class="card">
+    <div class="card-title">
+      <span>🚨 Recent Safety Alerts</span>
+      <a href="{{ url_for('incidents_view') }}" style="font-size: 12px; color: var(--accent-cyan); text-decoration: none;">View All Log &rarr;</a>
+    </div>
+
+    <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Worker</th>
+            <th>Violation</th>
+            <th>Severity</th>
+            <th>Time</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="dashboard-alerts-body">
+          {% if recent_alerts %}
+            {% for a in recent_alerts %}
+              <tr>
+                <td><strong>{{ a.incident_code }}</strong></td>
+                <td>{{ a.worker_label }}</td>
+                <td>{{ a.violation_type }}</td>
+                <td>
+                  <span class="badge badge-{{ a.severity|lower }}">{{ a.severity }}</span>
+                </td>
+                <td style="color: var(--text-muted);">{{ a.timestamp }}</td>
+                <td>
+                  {% if a.snapshot_path %}
+                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}', '{{ a.incident_code }}', '{{ a.violation_type }}')">📸</button>
+                  {% else %}
+                    <span style="color: var(--text-muted);">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                No active safety violations detected. Site is currently 100% compliant.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

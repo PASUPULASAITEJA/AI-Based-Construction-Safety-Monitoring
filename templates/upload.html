@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Media | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}📁 Media Upload & Offline Analysis Studio{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+  <!-- Tab 1: Image Analysis -->
+  <div class="card">
+    <div class="card-title">
+      <span>🖼️ Single Image Inspection</span>
+      <span class="badge badge-low">JPG, PNG, WEBP</span>
+    </div>
+
+    <form id="image-upload-form" enctype="multipart/form-data">
+      <div class="upload-dropzone" id="image-dropzone" onclick="document.getElementById('image-file-input').click()">
+        <div class="upload-icon">📸</div>
+        <h4 style="margin-bottom: 6px;">Click or Drag & Drop Construction Image</h4>
+        <p style="font-size: 12px; color: var(--text-muted);">Instant worker detection & PPE compliance verification</p>
+        <input type="file" id="image-file-input" name="image" accept=".jpg,.jpeg,.png,.webp" style="display: none;" onchange="handleImageSelection(event)">
+      </div>
+      <div id="image-selected-label" style="margin-top: 10px; font-size: 13px; color: var(--accent-cyan); display: none;"></div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <button type="button" id="btn-process-image" class="btn btn-primary" onclick="submitImageAnalysis()" disabled>
+          🔍 Run Safety Analysis
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab 2: Video Analysis -->
+  <div class="card">
+    <div class="card-title">
+      <span>🎬 Video Stream Processing</span>
+      <span class="badge badge-low">MP4, AVI, MOV</span>
+    </div>
+
+    <form id="video-upload-form" enctype="multipart/form-data">
+      <div class="upload-dropzone" id="video-dropzone" onclick="document.getElementById('video-file-input').click()">
+        <div class="upload-icon">🎥</div>
+        <h4 style="margin-bottom: 6px;">Click or Drag & Drop Site Video</h4>
+        <p style="font-size: 12px; color: var(--text-muted);">Frame-by-frame sequential processing with tracking & zones</p>
+        <input type="file" id="video-file-input" name="video" accept=".mp4,.avi,.mov" style="display: none;" onchange="handleVideoSelection(event)">
+      </div>
+      <div id="video-selected-label" style="margin-top: 10px; font-size: 13px; color: var(--accent-cyan); display: none;"></div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <button type="button" id="btn-process-video" class="btn btn-primary" onclick="submitVideoAnalysis()" disabled>
+          ⚡ Process Video Stream
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Progress Bar & Status (For Video/Image) -->
+<div id="upload-progress-container" class="card" style="display: none; padding: 18px;">
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+    <strong id="upload-status-title">Processing Media...</strong>
+    <span id="upload-status-pct" style="color: var(--accent-cyan); font-family: monospace;">0%</span>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.1); border-radius: 6px; height: 8px; overflow: hidden;">
+    <div id="upload-progress-bar" style="background: linear-gradient(90deg, var(--accent-cyan), var(--color-success)); height: 100%; width: 0%; transition: width 0.3s;"></div>
+  </div>
+</div>
+
+<!-- Results Area -->
+<div id="results-display-container" class="card" style="display: none;">
+  <div class="card-title">
+    <span>📊 Inspection Results & Annotations</span>
+    <button class="btn btn-sm btn-secondary" onclick="resetUploadView()">Clear / New Upload</button>
+  </div>
+
+  <div id="results-content-split" style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px;">
+    <!-- Media Viewer -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h5 style="color: var(--text-secondary); margin: 0;">📸 High-Resolution Visual Inspection</h5>
+        <a id="btn-download-annotated" href="#" download="safety_inspection_result.jpg" class="btn btn-sm btn-secondary" style="display: none;">⬇️ Download Annotated</a>
+      </div>
+      <div id="annotated-media-wrapper" style="background: rgba(15, 20, 26, 0.9); border-radius: 10px; padding: 10px; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; min-height: 380px;">
+        <img id="result-annotated-img" src="" alt="Annotated Output" style="max-width: 100%; max-height: 520px; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); object-fit: contain; display: none;">
+        <video id="result-annotated-video" controls style="max-width: 100%; max-height: 520px; border-radius: 6px; display: none;"></video>
+      </div>
+    </div>
+
+    <!-- Statistics & Violations Breakdown -->
+    <div>
+      <h5 style="margin-bottom: 10px; color: var(--text-secondary);">Safety Compliance Breakdown</h5>
+      
+      <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div class="metric-card" style="padding: 12px;">
+          <div class="metric-header"><span>Workers</span></div>
+          <div class="metric-value" id="result-workers-count" style="font-size: 24px;">0</div>
+        </div>
+        <div class="metric-card warning" style="padding: 12px;">
+          <div class="metric-header"><span>Violations</span></div>
+          <div class="metric-value" id="result-violations-count" style="font-size: 24px;">0</div>
+        </div>
+      </div>
+
+      <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Worker</th>
+              <th>Helmet</th>
+              <th>Vest</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="result-workers-table-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

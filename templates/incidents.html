@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Incident History | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}🚨 Safety Incident Audit Log{% endblock %}
+
+{% block top_actions %}
+  <button class="btn btn-secondary" onclick="exportIncidentsCSV()">
+    📥 Export CSV Log
+  </button>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding: 16px; margin-bottom: 20px;">
+  <!-- Filter Controls -->
+  <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <div>
+        <label class="form-label" style="margin-bottom: 4px;">Violation Type</label>
+        <select id="filter-violation-type" class="form-select" style="width: 200px;" onchange="applyFilters()">
+          <option value="ALL">All Violation Types</option>
+          <option value="NO_HELMET">Missing Helmet</option>
+          <option value="NO_VEST">Missing Safety Vest</option>
+          <option value="RESTRICTED_ZONE_BREACH">Restricted Zone</option>
+          <option value="HAZARD_NO_HELMET">Hazard Zone (No Helmet)</option>
+          <option value="HAZARD_NO_VEST">Hazard Zone (No Vest)</option>
+          <option value="HAZARD_NO_PPE">Hazard Zone (No PPE)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label" style="margin-bottom: 4px;">Severity</label>
+        <select id="filter-severity" class="form-select" style="width: 150px;" onchange="applyFilters()">
+          <option value="ALL">All Severities</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+          <option value="CRITICAL">CRITICAL</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label" style="margin-bottom: 4px;">Search</label>
+        <input type="text" id="filter-search" class="form-input" placeholder="Search Code or Worker..." style="width: 220px;" oninput="applyFilters()">
+      </div>
+    </div>
+
+    <div>
+      <span style="font-size: 13px; color: var(--text-secondary);" id="incidents-count-label">
+        Showing {{ incidents|length }} recorded incidents
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table" id="incidents-master-table">
+      <thead>
+        <tr>
+          <th>Incident Code</th>
+          <th>Worker</th>
+          <th>Violation Type</th>
+          <th>Description</th>
+          <th>Severity</th>
+          <th>Confidence</th>
+          <th>Source</th>
+          <th>Timestamp</th>
+          <th>Snapshot</th>
+        </tr>
+      </thead>
+      <tbody id="incidents-table-body">
+        {% if incidents %}
+          {% for inc in incidents %}
+            <tr>
+              <td><strong style="color: var(--accent-cyan);">{{ inc.incident_code }}</strong></td>
+              <td>{{ inc.worker_label }}</td>
+              <td><strong>{{ inc.violation_type }}</strong></td>
+              <td style="color: var(--text-secondary); max-width: 260px;">{{ inc.description }}</td>
+              <td>
+                <span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
+              </td>
+              <td style="font-family: monospace;">{{ (inc.confidence * 100)|round(1) }}%</td>
+              <td><span class="ppe-pill">{{ inc.source }}</span></td>
+              <td style="color: var(--text-muted); font-size: 12px;">{{ inc.timestamp }}</td>
+              <td>
+                {% if inc.snapshot_path %}
+                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                    📸 View
+                  </button>
+                {% else %}
+                  <span style="color: var(--text-muted);">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 40px;">
+              No incidents logged matching criteria.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const vType = document.getElementById('filter-violation-type').value;
+  const sev = document.getElementById('filter-severity').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+
+  const rows = document.querySelectorAll('#incidents-table-body tr');
+  let matchCount = 0;
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    const typeCell = row.children[2] ? row.children[2].innerText.trim() : '';
+    const sevCell = row.children[4] ? row.children[4].innerText.trim() : '';
+
+    const matchType = (vType === 'ALL' || typeCell === vType);
+    const matchSev = (sev === 'ALL' || sevCell.includes(sev));
+    const matchSearch = (!search || text.includes(search));
+
+    if (matchType && matchSev && matchSearch) {
+      row.style.display = '';
+      matchCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  document.getElementById('incidents-count-label').innerText = `Showing ${matchCount} matching incidents`;
+}
+
+function exportIncidentsCSV() {
+  window.location.href = '/api/incidents/export';
+}
+</script>
+{% endblock %}
