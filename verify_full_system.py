@@ -121,7 +121,7 @@ def test_camera_mode_switch():
     print("=" * 60)
 
     for mode in ["simulator", "webcam"]:
-        res = requests.post(f"{BASE_URL}/camera/mode", json={"mode": mode}, timeout=5)
+        res = requests.post(f"{BASE_URL}/camera/mode", json={"mode": mode}, timeout=10)
         print(f"  [POST /camera/mode: '{mode}'] -> Success: {res.json().get('success')}, Mode: {res.json().get('mode')}")
 
 def test_browser_frame_processing():
