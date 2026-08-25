@@ -54,7 +54,7 @@ def validate_high_vis_vest(frame, v_box, conf):
     return ratio >= 0.12
 
 def validate_hardhat_color(frame, h_box, conf):
-    """Verifies that a hardhat detection contains valid hardhat colors (yellow, orange, white), not bare hair in front of white ceilings."""
+    """Verifies that a hardhat detection contains valid hardhat colors (yellow, orange), not bare/grey hair or skin."""
     if conf >= 0.15:
         return True
     if frame is None:
@@ -72,24 +72,14 @@ def validate_hardhat_color(frame, h_box, conf):
 
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
 
-    # Check if center has dark hair (V < 65) - Bare head rejection
-    ch, cw = crop.shape[:2]
-    center_region = hsv[int(ch * 0.25):int(ch * 0.85), int(cw * 0.20):int(cw * 0.80)]
-    if center_region.size > 0:
-        dark_hair_mask = cv2.inRange(center_region, np.array([0, 0, 0]), np.array([180, 255, 65]))
-        dark_hair_ratio = np.count_nonzero(dark_hair_mask) / float(center_region.shape[0] * center_region.shape[1])
-        if dark_hair_ratio > 0.25:
-            return False
+    # 1. Fluorescent / Industrial Yellow Hardhat:
+    mask_yellow = cv2.inRange(hsv, np.array([18, 90, 100]), np.array([36, 255, 255]))
+    # 2. Safety Orange / High-Vis Red:
+    mask_orange = cv2.inRange(hsv, np.array([4, 130, 110]), np.array([18, 255, 255]))
 
-    # 1. Fluorescent / Industrial Yellow & Safety Orange hardhats:
-    mask_yellow = cv2.inRange(hsv, np.array([15, 75, 90]), np.array([38, 255, 255]))
-    mask_orange = cv2.inRange(hsv, np.array([4, 90, 90]), np.array([15, 255, 255]))
-    # 2. Solid White Hardhat:
-    mask_white = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 35, 255]))
-
-    mask_color = mask_yellow | mask_orange | mask_white
+    mask_color = mask_yellow | mask_orange
     ratio = np.count_nonzero(mask_color) / float(crop.shape[0] * crop.shape[1])
-    return ratio >= 0.28
+    return ratio >= 0.20
 
 class PPEAssociator:
     def __init__(

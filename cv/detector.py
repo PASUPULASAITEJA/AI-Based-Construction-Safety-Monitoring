@@ -137,7 +137,7 @@ class ConstructionDetector:
             "person": 0.08,      # Sensitive for crouching, seated, and overhead workers
             "helmet": 0.025,     # High recall for aerial/overhead hardhats (chromatic validator confirms)
             "vest": 0.04,        # Sensitive for safety vests (chromatic validator confirms high-vis)
-            "no_helmet": 0.25,
+            "no_helmet": 0.03,   # Sensitive for bare head detection
             "other": 0.15
         }
 
