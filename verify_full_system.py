@@ -19,7 +19,7 @@ def test_routes():
     print("=" * 60)
 
     routes = [
-        ("/", "MindGuard AI", "Executive Safety Dashboard"),
+        ("/", "SafeGuard AI", "Executive Safety Dashboard"),
         ("/monitor", "Live Monitor", "Zone Drawing"),
         ("/upload", "Upload Media", "Single Image Inspection"),
         ("/incidents", "Incident History", "Safety Incident Audit Log"),
