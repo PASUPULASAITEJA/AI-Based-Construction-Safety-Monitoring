@@ -54,11 +54,11 @@ def validate_high_vis_vest(frame, v_box, conf):
     return ratio >= 0.12
 
 def validate_hardhat_color(frame, h_box, conf):
-    """Verifies that a hardhat detection contains valid hardhat colors (yellow, orange, white)."""
-    if conf >= 0.10:
+    """Verifies that a hardhat detection contains valid hardhat colors (yellow, orange, white), not bare hair in front of white ceilings."""
+    if conf >= 0.15:
         return True
     if frame is None:
-        return conf >= 0.025
+        return conf >= 0.08
 
     H, W = frame.shape[:2]
     hx1, hy1, hx2, hy2 = h_box
@@ -71,13 +71,25 @@ def validate_hardhat_color(frame, h_box, conf):
         return False
 
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    mask_yellow = cv2.inRange(hsv, np.array([15, 80, 100]), np.array([35, 255, 255]))
-    mask_orange = cv2.inRange(hsv, np.array([4, 100, 100]), np.array([15, 255, 255]))
-    mask_white = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 45, 255]))
 
-    mask = mask_yellow | mask_orange | mask_white
-    ratio = np.count_nonzero(mask) / float(crop.shape[0] * crop.shape[1])
-    return ratio >= 0.18
+    # Check if center has dark hair (V < 65) - Bare head rejection
+    ch, cw = crop.shape[:2]
+    center_region = hsv[int(ch * 0.25):int(ch * 0.85), int(cw * 0.20):int(cw * 0.80)]
+    if center_region.size > 0:
+        dark_hair_mask = cv2.inRange(center_region, np.array([0, 0, 0]), np.array([180, 255, 65]))
+        dark_hair_ratio = np.count_nonzero(dark_hair_mask) / float(center_region.shape[0] * center_region.shape[1])
+        if dark_hair_ratio > 0.25:
+            return False
+
+    # 1. Fluorescent / Industrial Yellow & Safety Orange hardhats:
+    mask_yellow = cv2.inRange(hsv, np.array([15, 75, 90]), np.array([38, 255, 255]))
+    mask_orange = cv2.inRange(hsv, np.array([4, 90, 90]), np.array([15, 255, 255]))
+    # 2. Solid White Hardhat:
+    mask_white = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 35, 255]))
+
+    mask_color = mask_yellow | mask_orange | mask_white
+    ratio = np.count_nonzero(mask_color) / float(crop.shape[0] * crop.shape[1])
+    return ratio >= 0.28
 
 class PPEAssociator:
     def __init__(
