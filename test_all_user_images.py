@@ -1,19 +1,20 @@
+import os
 from cv.pipeline import SafetyPipeline
 
 pipeline = SafetyPipeline(model_path='d:/Safe/model/best.pt', conf=0.035)
 
 tests = [
-    ("image939.jpeg (2 Workers, Flannel & Black T-Shirt, Both Wearing Helmets, No Vests)", "d:/Safe/uploads/upload_20260824_223843_image939.jpeg"),
-    ("image1005.jpeg (Foreground worker carrying mud, background worker)", "d:/Safe/uploads/upload_20260824_223253_image1005.jpeg"),
-    ("image321.jpg (4 Workers Standing in a Row with Helmets & Vests)", "d:/Safe/uploads/upload_20260824_222248_image321.jpg"),
-    ("image522.jpeg (Radio Tower Climber with White Helmet & Vest)", "d:/Safe/uploads/upload_20260824_220809_image522.jpeg"),
-    ("image546.jpg (Lime Vest, No Helmet on Head)", "d:/Safe/uploads/upload_20260824_204649_image546.jpg"),
-    ("image988.jpeg (2 Workers, Beige & Black T-shirts, No PPE)", "d:/Safe/uploads/upload_20260824_205553_image988.jpeg"),
-    ("image21.jpeg (Workers Digging with Helmets & Vests)", "d:/Safe/uploads/upload_20260824_211358_image21.jpeg"),
+    ("image886.jpeg (Worker 1: Helmet + Lime Vest, Worker 2: Helmet + Blue Overalls)", "d:/Safe/uploads/upload_20260825_095059_image886.jpeg"),
+    ("image1005.jpeg (Foreground worker carrying mud, background worker)", "d:/Safe/uploads/upload_20260824_225326_image1005.jpeg"),
     ("image1003.jpg (Standard Construction Worker with PPE)", "d:/Safe/construction/images/test/image1003.jpg"),
+    ("image1007.jpg (Construction Personnel with Hardhat & Vest)", "d:/Safe/construction/images/test/image1007.jpg"),
+    ("image1009.jpg (Construction Personnel with Full Gear)", "d:/Safe/construction/images/test/image1009.jpg"),
 ]
 
 for title, path in tests:
+    if not os.path.exists(path):
+        print(f"\n[SKIP] File not found: {path}")
+        continue
     print(f"\n==================================================")
     print(f"EVALUATING: {title}")
     print(f"==================================================")

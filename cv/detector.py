@@ -135,7 +135,7 @@ class ConstructionDetector:
         min_thresholds = {
             "person": 0.20,      # Captures side-by-side and partially occluded workers
             "helmet": 0.10,      # Filters false turban/cloth detections while keeping hardhats
-            "vest": 0.08,        # Sensitive for safety vests
+            "vest": 0.04,        # Sensitive for safety vests (chromatic validator confirms high-vis)
             "no_helmet": 0.25,
             "other": 0.15
         }

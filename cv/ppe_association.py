@@ -128,7 +128,8 @@ class PPEAssociator:
                 h_center = ((h_box[0] + h_box[2]) / 2, (h_box[1] + h_box[3]) / 2)
                 overlap = compute_box_overlap(h_box, head_box)
 
-                if is_point_inside(h_center, head_box) or overlap >= self.min_overlap:
+                # Helmet center must be horizontally aligned with this worker
+                if (is_point_inside(h_center, head_box) or overlap >= 0.20) and (w_box[0] - 15 <= h_center[0] <= w_box[2] + 15):
                     if h["confidence"] > best_helmet_conf:
                         has_helmet = True
                         best_helmet_conf = h["confidence"]
@@ -139,7 +140,7 @@ class PPEAssociator:
             for nh in no_helmets:
                 nh_box = nh["bbox"]
                 nh_center = ((nh_box[0] + nh_box[2]) / 2, (nh_box[1] + nh_box[3]) / 2)
-                if is_point_inside(nh_center, head_box) or compute_box_overlap(nh_box, head_box) >= self.min_overlap:
+                if (is_point_inside(nh_center, head_box) or compute_box_overlap(nh_box, head_box) >= 0.20) and (w_box[0] - 15 <= nh_center[0] <= w_box[2] + 15):
                     has_no_helmet_signal = True
                     break
 
@@ -156,7 +157,8 @@ class PPEAssociator:
                 v_center = ((v_box[0] + v_box[2]) / 2, (v_box[1] + v_box[3]) / 2)
                 overlap = compute_box_overlap(v_box, torso_box)
 
-                if is_point_inside(v_center, torso_box) or overlap >= self.min_overlap:
+                # Vest center MUST be horizontally inside this worker (prevents cross-talk from adjacent workers)
+                if (is_point_inside(v_center, torso_box) or overlap >= 0.20) and (w_box[0] - 15 <= v_center[0] <= w_box[2] + 15):
                     if validate_high_vis_vest(frame, v_box, v["confidence"]):
                         if v["confidence"] > best_vest_conf:
                             has_vest = True
