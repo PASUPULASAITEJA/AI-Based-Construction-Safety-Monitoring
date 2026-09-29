@@ -1,34 +1,39 @@
 """
 Safety Module: Alert Manager
-Handles incident numbering, snapshot cropping/saving, and database persistence.
+Handles incident numbering, snapshot cropping/saving, database persistence,
+alert lifecycle creation, notifications, and worker tracking integration.
 """
 import os
 import cv2
 import time
 import datetime
+import threading
 import config
-from database.models import IncidentModel
+from database.models import IncidentModel, AlertModel, NotificationModel, AuditLogModel, WorkerTrackModel, ViolationModel
+
+# Shared by every AlertManager in the process (live stream + per-upload pipelines),
+# so incident codes are allocated and inserted one at a time.
+_incident_lock = threading.Lock()
 
 class AlertManager:
     def __init__(self, snapshots_dir=config.SNAPSHOTS_DIR):
         self.snapshots_dir = snapshots_dir
         os.makedirs(self.snapshots_dir, exist_ok=True)
         self.recent_alerts = []
-        self._sync_incident_counter()
 
-    def _sync_incident_counter(self):
-        count = IncidentModel.get_count()
-        self.next_incident_num = count + 1
-
-    def record_incident(self, incident_data, frame=None, source="Webcam"):
+    def record_incident(self, incident_data, frame=None, source="Webcam", site_id=None, camera_id=None):
         """
         Processes a confirmed incident:
-        1. Formats incident code (INC-XXXX)
+        1. Formats violation and incident codes
         2. Captures/saves snapshot if frame provided
-        3. Writes to SQLite database
-        4. Updates in-memory recent alerts list
+        3. Writes to SQLite database (violations, incidents & alerts tables)
+        4. Dispatches in-app notification for HIGH & CRITICAL alerts
+        5. Logs audit trail & updates worker tracking stats
+        6. Updates in-memory recent alerts list
         """
         code = f"INC-{self.next_incident_num:04d}"
+        viol_code = f"VIO-{self.next_incident_num:04d}"
+        alert_code = f"ALT-{self.next_incident_num:04d}"
         self.next_incident_num += 1
 
         worker_id = incident_data.get("worker_id", 1)
@@ -41,23 +46,25 @@ class AlertManager:
         snapshot_rel_path = None
         if frame is not None:
             ts_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            snap_name = f"{code}_{worker_label.replace(' ', '_')}_{ts_str}.jpg"
+            snap_name = f"{code}_{worker_label.replace(' ', '_').replace('#', '')}_{ts_str}.jpg"
             snap_full_path = os.path.join(self.snapshots_dir, snap_name)
 
-            # Crop or save full annotated frame
             snap_img = frame.copy()
             bbox = incident_data.get("bbox")
             if bbox:
                 x1, y1, x2, y2 = bbox
-                # Highlight the worker with a red box in snapshot
-                cv2.rectangle(snap_img, (x1, y1), (x2, y2), (0, 0, 255), 3)
+                # Highlight worker with high-visibility red box and label banner
+                cv2.rectangle(snap_img, (x1, y1), (x2, y2), (0, 0, 235), 3)
+                cv2.rectangle(snap_img, (x1, max(0, y1 - 24)), (x2, y1), (0, 0, 235), -1)
+                cv2.putText(snap_img, f"{worker_label} | {v_type}", (x1 + 4, y1 - 6),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
 
             cv2.imwrite(snap_full_path, snap_img)
             snapshot_rel_path = f"snapshots/{snap_name}"
 
-        # Persist to database
-        db_id = IncidentModel.create(
-            incident_code=code,
+        # 1. Persist to Violations table
+        viol_id = ViolationModel.create(
+            violation_code=viol_code,
             worker_id=worker_id,
             worker_label=worker_label,
             violation_type=v_type,
@@ -65,12 +72,70 @@ class AlertManager:
             severity=severity,
             confidence=confidence,
             source=source,
-            snapshot_path=snapshot_rel_path
+            snapshot_path=snapshot_rel_path,
+            duration_sec=incident_data.get("duration_sec", 0.0),
+            site_id=site_id,
+            camera_id=camera_id
+        )
+
+        # 2. Persist to Incidents table
+        db_id = IncidentModel.create(
+            incident_code=code,
+            violation_id=viol_id,
+            worker_id=worker_id,
+            worker_label=worker_label,
+            violation_type=v_type,
+            description=desc,
+            severity=severity,
+            confidence=confidence,
+            source=source,
+            snapshot_path=snapshot_rel_path,
+            site_id=site_id,
+            camera_id=camera_id
+        )
+
+        # 3. Persist to Alerts table
+        AlertModel.create(
+            alert_code=alert_code,
+            incident_id=db_id,
+            violation_id=viol_id,
+            violation_type=v_type,
+            severity=severity,
+            camera_id=camera_id,
+            site_id=site_id
+        )
+
+        # 3. Create Notification if HIGH or CRITICAL
+        if severity in ("HIGH", "CRITICAL"):
+            NotificationModel.create(
+                title=f"🚨 {severity} Alert: {v_type}",
+                message=f"{worker_label} triggered {v_type} on {source}. Immediate safety inspection required.",
+                severity=severity,
+                incident_id=db_id
+            )
+
+        # 4. Audit Log
+        AuditLogModel.log(
+            user_role="SYSTEM_AI",
+            action="VIOLATION_TRIGGERED",
+            category="DETECTION",
+            details=f"Code: {code}, Type: {v_type}, Severity: {severity}, Source: {source}",
+            target_id=code
+        )
+
+        # 5. Worker Track Stats
+        track_code = f"TRK-{worker_id:03d}"
+        WorkerTrackModel.record_observation(
+            track_code=track_code,
+            label=worker_label,
+            is_compliant=False,
+            has_violation=True
         )
 
         alert_entry = {
             "id": db_id,
             "incident_code": code,
+            "alert_code": alert_code,
             "worker_label": worker_label,
             "violation_type": v_type,
             "description": desc,
@@ -85,8 +150,9 @@ class AlertManager:
         if len(self.recent_alerts) > 50:
             self.recent_alerts.pop()
 
-        print(f"[Alert] Registered {code} | {worker_label} | {v_type} | {severity} | Source: {source}")
+        print(f"[AlertManager] Logged {code} ({alert_code}) | {worker_label} | {v_type} | {severity} | Source: {source}")
         return alert_entry
 
     def get_recent_alerts(self, limit=10):
         return self.recent_alerts[:limit]
+
