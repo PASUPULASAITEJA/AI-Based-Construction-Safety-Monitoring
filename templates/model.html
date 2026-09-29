@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}AI Model — SiteGuard AI{% endblock %}
+{% block page_title %}AI Model{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+  <!-- Model Specifications Card -->
+  <div class="card">
+    <div class="card-title">
+      <span>YOLOv8 Construction-PPE Model</span>
+      <span class="badge badge-compliant">LOADED & ACTIVE</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+        <span style="color: var(--text-secondary);">Model Architecture:</span>
+        <strong style="color: var(--text-primary);">Ultralytics YOLOv8 (PyTorch)</strong>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+        <span style="color: var(--text-secondary);">Weights File:</span>
+        <span style="font-family: var(--font-mono); color: var(--safety-orange); font-size: 12px;">{{ model_info.model_path }}</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+        <span style="color: var(--text-secondary);">Inference Hardware Device:</span>
+        <strong style="color: var(--color-info); font-family: var(--font-mono);">{{ model_info.device }}</strong>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+        <span style="color: var(--text-secondary);">Input Image Size:</span>
+        <span style="font-family: var(--font-mono);">{{ model_info.img_size }} x {{ model_info.img_size }} px</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+        <span style="color: var(--text-secondary);">Confidence Threshold:</span>
+        <span style="font-family: var(--font-mono); color: var(--color-compliant);">{{ model_info.conf }}</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+        <span style="color: var(--text-secondary);">IoU / NMS Threshold:</span>
+        <span style="font-family: var(--font-mono); color: var(--color-compliant);">{{ model_info.iou }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detected Classes Schema Card -->
+  <div class="card">
+    <div class="card-title">
+      <span>Native Model Classes Schema ({{ model_info.classes|length }} Classes)</span>
+    </div>
+    <div style="font-size: 12px; color: var(--text-muted); margin-top: -8px; margin-bottom: 14px;">
+      Directly parsed from dataset ground-truth configuration (data.yaml)
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+      {% for cid, cname in model_info.classes.items() %}
+        <div style="background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: var(--font-mono); font-size: 11px; color: var(--safety-orange); font-weight: 700;">#{{ cid }}</span>
+          <strong style="font-size: 13px; color: var(--text-primary);">{{ cname }}</strong>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Spatial Reasoning Pipeline Architecture -->
+<div class="card">
+  <div class="card-title">
+    <span>Multi-Stage Safety Reasoning Pipeline Flow</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 10px;">
+    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-top: 3px solid var(--color-info);">
+      <div style="font-size: 11px; color: var(--color-info); font-weight: 700;">STAGE 1</div>
+      <h4 style="font-size: 14px; margin: 6px 0;">YOLO Detection</h4>
+      <p style="font-size: 12px; color: var(--text-secondary);">Concurrent person and PPE item detection across the entire video frame.</p>
+    </div>
+
+    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-top: 3px solid var(--safety-orange);">
+      <div style="font-size: 11px; color: var(--safety-orange); font-weight: 700;">STAGE 2</div>
+      <h4 style="font-size: 14px; margin: 6px 0;">ByteTrack Tracking</h4>
+      <p style="font-size: 12px; color: var(--text-secondary);">Maintains persistent worker identities across successive video frames.</p>
+    </div>
+
+    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-top: 3px solid var(--safety-yellow);">
+      <div style="font-size: 11px; color: var(--safety-yellow); font-weight: 700;">STAGE 3</div>
+      <h4 style="font-size: 14px; margin: 6px 0;">Spatial Association</h4>
+      <p style="font-size: 12px; color: var(--text-secondary);">Maps helmets to head spans and vests to torso regions with chromatic verification.</p>
+    </div>
+
+    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-top: 3px solid var(--color-critical);">
+      <div style="font-size: 11px; color: var(--color-critical); font-weight: 700;">STAGE 4</div>
+      <h4 style="font-size: 14px; margin: 6px 0;">Temporal Rule Engine</h4>
+      <p style="font-size: 12px; color: var(--text-secondary);">Verifies 10+ frame consistency and zone coordinates before logging incidents.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
