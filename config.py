@@ -29,7 +29,7 @@ for folder in [MODEL_DIR, UPLOADS_DIR, OUTPUTS_DIR, SNAPSHOTS_DIR, RUNS_DIR, os.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # CV & Inference Hyperparameters (Defaults)
-CONFIDENCE_THRESHOLD = 0.04
+CONFIDENCE_THRESHOLD = 0.02
 IOU_THRESHOLD = 0.45
 IMG_SIZE = 640
 
