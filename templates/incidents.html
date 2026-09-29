@@ -1,102 +1,149 @@
 {% extends "base.html" %}
 
-{% block title %}Incident History | AI Construction Safety Monitoring{% endblock %}
-{% block page_title %}🚨 Safety Incident Audit Log{% endblock %}
+{% block title %}Incidents — SiteGuard AI{% endblock %}
+{% block page_title %}Incidents{% endblock %}
 
 {% block top_actions %}
-  <button class="btn btn-secondary" onclick="exportIncidentsCSV()">
-    📥 Export CSV Log
-  </button>
+  <a href="{{ url_for('export_incidents_csv') }}" class="btn btn-secondary">
+    Export CSV Audit Log
+  </a>
 {% endblock %}
 
 {% block content %}
+<!-- Filter Controls -->
 <div class="card" style="padding: 16px; margin-bottom: 20px;">
-  <!-- Filter Controls -->
-  <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+  <form id="incident-filter-form" method="GET" action="{{ url_for('incidents_view') }}">
+    <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;">
       <div>
-        <label class="form-label" style="margin-bottom: 4px;">Violation Type</label>
-        <select id="filter-violation-type" class="form-select" style="width: 200px;" onchange="applyFilters()">
-          <option value="ALL">All Violation Types</option>
-          <option value="NO_HELMET">Missing Helmet</option>
-          <option value="NO_VEST">Missing Safety Vest</option>
-          <option value="RESTRICTED_ZONE_BREACH">Restricted Zone</option>
-          <option value="HAZARD_NO_HELMET">Hazard Zone (No Helmet)</option>
-          <option value="HAZARD_NO_VEST">Hazard Zone (No Vest)</option>
-          <option value="HAZARD_NO_PPE">Hazard Zone (No PPE)</option>
+        <label class="form-label">Violation Type</label>
+        <select name="violation_type" class="form-select" style="width: 190px;" onchange="document.getElementById('incident-filter-form').submit()">
+          <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Violation Types</option>
+          <option value="NO_HELMET" {% if current_v_type == 'NO_HELMET' %}selected{% endif %}>Missing Helmet</option>
+          <option value="NO_VEST" {% if current_v_type == 'NO_VEST' %}selected{% endif %}>Missing Safety Vest</option>
+          <option value="RESTRICTED_ZONE_BREACH" {% if current_v_type == 'RESTRICTED_ZONE_BREACH' %}selected{% endif %}>Restricted Zone</option>
+          <option value="HAZARD_NO_HELMET" {% if current_v_type == 'HAZARD_NO_HELMET' %}selected{% endif %}>Hazard Zone (No Helmet)</option>
+          <option value="HAZARD_NO_VEST" {% if current_v_type == 'HAZARD_NO_VEST' %}selected{% endif %}>Hazard Zone (No Vest)</option>
+          <option value="HAZARD_NO_PPE" {% if current_v_type == 'HAZARD_NO_PPE' %}selected{% endif %}>Hazard Zone (No PPE)</option>
         </select>
       </div>
 
       <div>
-        <label class="form-label" style="margin-bottom: 4px;">Severity</label>
-        <select id="filter-severity" class="form-select" style="width: 150px;" onchange="applyFilters()">
-          <option value="ALL">All Severities</option>
-          <option value="LOW">LOW</option>
-          <option value="MEDIUM">MEDIUM</option>
-          <option value="HIGH">HIGH</option>
-          <option value="CRITICAL">CRITICAL</option>
+        <label class="form-label">Severity</label>
+        <select name="severity" class="form-select" style="width: 140px;" onchange="document.getElementById('incident-filter-form').submit()">
+          <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
+          <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+          <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
+          <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+          <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
         </select>
       </div>
 
       <div>
-        <label class="form-label" style="margin-bottom: 4px;">Search</label>
-        <input type="text" id="filter-search" class="form-input" placeholder="Search Code or Worker..." style="width: 220px;" oninput="applyFilters()">
+        <label class="form-label">Resolution Status</label>
+        <select name="status" class="form-select" style="width: 150px;" onchange="document.getElementById('incident-filter-form').submit()">
+          <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+          <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
+          <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" class="form-input" placeholder="Search Incident ID, Worker..." value="{{ current_search|default('') }}" style="width: 200px;">
+      </div>
+
+      <div>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Filter</button>
+        <a href="{{ url_for('incidents_view') }}" class="btn btn-secondary btn-sm" style="height: 38px;">Reset</a>
+      </div>
+
+      <div style="margin-left: auto; font-size: 13px; color: var(--text-secondary); align-self: center;">
+        Total Incidents: <strong style="color: var(--text-primary);">{{ incidents|length }}</strong>
       </div>
     </div>
-
-    <div>
-      <span style="font-size: 13px; color: var(--text-secondary);" id="incidents-count-label">
-        Showing {{ incidents|length }} recorded incidents
-      </span>
-    </div>
-  </div>
+  </form>
 </div>
 
+<!-- Incidents Master Table -->
 <div class="card" style="padding: 0; overflow: hidden;">
   <div class="table-container">
-    <table class="data-table" id="incidents-master-table">
+    <table class="data-table">
       <thead>
         <tr>
           <th>Incident Code</th>
-          <th>Worker</th>
+          <th>Worker Label</th>
           <th>Violation Type</th>
-          <th>Description</th>
           <th>Severity</th>
           <th>Confidence</th>
-          <th>Source</th>
-          <th>Timestamp</th>
-          <th>Snapshot</th>
+          <th>Source / Site</th>
+          <th>Status</th>
+          <th>Assigned Officer</th>
+          <th>Resolution / Action</th>
+          <th>Evidence</th>
         </tr>
       </thead>
-      <tbody id="incidents-table-body">
-        {% if incidents %}
+      <tbody>
+        {% if incidents and incidents|length > 0 %}
           {% for inc in incidents %}
             <tr>
-              <td><strong style="color: var(--accent-cyan);">{{ inc.incident_code }}</strong></td>
-              <td>{{ inc.worker_label }}</td>
-              <td><strong>{{ inc.violation_type }}</strong></td>
-              <td style="color: var(--text-secondary); max-width: 260px;">{{ inc.description }}</td>
+              <td>
+                <strong style="font-family: var(--font-mono); color: var(--safety-orange);">
+                  {{ inc.incident_code }}
+                </strong>
+              </td>
+              <td><strong>{{ inc.worker_label }}</strong></td>
+              <td>
+                <div style="font-weight: 600;">{{ inc.violation_type }}</div>
+                <div style="font-size: 11px; color: var(--text-muted); max-width: 220px;">{{ inc.description }}</div>
+              </td>
               <td>
                 <span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
               </td>
-              <td style="font-family: monospace;">{{ (inc.confidence * 100)|round(1) }}%</td>
-              <td><span class="ppe-pill">{{ inc.source }}</span></td>
-              <td style="color: var(--text-muted); font-size: 12px;">{{ inc.timestamp }}</td>
+              <td style="font-family: var(--font-mono); color: var(--color-info);">
+                {{ (inc.confidence * 100)|round(1) }}%
+              </td>
+              <td>
+                <div style="font-size: 12px;">{{ inc.site_name|default('Default Site') }}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ inc.source }}</div>
+              </td>
+              <td>
+                <span class="badge {% if inc.status == 'RESOLVED' %}badge-compliant{% else %}badge-critical{% endif %}">
+                  {{ inc.status }}
+                </span>
+              </td>
+              <td style="font-size: 12px;">
+                {{ inc.assigned_to|default('Unassigned', true) }}
+              </td>
+              <td>
+                {% if inc.status == 'RESOLVED' %}
+                  <div style="font-size: 11.5px; color: var(--color-compliant); font-weight: 600;">
+                    âœ“ Resolved: {{ inc.resolution_note|default('Completed') }}
+                  </div>
+                {% else %}
+                  <button class="btn btn-sm btn-primary" onclick="openIncidentActionModal('{{ inc.id }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                    Manage & Resolve
+                  </button>
+                {% endif %}
+              </td>
               <td>
                 {% if inc.snapshot_path %}
                   <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
-                    📸 View
+                    View
                   </button>
                 {% else %}
-                  <span style="color: var(--text-muted);">-</span>
+                  <span style="color: var(--text-muted); font-size: 12px;">No Frame</span>
                 {% endif %}
               </td>
             </tr>
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 40px;">
-              No incidents logged matching criteria.
+            <td colspan="10">
+              <div class="empty-state-card">
+                <div class="empty-state-icon"></div>
+                <div class="empty-state-title">No safety incidents recorded</div>
+                <div class="empty-state-text">Incidents will appear here automatically when actual safety violations are confirmed by the AI detection engine.</div>
+              </div>
             </td>
           </tr>
         {% endif %}
@@ -104,40 +151,83 @@
     </table>
   </div>
 </div>
+
+<!-- Incident Review & Root Cause Modal -->
+<div id="incident-action-modal" class="modal-backdrop" onclick="closeIncidentModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="closeIncidentModal()">&times;</button>
+    <h3 style="margin-bottom: 14px;" id="incident-modal-title">Manage Safety Incident</h3>
+    
+    <div class="form-group">
+      <label class="form-label">Assigned Safety Officer</label>
+      <input type="text" id="inc-officer" class="form-input" placeholder="Officer Name (e.g. Inspector John Doe)">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Root Cause Analysis</label>
+      <textarea id="inc-root-cause" class="form-textarea" rows="2" placeholder="e.g. PPE supply shortage in Zone B, worker failed to adhere to entry checkpoint protocol..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Corrective & Preventive Action</label>
+      <textarea id="inc-action" class="form-textarea" rows="2" placeholder="e.g. Replacement hardhat issued on site, safety briefing conducted..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Resolution Note</label>
+      <input type="text" id="inc-resolution-note" class="form-input" placeholder="Final resolution note">
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+      <button class="btn btn-secondary" onclick="closeIncidentModal()">Cancel</button>
+      <button class="btn btn-success" onclick="submitIncidentUpdate()">Save & Mark Resolved</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function applyFilters() {
-  const vType = document.getElementById('filter-violation-type').value;
-  const sev = document.getElementById('filter-severity').value;
-  const search = document.getElementById('filter-search').value.toLowerCase();
+let activeIncidentId = null;
 
-  const rows = document.querySelectorAll('#incidents-table-body tr');
-  let matchCount = 0;
-
-  rows.forEach(row => {
-    const text = row.innerText.toLowerCase();
-    const typeCell = row.children[2] ? row.children[2].innerText.trim() : '';
-    const sevCell = row.children[4] ? row.children[4].innerText.trim() : '';
-
-    const matchType = (vType === 'ALL' || typeCell === vType);
-    const matchSev = (sev === 'ALL' || sevCell.includes(sev));
-    const matchSearch = (!search || text.includes(search));
-
-    if (matchType && matchSev && matchSearch) {
-      row.style.display = '';
-      matchCount++;
-    } else {
-      row.style.display = 'none';
-    }
-  });
-
-  document.getElementById('incidents-count-label').innerText = `Showing ${matchCount} matching incidents`;
+function openIncidentActionModal(id, code, vType) {
+  activeIncidentId = id;
+  document.getElementById('incident-modal-title').innerText = `Incident Review: ${code} (${vType})`;
+  document.getElementById('incident-action-modal').style.display = 'flex';
 }
 
-function exportIncidentsCSV() {
-  window.location.href = '/api/incidents/export';
+function closeIncidentModal() {
+  document.getElementById('incident-action-modal').style.display = 'none';
+  activeIncidentId = null;
+}
+
+function submitIncidentUpdate() {
+  if (!activeIncidentId) return;
+
+  const officer = document.getElementById('inc-officer').value;
+  const rootCause = document.getElementById('inc-root-cause').value;
+  const correctiveAction = document.getElementById('inc-action').value;
+  const resolutionNote = document.getElementById('inc-resolution-note').value;
+
+  fetch(`/api/incidents/${activeIncidentId}/update`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: 'RESOLVED',
+      assigned_to: officer || 'Safety Officer',
+      root_cause: rootCause || 'Worker non-compliance with standard PPE protocol',
+      corrective_action: correctiveAction || 'Site verbal warning and PPE replacement',
+      resolution_note: resolutionNote || 'Safety protocol verified.'
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert('Error updating incident: ' + data.message);
+    }
+  });
 }
 </script>
 {% endblock %}
