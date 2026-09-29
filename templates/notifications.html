@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications — SiteGuard AI{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block top_actions %}
+  <button class="btn btn-secondary" onclick="markAllNotificationsRead()">
+    âœ“ Mark All as Read
+  </button>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Notification Title</th>
+          <th>Message & Location</th>
+          <th>Triggered At</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if notifications and notifications|length > 0 %}
+          {% for n in notifications %}
+            <tr style="{% if n.is_read == 0 %}background: rgba(249, 115, 22, 0.05);{% endif %}">
+              <td>
+                <span class="badge badge-{{ n.severity|lower }}">{{ n.severity }}</span>
+              </td>
+              <td><strong style="color: var(--text-primary);">{{ n.title }}</strong></td>
+              <td style="color: var(--text-secondary); max-width: 400px;">{{ n.message }}</td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">{{ n.timestamp }}</td>
+              <td>
+                {% if n.is_read == 1 %}
+                  <span style="font-size: 12px; color: var(--text-muted);">Read</span>
+                {% else %}
+                  <span class="badge badge-critical">NEW</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('alerts_view') }}" class="btn btn-sm btn-secondary">Review Alert</a>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state-card">
+                <div class="empty-state-icon"></div>
+                <div class="empty-state-title">No notifications recorded</div>
+                <div class="empty-state-text">Critical and high severity safety events will trigger high-priority alerts in this feed automatically.</div>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function markAllNotificationsRead() {
+  fetch('/api/notifications/mark-read', { method: 'POST' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) window.location.reload();
+  });
+}
+</script>
+{% endblock %}
