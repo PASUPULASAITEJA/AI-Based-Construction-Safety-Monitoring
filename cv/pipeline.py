@@ -12,7 +12,7 @@ from cv.zone_detector import ZoneDetector
 from cv.annotator import FrameAnnotator
 from safety.violation_manager import ViolationManager
 from safety.alert_manager import AlertManager
-from database.models import ZoneModel
+from database.models import ZoneModel, WorkerTrackModel
 
 class SafetyPipeline:
     def __init__(self, model_path=None, conf=config.CONFIDENCE_THRESHOLD, iou=config.IOU_THRESHOLD):
@@ -28,8 +28,9 @@ class SafetyPipeline:
         self.fps = 0.0
         self.source_name = "Camera"
 
-        # Load saved zones from DB
+        # Load saved zones and Settings-page thresholds from DB
         self.reload_zones()
+        self.load_saved_settings()
 
     def reload_zones(self):
         try:
@@ -37,6 +38,19 @@ class SafetyPipeline:
             self.zone_detector.set_zones(db_zones)
         except Exception as e:
             print(f"[-] Could not load zones from DB: {e}")
+
+    def load_saved_settings(self):
+        """Applies thresholds saved from the Settings page so they survive restarts."""
+        try:
+            saved = SettingsModel.get_all()
+            self.update_settings(
+                conf=saved.get("conf_thresh"),
+                iou=saved.get("iou_thresh"),
+                min_v_frames=saved.get("min_violation_frames"),
+                min_z_frames=saved.get("min_zone_frames")
+            )
+        except Exception as e:
+            print(f"[-] Could not load saved settings from DB: {e}")
 
     def update_settings(self, conf=None, iou=None, min_v_frames=None, min_z_frames=None):
         if conf is not None:
@@ -46,7 +60,7 @@ class SafetyPipeline:
         if min_v_frames is not None or min_z_frames is not None:
             self.violation_manager.set_thresholds(min_v_frames, min_z_frames)
 
-    def process_frame(self, frame, source="Webcam"):
+    def process_frame(self, frame, source="Webcam", site_id=None, camera_id=None):
         """
         Executes full safety pipeline on a single video/camera frame.
         
@@ -79,20 +93,26 @@ class SafetyPipeline:
         enriched_workers = self.ppe_associator.associate(tracked_workers, detections, frame=frame)
 
         # 4. Zone Analysis
-        enriched_workers = self.zone_detector.evaluate_workers(enriched_workers)
+        enriched_workers = self.zone_detector.evaluate_workers(enriched_workers, frame.shape)
 
         # 5. Temporal Verification & Safety Rule Engine
         verified_workers, new_incidents = self.violation_manager.process_frame(enriched_workers)
 
         # 6. Record New Incidents to Database & Snapshots
         for inc in new_incidents:
-            self.alert_manager.record_incident(inc, frame=frame, source=source)
+            self.alert_manager.record_incident(inc, frame=frame, source=source, site_id=site_id, camera_id=camera_id)
+
+        # Record compliant observations for workers without violations
+        for w in verified_workers:
+            if not w.get("violations"):
+                track_code = f"TRK-{w['worker_id']:03d}"
+                WorkerTrackModel.record_observation(track_code=track_code, label=w["label"], is_compliant=True, has_violation=False)
 
         # 7. Visual Overlay Annotation
         annotated_frame = self.annotator.annotate(
             frame=frame,
             workers=verified_workers,
-            zones=self.zone_detector.zones,
+            zones=self.zone_detector.zones_for_frame(frame.shape),
             fps=self.fps
         )
 
@@ -125,7 +145,7 @@ class SafetyPipeline:
 
         return annotated_frame, summary
 
-    def process_single_image(self, image_input, source="Image Upload"):
+    def process_single_image(self, image_input, source="Image Upload", site_id=None, camera_id=None):
         """
         Processes a single still image (without temporal tracking requirement).
         Immediate spatial association and rule checking applied.
@@ -179,7 +199,7 @@ class SafetyPipeline:
         enriched = self.ppe_associator.associate(instant_workers, detections, frame=frame)
 
         # 4. Zone Analysis
-        enriched = self.zone_detector.evaluate_workers(enriched)
+        enriched = self.zone_detector.evaluate_workers(enriched, frame.shape)
 
         # 5. Direct Rule Evaluation for single image
         rule_engine = self.violation_manager.rule_engine
@@ -219,14 +239,18 @@ class SafetyPipeline:
                     "severity": v["severity"],
                     "confidence": w["confidence"],
                     "bbox": w["bbox"]
-                }, frame=frame, source=source)
+                }, frame=frame, source=source, site_id=site_id, camera_id=camera_id)
                 detected_incidents.append(inc_entry)
+
+            if not v_list:
+                track_code = f"TRK-{w['worker_id']:03d}"
+                WorkerTrackModel.record_observation(track_code=track_code, label=w["label"], is_compliant=True, has_violation=False)
 
         # Annotate
         annotated_frame = self.annotator.annotate(
             frame=frame,
             workers=annotated_workers,
-            zones=self.zone_detector.zones,
+            zones=self.zone_detector.zones_for_frame(frame.shape),
             fps=0
         )
 
@@ -236,5 +260,6 @@ class SafetyPipeline:
             "violation_count": sum(1 for w in annotated_workers if w["violations"]),
             "workers": annotated_workers,
             "incidents": detected_incidents,
-            "raw_detections": len(detections)
+            "raw_detections": detections
         }
+
