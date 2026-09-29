@@ -1,77 +1,134 @@
 {% extends "base.html" %}
 
-{% block title %}Analytics | AI Construction Safety Monitoring{% endblock %}
-{% block page_title %}📈 Safety Compliance & Trend Analytics{% endblock %}
+{% block title %}Analytics — SiteGuard AI{% endblock %}
+{% block page_title %}Safety Analytics{% endblock %}
+
+{% block top_actions %}
+  <a href="{{ url_for('reports_view') }}" class="btn btn-secondary">
+    Generate Safety Report
+  </a>
+{% endblock %}
 
 {% block content %}
-<!-- Analytics Summary KPI Cards -->
+<!-- Analytics KPI Summary Grid (REAL DATA ONLY) -->
 <div class="metrics-grid">
-  <div class="metric-card">
-    <div class="metric-header"><span>Total Incidents</span><span class="metric-icon">🚨</span></div>
+  <div class="metric-card orange">
+    <div class="metric-header"><span>Total Incidents</span><span class="metric-icon"></span></div>
     <div class="metric-value">{{ summary.total_incidents|default(0) }}</div>
-    <div class="metric-footer">Lifetime logged violations</div>
+    <div class="metric-footer">Lifetime recorded violations</div>
   </div>
 
   <div class="metric-card warning">
-    <div class="metric-header"><span>Missing Helmets</span><span class="metric-icon">🪖</span></div>
+    <div class="metric-header"><span>Missing Helmets</span><span class="metric-icon"></span></div>
     <div class="metric-value">{{ summary.type_distribution.get('NO_HELMET', 0) }}</div>
     <div class="metric-footer">Rule 1 breaches</div>
   </div>
 
   <div class="metric-card warning">
-    <div class="metric-header"><span>Missing Vests</span><span class="metric-icon">🦺</span></div>
+    <div class="metric-header"><span>Missing Vests</span><span class="metric-icon"></span></div>
     <div class="metric-value">{{ summary.type_distribution.get('NO_VEST', 0) }}</div>
-    <div class="metric-footer">Rule 2 inferred breaches</div>
-  </div>
-
-  <div class="metric-card danger">
-    <div class="metric-header"><span>Zone Incursions</span><span class="metric-icon">⛔</span></div>
-    <div class="metric-value">{{ summary.type_distribution.get('RESTRICTED_ZONE_BREACH', 0) + summary.type_distribution.get('HAZARD_ZONE_ENTRY', 0) }}</div>
-    <div class="metric-footer">Restricted area entries</div>
+    <div class="metric-footer">Rule 2 breaches</div>
   </div>
 
   <div class="metric-card critical">
-    <div class="metric-header"><span>Critical Breaches</span><span class="metric-icon">🔥</span></div>
-    <div class="metric-value">{{ summary.severity_distribution.get('CRITICAL', 0) }}</div>
-    <div class="metric-footer">High hazard without PPE</div>
+    <div class="metric-header"><span>Zone Incursions</span><span class="metric-icon">â›”</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('RESTRICTED_ZONE_BREACH', 0) + summary.type_distribution.get('HAZARD_ZONE_ENTRY', 0) + summary.type_distribution.get('HAZARD_NO_PPE', 0) }}</div>
+    <div class="metric-footer">Restricted area breaches</div>
+  </div>
+
+  <div class="metric-card success">
+    <div class="metric-header"><span>Resolved Rate</span><span class="metric-icon">âœ…</span></div>
+    <div class="metric-value">
+      {% if summary.total_incidents > 0 %}
+        {{ ((summary.resolved_incidents / summary.total_incidents) * 100)|round(1) }}%
+      {% else %}
+        100%
+      {% endif %}
+    </div>
+    <div class="metric-footer">{{ summary.resolved_incidents|default(0) }} of {{ summary.total_incidents|default(0) }} audited</div>
   </div>
 </div>
 
-<!-- Charts Grid -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
-  <!-- Chart 1: Violations by Type -->
+{% if summary.total_incidents > 0 %}
+  <!-- Charts Row 1: Types & Severities -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+    <!-- Chart 1: Violation Distribution -->
+    <div class="card">
+      <div class="card-title">
+        <span>Violation Category Distribution</span>
+      </div>
+      <div style="height: 280px; position: relative;">
+        <canvas id="chart-violation-types"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Severity Distribution -->
+    <div class="card">
+      <div class="card-title">
+        <span>Severity Breakdown</span>
+      </div>
+      <div style="height: 280px; position: relative;">
+        <canvas id="chart-severity-dist"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2: Timeline & Time-of-Day Hourly Breakdown -->
+  <div style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 24px; margin-bottom: 24px;">
+    <!-- Chart 3: Incident Timeline -->
+    <div class="card">
+      <div class="card-title">
+        <span>Incident Frequency Timeline (Real Database Dates)</span>
+      </div>
+      <div style="height: 280px; position: relative;">
+        <canvas id="chart-timeline"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 4: Time of Day Heatmap / Hourly -->
+    <div class="card">
+      <div class="card-title">
+        <span>Time-of-Day Violation Frequency</span>
+      </div>
+      <div style="height: 280px; position: relative;">
+        <canvas id="chart-hourly"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 3: Site & Camera Breakdown -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div class="card">
+      <div class="card-title">
+        <span>Violations by Stream / Camera</span>
+      </div>
+      <div style="height: 260px; position: relative;">
+        <canvas id="chart-cameras"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Violations by Construction Site</span>
+      </div>
+      <div style="height: 260px; position: relative;">
+        <canvas id="chart-sites"></canvas>
+      </div>
+    </div>
+  </div>
+{% else %}
   <div class="card">
-    <div class="card-title">
-      <span>Violation Distribution by Type</span>
-    </div>
-    <div style="height: 280px; position: relative;">
-      <canvas id="chart-violation-types"></canvas>
-    </div>
-  </div>
-
-  <!-- Chart 2: Severity Distribution -->
-  <div class="card">
-    <div class="card-title">
-      <span>Incident Severity Classification</span>
-    </div>
-    <div style="height: 280px; position: relative;">
-      <canvas id="chart-severity-dist"></canvas>
+    <div class="empty-state-card">
+      <div class="empty-state-icon"></div>
+      <div class="empty-state-title">Insufficient data for safety analytics</div>
+      <div class="empty-state-text">Analytics charts are strictly generated from real database events. Run a live monitoring session or analyze uploaded videos to populate analytics.</div>
     </div>
   </div>
-</div>
-
-<!-- Chart 3: Incident Timeline -->
-<div class="card">
-  <div class="card-title">
-    <span>Safety Violations Frequency Timeline (Last 7 Days)</span>
-  </div>
-  <div style="height: 260px; position: relative;">
-    <canvas id="chart-timeline"></canvas>
-  </div>
-</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
+{% if summary.total_incidents > 0 %}
 <script>
 const analyticsData = {{ summary|tojson }};
 
@@ -86,16 +143,16 @@ new Chart(typeCtx, {
     labels: typeLabels.length > 0 ? typeLabels : ['No Violations'],
     datasets: [{
       data: typeValues.length > 0 ? typeValues : [1],
-      backgroundColor: ['#d29922', '#e36209', '#f85149', '#388bfd', '#8957e5', '#ff2a51'],
+      backgroundColor: ['#f97316', '#eab308', '#ef4444', '#38bdf8', '#a855f7', '#ec4899'],
       borderWidth: 1,
-      borderColor: '#161b22'
+      borderColor: '#0f172a'
     }]
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'right', labels: { color: '#8b949e', font: { family: 'Inter', size: 12 } } }
+      legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } } }
     }
   }
 });
@@ -111,16 +168,16 @@ new Chart(sevCtx, {
     labels: sevLabels.length > 0 ? sevLabels : ['None'],
     datasets: [{
       data: sevValues.length > 0 ? sevValues : [1],
-      backgroundColor: ['#388bfd', '#d29922', '#e36209', '#f85149'],
+      backgroundColor: ['#38bdf8', '#eab308', '#f97316', '#dc2626'],
       borderWidth: 1,
-      borderColor: '#161b22'
+      borderColor: '#0f172a'
     }]
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'right', labels: { color: '#8b949e', font: { family: 'Inter', size: 12 } } }
+      legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } } }
     }
   }
 });
@@ -133,24 +190,114 @@ const timeValues = Object.values(analyticsData.timeline || {});
 new Chart(timeCtx, {
   type: 'line',
   data: {
-    labels: timeLabels.length > 0 ? timeLabels : ['Today'],
+    labels: timeLabels,
     datasets: [{
-      label: 'Violations Logged',
-      data: timeValues.length > 0 ? timeValues : [0],
-      borderColor: '#00d2ff',
-      backgroundColor: 'rgba(0, 210, 255, 0.1)',
+      label: 'Violations Recorded',
+      data: timeValues,
+      borderColor: '#f97316',
+      backgroundColor: 'rgba(249, 115, 22, 0.15)',
       borderWidth: 2,
       fill: true,
       tension: 0.35,
-      pointRadius: 4
+      pointRadius: 4,
+      pointBackgroundColor: '#f97316'
     }]
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } },
-      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } }
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
+
+// 4. Hourly Chart
+const hourCtx = document.getElementById('chart-hourly').getContext('2d');
+const hourLabels = Object.keys(analyticsData.hourly_distribution || {});
+const hourValues = Object.values(analyticsData.hourly_distribution || {});
+
+new Chart(hourCtx, {
+  type: 'bar',
+  data: {
+    labels: hourLabels.length > 0 ? hourLabels : ['12:00'],
+    datasets: [{
+      label: 'Events Count',
+      data: hourValues.length > 0 ? hourValues : [0],
+      backgroundColor: '#38bdf8',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
+
+// 5. Cameras Breakdown Chart
+const camCtx = document.getElementById('chart-cameras').getContext('2d');
+const camLabels = Object.keys(analyticsData.camera_distribution || {});
+const camValues = Object.values(analyticsData.camera_distribution || {});
+
+new Chart(camCtx, {
+  type: 'bar',
+  data: {
+    labels: camLabels.length > 0 ? camLabels : ['Unassigned'],
+    datasets: [{
+      label: 'Violations Count',
+      data: camValues.length > 0 ? camValues : [0],
+      backgroundColor: '#eab308',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    scales: {
+      x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
+
+// 6. Sites Breakdown Chart
+const siteCtx = document.getElementById('chart-sites').getContext('2d');
+const siteLabels = Object.keys(analyticsData.site_distribution || {});
+const siteValues = Object.values(analyticsData.site_distribution || {});
+
+new Chart(siteCtx, {
+  type: 'bar',
+  data: {
+    labels: siteLabels.length > 0 ? siteLabels : ['Default Site'],
+    datasets: [{
+      label: 'Violations Count',
+      data: siteValues.length > 0 ? siteValues : [0],
+      backgroundColor: '#10b981',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    scales: {
+      x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
     },
     plugins: {
       legend: { display: false }
@@ -158,4 +305,5 @@ new Chart(timeCtx, {
   }
 });
 </script>
+{% endif %}
 {% endblock %}
