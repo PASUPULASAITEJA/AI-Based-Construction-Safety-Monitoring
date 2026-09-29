@@ -74,7 +74,7 @@ async function submitVideoAnalysis() {
       body: formData
     });
 
-    showProgress('Analyzing Video Frames (YOLO + ByteTrack + Rules)...', 70);
+    showProgress('Analyzing Video Frames (YOLO + Tracking + Rules)...', 70);
 
     const data = await res.json();
     if (data.success) {
