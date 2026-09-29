@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Cameras — SiteGuard AI{% endblock %}
+{% block page_title %}Cameras{% endblock %}
+
+{% block top_actions %}
+  <button class="btn btn-primary" onclick="openAddCameraModal()">
+    âž• Add Camera Stream
+  </button>
+{% endblock %}
+
+{% block content %}
+<!-- Cameras Network Status Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 28px;">
+  {% if cameras and cameras|length > 0 %}
+    {% for c in cameras %}
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div>
+              <span class="badge badge-ai" style="margin-bottom: 6px;">{{ c.camera_code }}</span>
+              <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ c.name }}</h3>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                {{ c.site_name|default('Unassigned Site') }}
+              </div>
+            </div>
+            <span class="badge {% if c.status == 'ONLINE' %}badge-compliant{% else %}badge-danger{% endif %}">
+              {{ c.status }}
+            </span>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 12px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary);">Source / URI:</span>
+              <span style="color: var(--text-primary); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.stream_source }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary);">Type:</span>
+              <span style="color: var(--color-info);">{{ c.stream_type }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary);">Resolution & FPS:</span>
+              <span style="color: var(--text-primary);">{{ c.resolution }} @ {{ c.fps }} FPS</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Last Seen:</span>
+              <span style="color: var(--text-muted);">{{ c.last_seen }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <a href="{{ url_for('monitor_view') }}" class="btn btn-sm btn-primary">View Feed</a>
+          <button class="btn btn-sm btn-danger" onclick="deleteCamera('{{ c.id }}')">Delete</button>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="empty-state-card">
+        <div class="empty-state-icon"></div>
+        <div class="empty-state-title">No cameras configured yet</div>
+        <div class="empty-state-text">Connect hardware webcams, RTSP streams, or simulator channels to begin automated surveillance.</div>
+        <button class="btn btn-primary" onclick="openAddCameraModal()">âž• Add First Camera</button>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Add Camera Modal -->
+<div id="camera-modal" class="modal-backdrop" onclick="closeCameraModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="closeCameraModal()">&times;</button>
+    <h3 style="margin-bottom: 16px;">Add Camera Stream</h3>
+
+    <div class="form-group">
+      <label class="form-label">Camera Code</label>
+      <input type="text" id="cam-code" class="form-input" placeholder="e.g. CAM-01">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Camera Name</label>
+      <input type="text" id="cam-name" class="form-input" placeholder="e.g. Scaffolding South Perimeter">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Associated Construction Site</label>
+      <select id="cam-site-id" class="form-select">
+        <option value="">-- Select Site --</option>
+        {% for s in sites %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.site_code }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Stream Source / Device Index / RTSP URL</label>
+      <input type="text" id="cam-source" class="form-input" placeholder="0 or rtsp://username:password@192.168.1.50/live">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Stream Type</label>
+      <select id="cam-type" class="form-select">
+        <option value="webcam">Hardware Webcam (OpenCV/DirectShow)</option>
+        <option value="browser">Browser WebRTC Camera</option>
+        <option value="simulator">Construction-PPE Simulator</option>
+        <option value="rtsp">RTSP IP Stream</option>
+      </select>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+      <button class="btn btn-secondary" onclick="closeCameraModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCamera()">Save Camera</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openAddCameraModal() {
+  document.getElementById('cam-code').value = 'CAM-0' + Math.floor(1 + Math.random()*9);
+  document.getElementById('cam-name').value = '';
+  document.getElementById('cam-source').value = '0';
+  document.getElementById('camera-modal').style.display = 'flex';
+}
+
+function closeCameraModal() {
+  document.getElementById('camera-modal').style.display = 'none';
+}
+
+function saveCamera() {
+  const code = document.getElementById('cam-code').value;
+  const name = document.getElementById('cam-name').value;
+  const siteId = document.getElementById('cam-site-id').value;
+  const source = document.getElementById('cam-source').value;
+  const streamType = document.getElementById('cam-type').value;
+
+  if (!name.trim()) {
+    alert('Camera name is required.');
+    return;
+  }
+
+  fetch('/api/cameras', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      camera_code: code,
+      name: name,
+      site_id: siteId ? parseInt(siteId) : null,
+      stream_source: source,
+      stream_type: streamType
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) window.location.reload();
+    else alert('Error: ' + data.message);
+  });
+}
+
+function deleteCamera(id) {
+  if (!confirm('Are you sure you want to delete this camera configuration?')) return;
+  fetch(`/api/cameras/${id}`, { method: 'DELETE' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) window.location.reload();
+    else alert('Error deleting camera.');
+  });
+}
+</script>
+{% endblock %}
