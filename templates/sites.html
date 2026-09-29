@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Sites & Zones — SiteGuard AI{% endblock %}
+{% block page_title %}Sites & Zones{% endblock %}
+
+{% block top_actions %}
+  <button class="btn btn-primary" onclick="openCreateSiteModal()">
+    âž• Add Construction Site
+  </button>
+{% endblock %}
+
+{% block content %}
+<!-- Sites Overview Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 28px;">
+  {% if sites and sites|length > 0 %}
+    {% for s in sites %}
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div>
+              <span class="badge badge-ai" style="margin-bottom: 6px;">{{ s.site_code }}</span>
+              <h3 style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ s.name }}</h3>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ s.location|default('Location Not Set') }}</div>
+            </div>
+            <span class="badge badge-compliant">{{ s.status }}</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; text-align: center;">
+            <div>
+              <div style="font-size: 18px; font-weight: 700; font-family: var(--font-mono); color: var(--color-info);">{{ s.camera_count|default(0) }}</div>
+              <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Cameras</div>
+            </div>
+            <div>
+              <div style="font-size: 18px; font-weight: 700; font-family: var(--font-mono); color: var(--safety-orange);">{{ s.zone_count|default(0) }}</div>
+              <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Zones</div>
+            </div>
+            <div>
+              <div style="font-size: 18px; font-weight: 700; font-family: var(--font-mono); color: var(--color-critical);">{{ s.incident_count|default(0) }}</div>
+              <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Violations</div>
+            </div>
+          </div>
+
+          <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 8px;">
+            <strong>Safety Officer:</strong> {{ s.safety_officer|default('Unassigned', true) }}
+          </div>
+          <div style="font-size: 12.5px; color: var(--text-secondary);">
+            <strong>Project:</strong> {{ s.project_name|default('Standard Construction Project') }}
+          </div>
+        </div>
+
+        <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn btn-sm btn-secondary" onclick="openEditSiteModal('{{ s.id }}', '{{ s.name }}', '{{ s.location }}', '{{ s.project_name }}', '{{ s.safety_officer }}')">âœ�Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSite('{{ s.id }}')">Delete</button>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="empty-state-card">
+        <div class="empty-state-icon"></div>
+        <div class="empty-state-title">No construction sites configured yet</div>
+        <div class="empty-state-text">Create your first construction site to map cameras, define restricted zones, and monitor safety violations.</div>
+        <button class="btn btn-primary" onclick="openCreateSiteModal()">âž• Create First Site</button>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Active Zones Management Table -->
+<div class="card">
+  <div class="card-title">
+    <span>Defined Spatial Hazard & Restricted Zones</span>
+    <a href="{{ url_for('monitor_view') }}" class="btn btn-sm btn-primary">âœ�Draw Polygon in Live Monitor</a>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Zone ID</th>
+          <th>Zone Name</th>
+          <th>Type</th>
+          <th>Associated Site</th>
+          <th>Coordinates Polygon</th>
+          <th>Created At</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if zones and zones|length > 0 %}
+          {% for z in zones %}
+            <tr>
+              <td style="font-family: var(--font-mono); color: var(--safety-orange);">ZONE-{{ z.id }}</td>
+              <td><strong>{{ z.name }}</strong></td>
+              <td>
+                <span class="badge badge-{{ z.zone_type|lower }}">{{ z.zone_type }}</span>
+              </td>
+              <td>{{ z.site_name|default('General Site') }}</td>
+              <td style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ z.coordinates|string }}
+              </td>
+              <td style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">{{ z.created_at }}</td>
+              <td>
+                <button class="btn btn-sm btn-danger" onclick="deleteZone('{{ z.id }}')">Delete</button>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state-card" style="padding: 24px;">
+                <div class="empty-state-title">No safety zones defined yet</div>
+                <div class="empty-state-text">Launch the Live Monitor workstation and use the polygon drawing tool to define restricted or hazard perimeters.</div>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create / Edit Site Modal -->
+<div id="site-modal" class="modal-backdrop" onclick="closeSiteModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="closeSiteModal()">&times;</button>
+    <h3 style="margin-bottom: 16px;" id="site-modal-title">Create Construction Site</h3>
+    
+    <input type="hidden" id="site-edit-id">
+
+    <div class="form-group" id="site-code-group">
+      <label class="form-label">Site Identifier Code</label>
+      <input type="text" id="site-code" class="form-input" placeholder="e.g. SITE-ALPHA">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Site Name</label>
+      <input type="text" id="site-name" class="form-input" placeholder="e.g. Skyline Highrise Tower A">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Location / Address</label>
+      <input type="text" id="site-location" class="form-input" placeholder="e.g. Sector 44, North Industrial Corridor">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Project Name</label>
+      <input type="text" id="site-project" class="form-input" placeholder="e.g. Metro Expansion Phase II">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Assigned Safety Officer</label>
+      <input type="text" id="site-officer" class="form-input" placeholder="e.g. Lead Officer Marcus Vance">
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+      <button class="btn btn-secondary" onclick="closeSiteModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSite()">Save Construction Site</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openCreateSiteModal() {
+  document.getElementById('site-modal-title').innerText = 'Create Construction Site';
+  document.getElementById('site-edit-id').value = '';
+  document.getElementById('site-code-group').style.display = 'block';
+  document.getElementById('site-code').value = 'SITE-' + Math.floor(100 + Math.random()*900);
+  document.getElementById('site-name').value = '';
+  document.getElementById('site-location').value = '';
+  document.getElementById('site-project').value = '';
+  document.getElementById('site-officer').value = '';
+  document.getElementById('site-modal').style.display = 'flex';
+}
+
+function openEditSiteModal(id, name, location, project, officer) {
+  document.getElementById('site-modal-title').innerText = 'Edit Construction Site';
+  document.getElementById('site-edit-id').value = id;
+  document.getElementById('site-code-group').style.display = 'none';
+  document.getElementById('site-name').value = name;
+  document.getElementById('site-location').value = location || '';
+  document.getElementById('site-project').value = project || '';
+  document.getElementById('site-officer').value = officer || '';
+  document.getElementById('site-modal').style.display = 'flex';
+}
+
+function closeSiteModal() {
+  document.getElementById('site-modal').style.display = 'none';
+}
+
+function saveSite() {
+  const editId = document.getElementById('site-edit-id').value;
+  const siteCode = document.getElementById('site-code').value;
+  const name = document.getElementById('site-name').value;
+  const location = document.getElementById('site-location').value;
+  const project = document.getElementById('site-project').value;
+  const officer = document.getElementById('site-officer').value;
+
+  if (!name.trim()) {
+    alert('Site name is required.');
+    return;
+  }
+
+  const method = editId ? 'PUT' : 'POST';
+  const url = editId ? `/api/sites/${editId}` : '/api/sites';
+
+  fetch(url, {
+    method: method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      site_code: siteCode,
+      name: name,
+      location: location,
+      project_name: project,
+      safety_officer: officer
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  });
+}
+
+function deleteSite(id) {
+  if (!confirm('Are you sure you want to delete this construction site?')) return;
+  fetch(`/api/sites/${id}`, { method: 'DELETE' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) window.location.reload();
+    else alert('Error deleting site.');
+  });
+}
+
+function deleteZone(id) {
+  if (!confirm('Delete this zone?')) return;
+  fetch(`/zones/${id}`, { method: 'DELETE' })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) window.location.reload();
+    else alert('Error deleting zone.');
+  });
+}
+</script>
+{% endblock %}
