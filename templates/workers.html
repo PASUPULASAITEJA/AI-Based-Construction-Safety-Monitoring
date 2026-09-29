@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Worker Tracking — SiteGuard AI{% endblock %}
+{% block page_title %}Worker Tracking{% endblock %}
+
+{% block top_actions %}
+  <a href="{{ url_for('monitor_view') }}" class="btn btn-primary">
+    View in Live Scene
+  </a>
+{% endblock %}
+
+{% block content %}
+<!-- Worker Tracking Summary KPIs -->
+<div class="metrics-grid">
+  <div class="metric-card orange">
+    <div class="metric-header"><span>Total Tracked Personnel</span><span class="metric-icon"></span></div>
+    <div class="metric-value">{{ worker_stats.total_tracked|default(0) }}</div>
+    <div class="metric-footer">Unique worker tracks recorded</div>
+  </div>
+
+  <div class="metric-card success">
+    <div class="metric-header"><span>Overall Track Compliance</span><span class="metric-icon"></span></div>
+    <div class="metric-value">
+      {% if worker_stats.compliance_rate is not none %}
+        {{ worker_stats.compliance_rate }}%
+      {% else %}
+        N/A
+      {% endif %}
+    </div>
+    <div class="metric-footer">
+      {% if worker_stats.compliance_rate is not none %}
+        <span>Compliant frames / Total frames</span>
+      {% else %}
+        <span>Insufficient evaluated observations</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="metric-card critical">
+    <div class="metric-header"><span>Lifetime Violations</span><span class="metric-icon">âš </span></div>
+    <div class="metric-value">{{ worker_stats.total_violations|default(0) }}</div>
+    <div class="metric-footer">Total recorded breaches across tracks</div>
+  </div>
+</div>
+
+<!-- Workers Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Track Code</th>
+          <th>Label</th>
+          <th>First Observed</th>
+          <th>Last Active</th>
+          <th>Total Observations</th>
+          <th>Compliant Observations</th>
+          <th>Violation Events</th>
+          <th>Personal Compliance Rate</th>
+          <th>Safety Rating</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if workers and workers|length > 0 %}
+          {% for w in workers %}
+            <tr>
+              <td style="font-family: var(--font-mono); color: var(--safety-orange); font-weight: 700;">
+                {{ w.track_code }}
+              </td>
+              <td><strong>{{ w.label }}</strong></td>
+              <td style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">{{ w.first_seen }}</td>
+              <td style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">{{ w.last_seen }}</td>
+              <td style="font-family: var(--font-mono);">{{ w.total_observations }} frames</td>
+              <td style="font-family: var(--font-mono); color: var(--color-compliant);">{{ w.compliant_observations }} frames</td>
+              <td style="font-family: var(--font-mono); color: var(--color-critical);">{{ w.violation_count }}</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1; background: rgba(255,255,255,0.08); height: 6px; border-radius: 4px; overflow: hidden; min-width: 60px;">
+                    <div style="height: 100%; width: {{ w.compliance_rate }}%; background: {% if w.compliance_rate >= 80 %}var(--color-compliant){% elif w.compliance_rate >= 50 %}var(--safety-yellow){% else %}var(--color-critical){% endif %};"></div>
+                  </div>
+                  <span style="font-family: var(--font-mono); font-size: 12px; font-weight: 700;">{{ w.compliance_rate }}%</span>
+                </div>
+              </td>
+              <td>
+                {% if w.compliance_rate >= 90 %}
+                  <span class="badge badge-compliant">EXCELLENT</span>
+                {% elif w.compliance_rate >= 70 %}
+                  <span class="badge badge-medium">STANDARD</span>
+                {% else %}
+                  <span class="badge badge-critical">HIGH RISK</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="9">
+              <div class="empty-state-card">
+                <div class="empty-state-icon"></div>
+                <div class="empty-state-title">No worker track histories recorded</div>
+                <div class="empty-state-text">Start a live camera stream or upload video footage to begin tracking anonymous worker personnel and computing real compliance.</div>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
