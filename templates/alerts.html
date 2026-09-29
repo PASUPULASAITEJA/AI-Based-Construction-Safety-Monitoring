@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts — SiteGuard AI{% endblock %}
+{% block page_title %}Alert Center{% endblock %}
+
+{% block top_actions %}
+  <div style="font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono);">
+    Actionable Alerts: <strong style="color: var(--color-critical);">{{ open_count|default(0) }}</strong>
+  </div>
+{% endblock %}
+
+{% block content %}
+<!-- Alert Severity & Status Quick Filters -->
+<div class="card" style="padding: 16px; margin-bottom: 20px;">
+  <form id="alert-filter-form" method="GET" action="{{ url_for('alerts_view') }}">
+    <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;">
+      <div>
+        <label class="form-label">Lifecycle Status</label>
+        <select name="status" class="form-select" style="width: 170px;" onchange="document.getElementById('alert-filter-form').submit()">
+          <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Alert States</option>
+          <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>OPEN (Unacknowledged)</option>
+          <option value="ACKNOWLEDGED" {% if current_status == 'ACKNOWLEDGED' %}selected{% endif %}>ACKNOWLEDGED</option>
+          <option value="UNDER_REVIEW" {% if current_status == 'UNDER_REVIEW' %}selected{% endif %}>UNDER REVIEW</option>
+          <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Severity</label>
+        <select name="severity" class="form-select" style="width: 140px;" onchange="document.getElementById('alert-filter-form').submit()">
+          <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
+          <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+          <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
+          <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+          <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Search Alert</label>
+        <input type="text" name="search" class="form-input" placeholder="Search Alert Code..." value="{{ current_search|default('') }}" style="width: 200px;">
+      </div>
+
+      <div>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Filter</button>
+        <a href="{{ url_for('alerts_view') }}" class="btn btn-secondary btn-sm" style="height: 38px;">Reset</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Alerts Table with Lifecycle Actions -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Alert Code</th>
+          <th>Severity</th>
+          <th>Violation Details</th>
+          <th>Location / Source</th>
+          <th>Detection Time</th>
+          <th>Status</th>
+          <th>Assigned Officer</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if alerts and alerts|length > 0 %}
+          {% for a in alerts %}
+            <tr>
+              <td>
+                <strong style="font-family: var(--font-mono); color: var(--safety-orange);">
+                  {{ a.alert_code }}
+                </strong>
+              </td>
+              <td>
+                <span class="badge badge-{{ a.severity|lower }}">{{ a.severity }}</span>
+              </td>
+              <td>
+                <div style="font-weight: 600;">{{ a.violation_type }}</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">{{ a.worker_label }}</div>
+              </td>
+              <td>
+                <div style="font-size: 12px;">{{ a.site_name|default('Main Site') }}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ a.source|default('Live Stream') }}</div>
+              </td>
+              <td style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
+                {{ a.timestamp }}
+              </td>
+              <td>
+                <span class="badge badge-{{ a.status|lower|replace('_', '') }}">
+                  {{ a.status }}
+                </span>
+              </td>
+              <td style="font-size: 12px;">
+                {{ a.assigned_to|default('Unassigned', true) }}
+              </td>
+              <td>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  {% if a.snapshot_path %}
+                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}', '{{ a.alert_code }}', '{{ a.violation_type }}')">
+                                          </button>
+                  {% endif %}
+
+                  {% if a.status == 'OPEN' %}
+                    <button class="btn btn-sm btn-primary" onclick="updateAlertStatus('{{ a.id }}', 'ACKNOWLEDGED')">
+                      Acknowledge
+                    </button>
+                  {% elif a.status == 'ACKNOWLEDGED' %}
+                    <button class="btn btn-sm btn-secondary" onclick="updateAlertStatus('{{ a.id }}', 'UNDER_REVIEW')">
+                      Review
+                    </button>
+                  {% elif a.status == 'UNDER_REVIEW' %}
+                    <button class="btn btn-sm btn-success" onclick="openResolveModal('{{ a.id }}', '{{ a.alert_code }}')">
+                      Resolve
+                    </button>
+                  {% else %}
+                    <span style="font-size: 12px; color: var(--color-compliant); font-weight: 600;">âœ“ Done</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8">
+              <div class="empty-state-card">
+                <div class="empty-state-icon"></div>
+                <div class="empty-state-title">No safety alerts matching criteria</div>
+                <div class="empty-state-text">All active alerts have been acknowledged or no safety breaches occurred.</div>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Resolution Notes Modal -->
+<div id="resolve-modal" class="modal-backdrop" onclick="closeResolveModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close-btn" onclick="closeResolveModal()">&times;</button>
+    <h3 style="margin-bottom: 14px;" id="resolve-modal-title">Resolve Safety Alert</h3>
+    
+    <div class="form-group">
+      <label class="form-label">Assigned Safety Officer</label>
+      <input type="text" id="resolve-officer" class="form-input" placeholder="Officer Name (e.g. Inspector John Doe)">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Corrective Action / Resolution Note</label>
+      <textarea id="resolve-notes" class="form-textarea" rows="3" placeholder="Describe corrective action taken on site (e.g. Worker instructed to put on helmet, hazard perimeter cleared)..."></textarea>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+      <button class="btn btn-secondary" onclick="closeResolveModal()">Cancel</button>
+      <button class="btn btn-success" onclick="submitAlertResolution()">Confirm Resolution</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let activeResolvingAlertId = null;
+
+function updateAlertStatus(alertId, newStatus) {
+  fetch(`/api/alerts/${alertId}/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus, assigned_to: 'Safety Officer' })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert('Error updating alert: ' + (data.message || 'Unknown error'));
+    }
+  });
+}
+
+function openResolveModal(alertId, alertCode) {
+  activeResolvingAlertId = alertId;
+  document.getElementById('resolve-modal-title').innerText = `Resolve Safety Alert ${alertCode}`;
+  document.getElementById('resolve-modal').style.display = 'flex';
+}
+
+function closeResolveModal() {
+  document.getElementById('resolve-modal').style.display = 'none';
+  activeResolvingAlertId = null;
+}
+
+function submitAlertResolution() {
+  if (!activeResolvingAlertId) return;
+  const officer = document.getElementById('resolve-officer').value;
+  const notes = document.getElementById('resolve-notes').value;
+
+  fetch(`/api/alerts/${activeResolvingAlertId}/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: 'RESOLVED',
+      assigned_to: officer || 'Safety Officer',
+      resolution_note: notes || 'Resolved following safety protocol.'
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  });
+}
+</script>
+{% endblock %}
