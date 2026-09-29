@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}Video Analysis — SiteGuard AI{% endblock %}
+{% block page_title %}Video Analysis{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+  <!-- Video Upload Control Card -->
+  <div class="card">
+    <div class="card-title">
+      <span>Upload Construction Site Footage</span>
+      <span class="badge badge-low">MP4, AVI, MOV</span>
+    </div>
+
+    <form id="video-upload-form" enctype="multipart/form-data">
+      <div class="upload-dropzone" id="video-dropzone" onclick="document.getElementById('video-file-input').click()">
+        <div class="upload-icon"></div>
+        <h4 style="margin-bottom: 6px; font-weight: 700;">Click or Drag & Drop Video File</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Frame-by-frame sequential YOLOv8 inference with ByteTrack & spatial PPE association</p>
+        <input type="file" id="video-file-input" name="video" accept=".mp4,.avi,.mov" style="display: none;" onchange="handleVideoSelection(event)">
+      </div>
+      
+      <div id="video-selected-label" style="margin-top: 12px; font-size: 13px; color: var(--safety-orange); font-family: var(--font-mono); display: none;"></div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Max file size: 250MB
+        </div>
+        <button type="button" id="btn-process-video" class="btn btn-primary" onclick="submitVideoAnalysis()" disabled>
+          âš¡ Process Video Stream
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Processing Pipeline Explanation Card -->
+  <div class="card">
+    <div class="card-title">
+      <span>âš™Video Processing Pipeline Architecture</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--color-info);">
+        <strong>1. Sequential Frame Extraction</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted);">Decodes native container and feeds uncompressed frames to the CV detector.</div>
+      </div>
+      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--safety-orange);">
+        <strong>2. YOLOv8 PPE Detection & ByteTrack Association</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted);">Identifies workers, hardhats, safety vests, boots, masks, and computes spatial containment.</div>
+      </div>
+      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--color-critical);">
+        <strong>3. Temporal Verification State Machine</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted);">Ensures 10+ continuous frames of missing gear before logging confirmed violations to database.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Progress Bar & Processing Telemetry (Active during upload) -->
+<div id="upload-progress-container" class="card" style="display: none; padding: 20px; margin-bottom: 24px;">
+  <div style="display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center;">
+    <strong id="upload-status-title" style="color: var(--text-primary);">Processing Video Footage through YOLOv8 Engine...</strong>
+    <span id="upload-status-pct" style="color: var(--safety-orange); font-family: var(--font-mono); font-weight: 700; font-size: 15px;">0%</span>
+  </div>
+  <div style="background: rgba(255, 255, 255, 0.08); border-radius: 8px; height: 10px; overflow: hidden;">
+    <div id="upload-progress-bar" style="background: linear-gradient(90deg, var(--safety-orange), var(--color-compliant)); height: 100%; width: 0%; transition: width 0.3s;"></div>
+  </div>
+  <div id="upload-status-sub" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">Initializing frame extraction...</div>
+</div>
+
+<!-- Results Area (Populated with Real Video Inference Data) -->
+<div id="results-display-container" class="card" style="display: none; margin-bottom: 24px;">
+  <div class="card-title">
+    <span>Video Inspection Output & Analytics</span>
+    <button class="btn btn-sm btn-secondary" onclick="resetVideoUploadView()">Upload Another Video</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px;">
+    <!-- Annotated Video Player -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h5 style="color: var(--text-secondary); margin: 0; font-size: 13px; text-transform: uppercase;">Annotated Output Video</h5>
+        <a id="btn-download-annotated-video" href="#" download="annotated_construction_safety.mp4" class="btn btn-sm btn-primary">Download Annotated Video</a>
+      </div>
+      <div style="background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; min-height: 380px;">
+        <video id="result-annotated-video" controls style="max-width: 100%; max-height: 480px; width: 100%;"></video>
+      </div>
+    </div>
+
+    <!-- Telemetry Breakdown -->
+    <div>
+      <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase;">Actual Video Inference Statistics</h5>
+      
+      <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div class="metric-card info" style="padding: 14px;">
+          <div class="metric-header"><span>Frames Processed</span></div>
+          <div class="metric-value" id="result-frames-count" style="font-size: 22px;">0</div>
+        </div>
+        <div class="metric-card orange" style="padding: 14px;">
+          <div class="metric-header"><span>Workers Tracked</span></div>
+          <div class="metric-value" id="result-workers-count" style="font-size: 22px;">0</div>
+        </div>
+        <div class="metric-card critical" style="padding: 14px;">
+          <div class="metric-header"><span>Violations Logged</span></div>
+          <div class="metric-value" id="result-violations-count" style="font-size: 22px;">0</div>
+        </div>
+        <div class="metric-card success" style="padding: 14px;">
+          <div class="metric-header"><span>Compliance</span></div>
+          <div class="metric-value" id="result-compliance-rate" style="font-size: 22px;">100%</div>
+        </div>
+      </div>
+
+      <h5 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Tracked Worker Sample Telemetry</h5>
+      <div class="table-container" style="max-height: 240px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Worker ID</th>
+              <th>Helmet</th>
+              <th>Vest</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="result-workers-table-body">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedVideoFile = null;
+
+function handleVideoSelection(e) {
+  const file = e.target.files[0];
+  if (file) {
+    selectedVideoFile = file;
+    const label = document.getElementById('video-selected-label');
+    label.innerText = `Selected: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
+    label.style.display = 'block';
+    document.getElementById('btn-process-video').disabled = false;
+  }
+}
+
+function submitVideoAnalysis() {
+  if (!selectedVideoFile) return;
+
+  const formData = new FormData();
+  formData.append('video', selectedVideoFile);
+
+  const progressCard = document.getElementById('upload-progress-container');
+  const progressBar = document.getElementById('upload-progress-bar');
+  const progressPct = document.getElementById('upload-status-pct');
+  const progressTitle = document.getElementById('upload-status-title');
+  const progressSub = document.getElementById('upload-status-sub');
+  const btnProcess = document.getElementById('btn-process-video');
+
+  progressCard.style.display = 'block';
+  btnProcess.disabled = true;
+  progressBar.style.width = '25%';
+  progressPct.innerText = '25%';
+  progressTitle.innerText = 'Uploading video file to server...';
+
+  // Simulated progress tick while server runs full YOLO inference
+  let curPct = 25;
+  const timer = setInterval(() => {
+    if (curPct < 90) {
+      curPct += 5;
+      progressBar.style.width = curPct + '%';
+      progressPct.innerText = curPct + '%';
+      if (curPct > 50) {
+        progressTitle.innerText = 'Running YOLOv8 + PPE Rule Engine...';
+        progressSub.innerText = 'Analyzing worker safety and generating annotated video stream...';
+      }
+    }
+  }, 1200);
+
+  fetch('/upload/video', {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    clearInterval(timer);
+    progressBar.style.width = '100%';
+    progressPct.innerText = '100%';
+
+    if (data.success) {
+      setTimeout(() => {
+        progressCard.style.display = 'none';
+        displayVideoResults(data);
+      }, 500);
+    } else {
+      alert('Video processing error: ' + (data.message || 'Unknown error'));
+      progressCard.style.display = 'none';
+      btnProcess.disabled = false;
+    }
+  })
+  .catch(err => {
+    clearInterval(timer);
+    alert('Server connection error during video processing: ' + err);
+    progressCard.style.display = 'none';
+    btnProcess.disabled = false;
+  });
+}
+
+function displayVideoResults(data) {
+  const container = document.getElementById('results-display-container');
+  const videoPlayer = document.getElementById('result-annotated-video');
+  const dlBtn = document.getElementById('btn-download-annotated-video');
+
+  videoPlayer.src = data.output_video_url;
+  dlBtn.href = data.output_video_url;
+
+  const stats = data.stats || {};
+  document.getElementById('result-frames-count').innerText = stats.frames_processed || 0;
+  document.getElementById('result-workers-count').innerText = stats.total_workers || 0;
+  document.getElementById('result-violations-count').innerText = stats.total_violations || 0;
+
+  const compRate = stats.total_workers > 0 
+    ? Math.max(0, Math.round(((stats.total_workers - stats.total_violations) / stats.total_workers) * 100))
+    : 100;
+  document.getElementById('result-compliance-rate').innerText = compRate + '%';
+
+  const tbody = document.getElementById('result-workers-table-body');
+  tbody.innerHTML = '';
+
+  const sampleWorkers = stats.sample_workers || [];
+  if (sampleWorkers.length > 0) {
+    sampleWorkers.forEach(w => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${w.label || 'Worker #' + w.worker_id}</strong></td>
+        <td><span class="badge ${w.helmet ? 'badge-compliant' : 'badge-danger'}">${w.helmet ? 'YES' : 'NO'}</span></td>
+        <td><span class="badge ${w.vest ? 'badge-compliant' : 'badge-danger'}">${w.vest ? 'YES' : 'NO'}</span></td>
+        <td><span class="badge ${w.violations && w.violations.length > 0 ? 'badge-critical' : 'badge-compliant'}">${w.status || 'COMPLIANT'}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No persistent workers detected in sample frames.</td></tr>';
+  }
+
+  container.style.display = 'block';
+  container.scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetVideoUploadView() {
+  document.getElementById('results-display-container').style.display = 'none';
+  document.getElementById('video-file-input').value = '';
+  document.getElementById('video-selected-label').style.display = 'none';
+  document.getElementById('btn-process-video').disabled = true;
+  selectedVideoFile = null;
+}
+</script>
+{% endblock %}
