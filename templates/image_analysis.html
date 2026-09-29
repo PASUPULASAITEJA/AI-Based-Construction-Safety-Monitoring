@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Image Analysis — SiteGuard AI{% endblock %}
+{% block page_title %}Image Analysis{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+  <!-- Image Upload Card -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" style="width:16px;height:16px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>Upload Construction Site Image</span>
+      <span class="badge badge-low">JPG, PNG, WEBP</span>
+    </div>
+
+    <form id="image-upload-form" enctype="multipart/form-data">
+      <div class="upload-dropzone" id="image-dropzone" onclick="document.getElementById('image-file-input').click()">
+        <div class="upload-icon" style="color:var(--text-muted);">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <h4 style="margin-bottom: 6px; font-weight: 700;">Click or Drag & Drop Image File</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Instant YOLOv8 PPE detection with anatomical spatial association</p>
+        <input type="file" id="image-file-input" name="image" accept=".jpg,.jpeg,.png,.webp" style="display: none;" onchange="handleImageSelection(event)">
+      </div>
+      
+      <div id="image-selected-label" style="margin-top: 12px; font-size: 13px; color: var(--safety-orange); font-family: var(--font-mono); display: none;"></div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Max resolution: 4K UHD
+        </div>
+        <button type="button" id="btn-process-image" class="btn btn-primary" onclick="submitImageAnalysis()" disabled>
+          <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Inspection Features Card -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" style="width:16px;height:16px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Spatial PPE Association & Verification</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--color-compliant);">
+        <strong>Full Person + Hardhat Head Span</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted);">Maps detected helmets to the upper 45% head span of each detected worker box.</div>
+      </div>
+      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--safety-orange);">
+        <strong>High-Visibility Torso Validation</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted);">Validates fluorescent safety orange and lime hues across worker torso span.</div>
+      </div>
+      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--color-critical);">
+        <strong>Instant Incident Logging</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted);">Automatically writes verified breaches into SQLite with high-res cropped snapshots.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results Area -->
+<div id="results-display-container" class="card" style="display: none; margin-bottom: 24px;">
+  <div class="card-title">
+    <svg class="icon" style="width:16px;height:16px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <span>Inspection Results & Detection Telemetry</span>
+    <button class="btn btn-sm btn-secondary" onclick="resetImageUploadView()">Upload Another Image</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px;">
+    <!-- Annotated Image Output -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h5 style="color: var(--text-secondary); margin: 0; font-size: 13px; text-transform: uppercase;">Annotated Inspection Image</h5>
+        <a id="btn-download-annotated-img" href="#" download="annotated_safety_inspection.jpg" class="btn btn-sm btn-primary"><svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Annotated Image</a>
+      </div>
+      <div style="background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; min-height: 420px; padding: 10px;">
+        <img id="result-annotated-img" src="" alt="Annotated Output" style="max-width: 100%; max-height: 520px; object-fit: contain; border-radius: 6px;">
+      </div>
+    </div>
+
+    <!-- Detection Table & Safety Breakdown -->
+    <div>
+      <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase;">Worker Safety Compliance Breakdown</h5>
+      
+      <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div class="metric-card orange" style="padding: 14px;">
+          <div class="metric-header"><span>Workers</span></div>
+          <div class="metric-value" id="result-workers-count" style="font-size: 22px;">0</div>
+        </div>
+        <div class="metric-card critical" style="padding: 14px;">
+          <div class="metric-header"><span>Violations</span></div>
+          <div class="metric-value" id="result-violations-count" style="font-size: 22px;">0</div>
+        </div>
+      </div>
+
+      <h5 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Personnel PPE Status</h5>
+      <div class="table-container" style="max-height: 180px; overflow-y: auto; margin-bottom: 16px;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Personnel</th>
+              <th>Helmet</th>
+              <th>Vest</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="result-workers-table-body">
+          </tbody>
+        </table>
+      </div>
+
+      <h5 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Raw YOLOv8 Detections (Class & Confidence)</h5>
+      <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Confidence</th>
+              <th>Bounding Box [x1, y1, x2, y2]</th>
+            </tr>
+          </thead>
+          <tbody id="result-raw-detections-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedImageFile = null;
+
+function handleImageSelection(e) {
+  const file = e.target.files[0];
+  if (file) {
+    selectedImageFile = file;
+    const label = document.getElementById('image-selected-label');
+    label.innerText = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    label.style.display = 'block';
+    document.getElementById('btn-process-image').disabled = false;
+  }
+}
+
+function submitImageAnalysis() {
+  if (!selectedImageFile) return;
+
+  const formData = new FormData();
+  formData.append('image', selectedImageFile);
+
+  const btnProcess = document.getElementById('btn-process-image');
+  btnProcess.disabled = true;
+  btnProcess.innerText = 'Analyzing...';
+
+  fetch('/upload/image', {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    btnProcess.disabled = false;
+          <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection
+
+    if (data.success) {
+      displayImageResults(data);
+    } else {
+      alert('Inference error: ' + (data.message || 'Unknown error'));
+    }
+  })
+  .catch(err => {
+    btnProcess.disabled = false;
+          <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection
+    alert('Server connection error: ' + err);
+  });
+}
+
+function displayImageResults(data) {
+  const container = document.getElementById('results-display-container');
+  const imgEl = document.getElementById('result-annotated-img');
+  const dlBtn = document.getElementById('btn-download-annotated-img');
+
+  imgEl.src = data.annotated_url;
+  dlBtn.href = data.annotated_url;
+
+  const stats = data.stats || {};
+  document.getElementById('result-workers-count').innerText = stats.worker_count || 0;
+  document.getElementById('result-violations-count').innerText = stats.violation_count || 0;
+
+  // Workers table
+  const wBody = document.getElementById('result-workers-table-body');
+  wBody.innerHTML = '';
+  const workers = stats.workers || [];
+
+  if (workers.length > 0) {
+    workers.forEach(w => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${w.label || 'Worker #' + w.worker_id}</strong></td>
+        <td>
+          <span class="badge ${w.helmet ? 'badge-compliant' : 'badge-danger'}">
+            ${w.helmet ? 'YES (' + ((w.helmet_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
+          </span>
+        </td>
+        <td>
+          <span class="badge ${w.vest ? 'badge-compliant' : 'badge-danger'}">
+            ${w.vest ? 'YES (' + ((w.vest_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
+          </span>
+        </td>
+        <td>
+          <span class="badge ${w.violations && w.violations.length > 0 ? 'badge-critical' : 'badge-compliant'}">
+            ${w.status || 'COMPLIANT'}
+          </span>
+        </td>
+      `;
+      wBody.appendChild(tr);
+    });
+  } else {
+    wBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No workers detected in this image.</td></tr>';
+  }
+
+  // Raw Detections table
+  const rawBody = document.getElementById('result-raw-detections-body');
+  rawBody.innerHTML = '';
+  const rawDets = stats.raw_detections || [];
+
+  if (Array.isArray(rawDets) && rawDets.length > 0) {
+    rawDets.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong style="color: var(--text-primary);">${d.class_name || d.category}</strong></td>
+        <td style="font-family: var(--font-mono); color: var(--color-info);">${((d.confidence || 0)*100).toFixed(1)}%</td>
+        <td style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);">${JSON.stringify(d.bbox)}</td>
+      `;
+      rawBody.appendChild(tr);
+    });
+  } else {
+    rawBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No raw bounding boxes returned.</td></tr>';
+  }
+
+  container.style.display = 'block';
+  container.scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetImageUploadView() {
+  document.getElementById('results-display-container').style.display = 'none';
+  document.getElementById('image-file-input').value = '';
+  document.getElementById('image-selected-label').style.display = 'none';
+  document.getElementById('btn-process-image').disabled = true;
+  selectedImageFile = null;
+}
+</script>
+{% endblock %}
