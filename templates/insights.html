@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}AI Insights — SiteGuard AI{% endblock %}
+{% block page_title %}AI Insights{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-title">
+    <span>Real Data-Driven Executive Safety Insights</span>
+    <span class="badge badge-ai">100% Deterministic Fact Synthesis</span>
+  </div>
+  <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+    All insights below are synthesized strictly from actual database violation events and frame evaluation records. Zero fabricated narratives or placeholder estimations.
+  </p>
+
+  {% if total_events > 0 %}
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <!-- Main Summary Callout -->
+      <div class="insight-callout">
+        <div class="insight-icon"></div>
+        <div class="insight-text">
+          <strong>Executive Event Synthesis:</strong><br>
+          Based on <strong>{{ total_events }}</strong> recorded safety events across all monitoring sessions:
+          <ul style="margin-top: 8px; margin-left: 20px;">
+            {% for v_type, count in type_dist.items() %}
+              <li><strong>{{ count }}</strong> events ({{ ((count / total_events) * 100)|round(1) }}%) involved <strong>{{ v_type }}</strong></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Severity Distribution Insight -->
+      <div class="insight-callout">
+        <div class="insight-icon"></div>
+        <div class="insight-text">
+          <strong>Risk & Severity Breakdown:</strong><br>
+          Out of {{ total_events }} recorded safety violations:
+          <ul style="margin-top: 8px; margin-left: 20px;">
+            <li><strong style="color: var(--color-critical);">{{ sev_dist.get('CRITICAL', 0) }} Critical Breaches:</strong> Compound hazard zone breaches or severe PPE failure.</li>
+            <li><strong style="color: var(--safety-orange);">{{ sev_dist.get('HIGH', 0) }} High Severity:</strong> Restricted zone incursions or high-risk zone entries.</li>
+            <li><strong style="color: var(--safety-yellow);">{{ sev_dist.get('MEDIUM', 0) }} Medium Severity:</strong> Standard missing helmet or missing safety vest infractions.</li>
+            <li><strong style="color: var(--color-info);">{{ sev_dist.get('LOW', 0) }} Low Severity:</strong> Minor infractions or transient observations.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Time Pattern Insight -->
+      {% if peak_hour %}
+        <div class="insight-callout">
+          <div class="insight-icon">â�°</div>
+          <div class="insight-text">
+            <strong>Temporal Pattern Analysis:</strong><br>
+            The highest concentration of recorded violations occurred around <strong>{{ peak_hour }}</strong> with {{ peak_count }} safety events logged. Recommended action: Intensify safety officer supervision and automated camera alerts during this operational window.
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Resolution Progress Insight -->
+      <div class="insight-callout">
+        <div class="insight-icon">âœ…</div>
+        <div class="insight-text">
+          <strong>Operational Remediation:</strong><br>
+          <strong>{{ resolved_count }}</strong> of {{ total_events }} ({{ ((resolved_count / total_events) * 100)|round(1) }}%) incidents have been formally reviewed, assigned, and resolved by safety officers.
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state-card">
+      <div class="empty-state-icon"></div>
+      <div class="empty-state-title">No safety events recorded yet</div>
+      <div class="empty-state-text">AI safety synthesis requires actual recorded events from live camera feeds or uploaded video files.</div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
