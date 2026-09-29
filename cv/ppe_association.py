@@ -27,30 +27,6 @@ def is_point_inside(point, box):
     x1, y1, x2, y2 = box
     return x1 <= x <= x2 and y1 <= y <= y2
 
-def validate_high_vis_vest(frame, v_box, conf):
-    """Verifies that a detected vest contains true safety fluorescent hues (lime-yellow or safety orange)."""
-    if conf >= 0.32:
-        return True
-    if frame is None:
-        return conf >= 0.10
-
-    H, W = frame.shape[:2]
-    vx1, vy1, vx2, vy2 = v_box
-    crop = frame[max(0, vy1):min(H, vy2), max(0, vx1):min(W, vx2)]
-    if crop.size == 0:
-        return False
-
-    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    # 1. Fluorescent High-Vis Yellow/Lime (Yellow-dominant, not background tree green):
-    mask_lime_yellow = cv2.inRange(hsv, np.array([27, 75, 90]), np.array([48, 255, 255]))
-    # 2. High-Vis Safety Orange / Fluorescent Red:
-    mask_orange = cv2.inRange(hsv, np.array([4, 95, 95]), np.array([18, 255, 255]))
-    mask_red = cv2.inRange(hsv, np.array([168, 95, 95]), np.array([180, 255, 255]))
-
-    mask = mask_lime_yellow | mask_orange | mask_red
-    ratio = np.count_nonzero(mask) / float(crop.shape[0] * crop.shape[1])
-    return ratio >= 0.12
-
 class PPEAssociator:
     def __init__(
         self,
@@ -61,15 +37,20 @@ class PPEAssociator:
         self.head_span = head_span
         self.torso_span = torso_span
         self.min_overlap = min_overlap
+        
+        # All 8 supported PPE classes in the SOTA system
+        self.supported_classes = [
+            "helmet", "vest", "boots", "gloves", 
+            "goggles", "ear_muffs", "harness", "chaps"
+        ]
 
     def get_head_box(self, person_box):
         px1, py1, px2, py2 = person_box
         ph = py2 - py1
         pw = px2 - px1
-        # Head is top portion of person bbox, allowing upwards extension for shoulders/torsos
-        hy1 = max(0, py1 - int(ph * 0.45))
-        hy2 = py1 + int(ph * self.head_span[1])
-        # Give horizontal padding for helmet margins
+        # Head is upper portion of person bbox
+        hy1 = max(0, py1 - int(ph * 0.20))
+        hy2 = py1 + int(ph * 0.45)
         hx1 = max(0, px1 - int(pw * 0.15))
         hx2 = px2 + int(pw * 0.15)
         return [hx1, hy1, hx2, hy2]
@@ -83,102 +64,82 @@ class PPEAssociator:
 
     def associate(self, workers, detections, frame=None):
         """
-        Associates PPE detections (helmets, vests, no_helmets) with each worker.
-        
-        workers: list of dicts with 'worker_id', 'label', 'bbox', 'confidence'
-        detections: list of dicts from ConstructionDetector
-        
-        Returns list of enriched worker dicts:
-        [
-            {
-                "worker_id": int,
-                "label": "Worker #X",
-                "bbox": [x1, y1, x2, y2],
-                "confidence": float,
-                "helmet": bool,
-                "helmet_conf": float,
-                "vest": bool,
-                "vest_conf": float,
-                "no_helmet_detected": bool,
-                "associated_items": {
-                    "helmet_box": [..] or None,
-                    "vest_box": [..] or None
-                }
-            }, ...
-        ]
+        Associates all 8 PPE detections with each worker using 1-to-1 spatial matching.
         """
-        helmets = [d for d in detections if d["category"] == "helmet"]
-        vests = [d for d in detections if d["category"] == "vest"]
-        no_helmets = [d for d in detections if d["category"] == "no_helmet"]
+        # Dictionary to store filtered detections by category
+        category_detections = {cat: [] for cat in self.supported_classes}
+        
+        for d in detections:
+            cat = d["category"]
+            if cat in self.supported_classes:
+                category_detections[cat].append(d)
 
+        num_workers = len(workers)
+        
+        # Store associated item for each worker (worker_idx -> category -> detection dict)
+        worker_ppe = {i: {cat: None for cat in self.supported_classes} for i in range(num_workers)}
+
+        # Perform assignment for all classes (simplified heuristic: closest center within bounding box)
+        for cat in self.supported_classes:
+            items = category_detections[cat]
+            for item in items:
+                item_box = item["bbox"]
+                item_center = ((item_box[0] + item_box[2]) / 2, (item_box[1] + item_box[3]) / 2)
+                best_i = None
+                best_dist = float("inf")
+
+                for i, worker in enumerate(workers):
+                    w_box = worker["bbox"]
+                    # Depending on the item, we check overlap with specific body regions (head vs torso vs full body)
+                    if cat in ["helmet", "goggles", "ear_muffs"]:
+                        region_box = self.get_head_box(w_box)
+                    elif cat in ["vest", "harness"]:
+                        region_box = self.get_torso_box(w_box)
+                    else: # gloves, boots, chaps
+                        region_box = w_box # Full body for now
+
+                    overlap = compute_box_overlap(item_box, region_box)
+
+                    if (is_point_inside(item_center, region_box) or overlap >= 0.15) and (w_box[0] - 20 <= item_center[0] <= w_box[2] + 20):
+                        dist = (item_center[0] - (w_box[0] + w_box[2]) / 2) ** 2 + (item_center[1] - (w_box[1] + w_box[3]) / 2) ** 2
+                        if dist < best_dist:
+                            best_dist = dist
+                            best_i = i
+
+                if best_i is not None:
+                    existing = worker_ppe[best_i][cat]
+                    if existing is None or item["confidence"] > existing["confidence"]:
+                        worker_ppe[best_i][cat] = item
+
+        # Build enriched worker dictionary
         enriched_workers = []
-
-        for worker in workers:
+        for i, worker in enumerate(workers):
             w_box = worker["bbox"]
-            head_box = self.get_head_box(w_box)
-            torso_box = self.get_torso_box(w_box)
-
-            # 1. Helmet Association
-            has_helmet = False
-            best_helmet_conf = 0.0
-            best_helmet_box = None
-
-            for h in helmets:
-                h_box = h["bbox"]
-                h_center = ((h_box[0] + h_box[2]) / 2, (h_box[1] + h_box[3]) / 2)
-                overlap = compute_box_overlap(h_box, head_box)
-
-                if is_point_inside(h_center, head_box) or overlap >= self.min_overlap:
-                    if h["confidence"] > best_helmet_conf:
-                        has_helmet = True
-                        best_helmet_conf = h["confidence"]
-                        best_helmet_box = h_box
-
-            # Check for explicit no_helmet signal
-            has_no_helmet_signal = False
-            for nh in no_helmets:
-                nh_box = nh["bbox"]
-                nh_center = ((nh_box[0] + nh_box[2]) / 2, (nh_box[1] + nh_box[3]) / 2)
-                if is_point_inside(nh_center, head_box) or compute_box_overlap(nh_box, head_box) >= self.min_overlap:
-                    has_no_helmet_signal = True
-                    break
-
-            if has_no_helmet_signal and not has_helmet:
-                has_helmet = False
-
-            # 2. Vest Association
-            has_vest = False
-            best_vest_conf = 0.0
-            best_vest_box = None
-
-            for v in vests:
-                v_box = v["bbox"]
-                v_center = ((v_box[0] + v_box[2]) / 2, (v_box[1] + v_box[3]) / 2)
-                overlap = compute_box_overlap(v_box, torso_box)
-
-                if is_point_inside(v_center, torso_box) or overlap >= self.min_overlap:
-                    if validate_high_vis_vest(frame, v_box, v["confidence"]):
-                        if v["confidence"] > best_vest_conf:
-                            has_vest = True
-                            best_vest_conf = v["confidence"]
-                            best_vest_box = v_box
-
-            enriched_workers.append({
+            
+            worker_data = {
                 "worker_id": worker["worker_id"],
                 "label": worker["label"],
                 "bbox": w_box,
                 "confidence": worker["confidence"],
-                "helmet": has_helmet,
-                "helmet_conf": round(best_helmet_conf, 3),
-                "vest": has_vest,
-                "vest_conf": round(best_vest_conf, 3),
-                "no_helmet_detected": has_no_helmet_signal,
-                "head_box": head_box,
-                "torso_box": torso_box,
-                "associated_items": {
-                    "helmet_box": best_helmet_box,
-                    "vest_box": best_vest_box
-                }
-            })
+                "head_box": self.get_head_box(w_box),
+                "torso_box": self.get_torso_box(w_box),
+                "associated_items": {}
+            }
+            
+            # Map the 8 PPE classes into the worker_data dict
+            for cat in self.supported_classes:
+                matched_item = worker_ppe[i][cat]
+                has_item = matched_item is not None
+                
+                # Flag expected by ViolationManager EWMA
+                worker_data[f"has_{cat}"] = has_item
+                worker_data[f"{cat}_conf"] = round(matched_item["confidence"], 3) if has_item else 0.0
+                worker_data["associated_items"][f"{cat}_box"] = matched_item["bbox"] if has_item else None
+                
+                # For backwards compatibility with older templates (helmet/vest)
+                if cat in ["helmet", "vest"]:
+                    worker_data[cat] = has_item
+
+            enriched_workers.append(worker_data)
 
         return enriched_workers
