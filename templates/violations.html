@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Violations â€” SiteGuard AI{% endblock %}
+{% block page_title %}Safety Violations{% endblock %}
+
+{% block top_actions %}
+  <a href="{{ url_for('export_violations_csv') }}" class="btn btn-sm btn-secondary">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+<!-- Metrics Summary Cards for Human-in-the-Loop Review -->
+<div class="stats-grid" style="margin-bottom: 20px;">
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">Total AI Detections</span>
+      <span class="stat-icon" style="background: var(--blue-dim); color: var(--blue);">AI</span>
+    </div>
+    <div class="stat-value" id="stat-total-violations">{{ review_stats.total_violations }}</div>
+    <div class="stat-trend">Total safety events evaluated by YOLOv8</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">Human-Confirmed</span>
+      <span class="stat-icon" style="background: var(--red-dim); color: var(--red);">!</span>
+    </div>
+    <div class="stat-value" id="stat-confirmed-violations" style="color: var(--color-critical);">{{ review_stats.confirmed_violations }}</div>
+    <div class="stat-trend">
+      <span style="color: var(--color-critical);">{{ review_stats.confirmation_rate }}%</span> confirmed breach rate
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">False Positives Flagged</span>
+      <span class="stat-icon" style="background: var(--orange-dim); color: var(--orange);">FP</span>
+    </div>
+    <div class="stat-value" id="stat-false-positives" style="color: var(--safety-orange);">{{ review_stats.false_positives }}</div>
+    <div class="stat-trend">
+      <span style="color: var(--safety-orange);">{{ review_stats.false_positive_rate }}%</span> FP rate (model tuning)
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">Pending Human Review</span>
+      <span class="stat-icon" style="background: var(--purple-dim); color: var(--purple);">?</span>
+    </div>
+    <div class="stat-value" id="stat-pending-reviews">{{ review_stats.pending_reviews }}</div>
+    <div class="stat-trend">Awaiting safety officer verification</div>
+  </div>
+</div>
+
+<!-- Filter Controls Card -->
+<div class="card" style="padding: 16px; margin-bottom: 20px;">
+  <form id="filter-form" method="GET" action="{{ url_for('violations_view') }}">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+      <div>
+        <label class="form-label">Violation Type</label>
+        <select name="violation_type" class="form-select" style="width: 180px;" onchange="document.getElementById('filter-form').submit()">
+          <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Types</option>
+          <option value="NO_HELMET" {% if current_v_type == 'NO_HELMET' %}selected{% endif %}>Missing Helmet</option>
+          <option value="NO_VEST" {% if current_v_type == 'NO_VEST' %}selected{% endif %}>Missing Safety Vest</option>
+          <option value="RESTRICTED_ZONE_BREACH" {% if current_v_type == 'RESTRICTED_ZONE_BREACH' %}selected{% endif %}>Restricted Zone</option>
+          <option value="HAZARD_NO_HELMET" {% if current_v_type == 'HAZARD_NO_HELMET' %}selected{% endif %}>Hazard (No Helmet)</option>
+          <option value="HAZARD_NO_VEST" {% if current_v_type == 'HAZARD_NO_VEST' %}selected{% endif %}>Hazard (No Vest)</option>
+          <option value="HAZARD_NO_PPE" {% if current_v_type == 'HAZARD_NO_PPE' %}selected{% endif %}>Hazard (No PPE)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Review Status</label>
+        <select name="status" class="form-select" style="width: 150px;" onchange="document.getElementById('filter-form').submit()">
+          <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+          <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>OPEN / Pending</option>
+          <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
+          <option value="FALSE_POSITIVE" {% if current_status == 'FALSE_POSITIVE' %}selected{% endif %}>FALSE POSITIVE</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Severity</label>
+        <select name="severity" class="form-select" style="width: 130px;" onchange="document.getElementById('filter-form').submit()">
+          <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
+          <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
+          <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+          <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
+          <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Site</label>
+        <select name="site_id" class="form-select" style="width: 150px;" onchange="document.getElementById('filter-form').submit()">
+          <option value="ALL" {% if current_site == 'ALL' %}selected{% endif %}>All Sites</option>
+          {% for s in sites %}
+            <option value="{{ s.id }}" {% if current_site == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Search</label>
+        <input type="text" name="search" class="form-input" placeholder="Search Code, Worker..." value="{{ current_search|default('') }}" style="width: 180px;">
+      </div>
+
+      <div>
+        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Filter</button>
+        <a href="{{ url_for('violations_view') }}" class="btn btn-secondary btn-sm" style="height: 38px;">Reset</a>
+      </div>
+
+      <div style="margin-left: auto; font-size: 13px; color: var(--text-secondary); align-self: center;">
+        Records: <strong style="color: var(--text-primary);">{{ violations|length }}</strong>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Violations Master Table with Human-in-the-Loop Review -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Violation Code</th>
+          <th>Worker / Track</th>
+          <th>Violation Category</th>
+          <th>Severity</th>
+          <th>Confidence</th>
+          <th>Site / Camera</th>
+          <th>Detected At</th>
+          <th>Review Status</th>
+          <th>Evidence</th>
+          <th style="text-align: right;">Officer Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if violations and violations|length > 0 %}
+          {% for v in violations %}
+            <tr id="violation-row-{{ v.id }}">
+              <td>
+                <strong style="font-family: var(--font-mono); color: var(--orange);">
+                  {{ v.violation_code }}
+                </strong>
+              </td>
+              <td>
+                <strong>{{ v.worker_label }}</strong>
+                <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">ID: TRK-{{ "%03d"|format(v.worker_id) }}</div>
+              </td>
+              <td>
+                <span style="font-weight: 600; font-size: 13px;">{{ v.violation_type }}</span>
+                <div style="font-size: 11px; color: var(--text-muted); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  {{ v.description }}
+                </div>
+              </td>
+              <td>
+                <span class="badge badge-{{ v.severity|lower }}">{{ v.severity }}</span>
+              </td>
+              <td style="font-family: var(--font-mono); color: var(--color-info);">
+                {{ (v.confidence * 100)|round(1) }}%
+              </td>
+              <td>
+                <div style="font-size: 12px; color: var(--text-primary);">{{ v.site_name|default('Construction Site') }}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">{{ v.camera_name|default(v.source) }}</div>
+              </td>
+              <td style="color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);">
+                {{ v.timestamp }}
+              </td>
+              <td>
+                {% if v.review_decision == 'CONFIRMED' %}
+                  <span class="badge badge-red">
+                    CONFIRMED
+                  </span>
+                  {% if v.reviewed_by %}
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">by {{ v.reviewed_by }}</div>
+                  {% endif %}
+                {% elif v.review_decision == 'FALSE_POSITIVE' %}
+                  <span class="badge badge-orange">
+                    FALSE POSITIVE
+                  </span>
+                  {% if v.reviewed_by %}
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">by {{ v.reviewed_by }}</div>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge-warning">
+                    PENDING
+                  </span>
+                {% endif %}
+              </td>
+              <td>
+                {% if v.snapshot_path %}
+                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}', '{{ v.violation_code }}', '{{ v.violation_type }}', 'Worker: {{ v.worker_label }} | Conf: {{ (v.confidence * 100)|round(1) }}% | Time: {{ v.timestamp }}')">
+                    Evidence
+                  </button>
+                {% else %}
+                  <span style="color: var(--text-muted); font-size: 11px;">No Frame</span>
+                {% endif %}
+              </td>
+              <td style="text-align: right;">
+                {% if v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
+                  <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                    <button class="btn btn-sm btn-danger" onclick="openConfirmModal({{ v.id }}, '{{ v.violation_code }}', '{{ v.violation_type }}')">
+                      Confirm
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="openFpModal({{ v.id }}, '{{ v.violation_code }}')">
+                      False +
+                    </button>
+                  </div>
+                {% else %}
+                  <span style="font-size: 12px; color: var(--text-muted);">Reviewed</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="10">
+              <div class="empty-state-card">
+                <div class="empty-state-icon"></div>
+                <div class="empty-state-title">No violation records match your filter</div>
+                <div class="empty-state-text">No safety events recorded or matching the current filter parameters.</div>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Confirm Violation Modal -->
+<div id="confirm-modal" class="modal-backdrop" style="display: none;">
+  <div class="modal-content" style="max-width: 440px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="margin: 0; font-size: 14px; color: var(--red);">Confirm Safety Breach</h3>
+      <button class="modal-close-btn" onclick="closeModals()">&times;</button>
+    </div>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+      Confirming this detection will formally register an active <strong>Safety Incident (INC)</strong> and assign it to the safety officer for root cause remediation.
+    </p>
+    <form id="confirm-form" onsubmit="submitConfirm(event)">
+      <input type="hidden" id="confirm-violation-id">
+      <div style="margin-bottom: 12px;">
+        <label class="form-label">Reviewing Officer</label>
+        <input type="text" id="confirm-officer" class="form-input" value="{{ session.get('username', 'Safety Officer') }}" required>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <label class="form-label">Investigation Notes / Directive</label>
+        <textarea id="confirm-notes" class="form-input" rows="3" placeholder="e.g. Worker was issued warning and given helmet at Gate 2."></textarea>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+        <button type="submit" class="btn btn-danger">
+          Confirm & Create Incident
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- False Positive Modal -->
+<div id="fp-modal" class="modal-backdrop" style="display: none;">
+  <div class="modal-content" style="max-width: 440px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="margin: 0; font-size: 14px; color: var(--orange);">Flag as False Positive</h3>
+      <button class="modal-close-btn" onclick="closeModals()">&times;</button>
+    </div>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+      Marking as false positive will close associated alerts and adjust the AI model performance metrics.
+    </p>
+    <form id="fp-form" onsubmit="submitFalsePositive(event)">
+      <input type="hidden" id="fp-violation-id">
+      <div style="margin-bottom: 12px;">
+        <label class="form-label">Reviewer</label>
+        <input type="text" id="fp-officer" class="form-input" value="{{ session.get('username', 'Safety Officer') }}" required>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <label class="form-label">Reason for False Positive</label>
+        <select id="fp-reason" class="form-select" required>
+          <option value="PPE partially occluded / lighting glare">PPE partially occluded / lighting glare</option>
+          <option value="Non-worker pedestrian / visitor">Non-worker pedestrian / visitor</option>
+          <option value="Reflective vest worn under jacket">Reflective vest worn under jacket</option>
+          <option value="Distance / resolution artifact">Distance / resolution artifact</option>
+          <option value="Other model misclassification">Other model misclassification</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          Mark False Positive
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openConfirmModal(id, code, type) {
+    document.getElementById('confirm-violation-id').value = id;
+    document.getElementById('confirm-modal').style.display = 'flex';
+  }
+
+  function openFpModal(id, code) {
+    document.getElementById('fp-violation-id').value = id;
+    document.getElementById('fp-modal').style.display = 'flex';
+  }
+
+  function closeModals() {
+    document.getElementById('confirm-modal').style.display = 'none';
+    document.getElementById('fp-modal').style.display = 'none';
+  }
+
+  async function submitConfirm(e) {
+    e.preventDefault();
+    const id = document.getElementById('confirm-violation-id').value;
+    const officer = document.getElementById('confirm-officer').value;
+    const notes = document.getElementById('confirm-notes').value;
+
+    try {
+      const res = await fetch(`/api/violations/${id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewer: officer, notes: notes })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert('Error confirming violation: ' + (data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    }
+  }
+
+  async function submitFalsePositive(e) {
+    e.preventDefault();
+    const id = document.getElementById('fp-violation-id').value;
+    const officer = document.getElementById('fp-officer').value;
+    const reason = document.getElementById('fp-reason').value;
+
+    try {
+      const res = await fetch(`/api/violations/${id}/false-positive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewer: officer, reason: reason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert('Error updating false positive: ' + (data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    }
+  }
+</script>
+{% endblock %}
