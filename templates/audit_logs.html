@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log — SiteGuard AI{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>User Role</th>
+          <th>Action Type</th>
+          <th>Category</th>
+          <th>Audit Details</th>
+          <th>Target Code / ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if audit_logs and audit_logs|length > 0 %}
+          {% for log in audit_logs %}
+            <tr>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">
+                {{ log.timestamp }}
+              </td>
+              <td>
+                <span class="badge badge-info">{{ log.user_role }}</span>
+              </td>
+              <td>
+                <strong style="color: var(--text-primary);">{{ log.action }}</strong>
+              </td>
+              <td>
+                <span class="badge badge-low">{{ log.category }}</span>
+              </td>
+              <td style="color: var(--text-secondary); max-width: 380px;">
+                {{ log.details }}
+              </td>
+              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--safety-orange);">
+                {{ log.target_id }}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state-card">
+                <div class="empty-state-icon"></div>
+                <div class="empty-state-title">No audit log entries yet</div>
+                <div class="empty-state-text">System events, officer acknowledgments, and rule changes will be logged here.</div>
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
