@@ -18,17 +18,15 @@
     <div class="metric-footer">Lifetime recorded violations</div>
   </div>
 
+  {% for ppe in ppe_capabilities %}
+  {% if ppe.is_supported %}
   <div class="metric-card warning">
-    <div class="metric-header"><span>Missing Helmets</span><span class="metric-icon"></span></div>
-    <div class="metric-value">{{ summary.type_distribution.get('NO_HELMET', 0) }}</div>
-    <div class="metric-footer">Rule 1 breaches</div>
+    <div class="metric-header"><span>Missing {{ ppe.name }}</span><span class="metric-icon"></span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('MISSING_' ~ ppe.category, 0) + summary.type_distribution.get('NO_' ~ ppe.category, 0) + summary.type_distribution.get('NO_HELMET', 0 if ppe.category != 'HEAD' else summary.type_distribution.get('NO_HELMET', 0)) + summary.type_distribution.get('NO_VEST', 0 if ppe.category != 'VISIBILITY' else summary.type_distribution.get('NO_VEST', 0)) }}</div>
+    <div class="metric-footer">PPE Rule Breaches</div>
   </div>
-
-  <div class="metric-card warning">
-    <div class="metric-header"><span>Missing Vests</span><span class="metric-icon"></span></div>
-    <div class="metric-value">{{ summary.type_distribution.get('NO_VEST', 0) }}</div>
-    <div class="metric-footer">Rule 2 breaches</div>
-  </div>
+  {% endif %}
+  {% endfor %}
 
   <div class="metric-card critical">
     <div class="metric-header"><span>Zone Incursions</span><span class="metric-icon">â›”</span></div>
