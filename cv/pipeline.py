@@ -123,16 +123,21 @@ class SafetyPipeline:
 
         worker_summaries = []
         for w in verified_workers:
-            worker_summaries.append({
+            w_sum = {
                 "worker_id": w["worker_id"],
                 "label": w["label"],
-                "helmet": w["helmet"],
-                "vest": w["vest"],
+                "helmet": w.get("helmet", False),
+                "vest": w.get("vest", False),
                 "zone_type": w.get("zone_type", "SAFE"),
                 "zone_name": w.get("zone_name", "SAFE"),
                 "status": w.get("status", "COMPLIANT"),
-                "violations": [v["type"] for v in w.get("violations", [])]
-            })
+                "violations": w.get("violations", []) # violation descriptions
+            }
+            # Append all 8 dynamic PPE categories
+            for cat in ["HEAD", "EYE", "HEARING", "VISIBILITY", "HAND", "FALL_PROTECTION", "LEG_PROTECTION", "FOOT"]:
+                w_sum[f"has_{cat}"] = w.get(f"has_{cat}", False)
+            
+            worker_summaries.append(w_sum)
 
         summary = {
             "fps": round(self.fps, 1),
