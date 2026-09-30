@@ -9,17 +9,19 @@ class Severity:
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
-# Define mandatory PPE for each work zone
+from .ppe_config import get_ppe_capabilities, is_ppe_supported
+
+# Define mandatory PPE categories for each work zone
 ZONE_RULES = {
-    "GROUND": ["helmet", "vest", "boots", "gloves"],
-    "HEIGHTS": ["helmet", "harness", "boots", "gloves"],
-    "MACHINERY": ["helmet", "vest", "boots", "goggles", "ear_muffs"],
-    "WELDING": ["helmet", "goggles", "gloves", "vest"],
-    "ELECTRICAL": ["helmet", "gloves", "boots", "goggles"],
-    "TRENCHING": ["helmet", "vest", "boots", "harness"],
+    "GROUND": ["HEAD", "VISIBILITY", "FOOT", "HAND"],
+    "HEIGHTS": ["HEAD", "FALL_PROTECTION", "FOOT", "HAND"],
+    "MACHINERY": ["HEAD", "VISIBILITY", "FOOT", "EYE", "HEARING"],
+    "WELDING": ["HEAD", "EYE", "HAND", "VISIBILITY"],
+    "ELECTRICAL": ["HEAD", "HAND", "FOOT", "EYE"],
+    "TRENCHING": ["HEAD", "VISIBILITY", "FOOT", "FALL_PROTECTION"],
     # Fallbacks for existing zones
-    "SAFE": ["helmet", "vest"],
-    "HAZARD": ["helmet", "vest", "boots", "goggles"],
+    "SAFE": ["HEAD", "VISIBILITY"],
+    "HAZARD": ["HEAD", "VISIBILITY", "FOOT", "EYE"],
     "RESTRICTED": []
 }
 
@@ -38,23 +40,23 @@ class SafetyRuleEngine:
         zone_type = zone_type.upper()
         
         # CRITICAL conditions
-        if zone_type in ["HEIGHTS", "TRENCHING"] and "harness" in missing_ppe:
+        if zone_type in ["HEIGHTS", "TRENCHING"] and "FALL_PROTECTION" in missing_ppe:
             return Severity.CRITICAL, True
-        if zone_type == "HAZARD" and ("helmet" in missing_ppe or "vest" in missing_ppe):
+        if zone_type == "HAZARD" and ("HEAD" in missing_ppe or "VISIBILITY" in missing_ppe):
             return Severity.CRITICAL, True
             
         # HIGH conditions
-        if zone_type == "WELDING" and "goggles" in missing_ppe:
+        if zone_type == "WELDING" and "EYE" in missing_ppe:
             return Severity.HIGH, False
-        if zone_type == "MACHINERY" and "helmet" in missing_ppe:
+        if zone_type == "MACHINERY" and "HEAD" in missing_ppe:
             return Severity.HIGH, False
-        if "helmet" in missing_ppe:
+        if "HEAD" in missing_ppe:
             return Severity.HIGH, False
             
         # MEDIUM conditions
-        if zone_type == "ELECTRICAL" and "gloves" in missing_ppe:
+        if zone_type == "ELECTRICAL" and "HAND" in missing_ppe:
             return Severity.MEDIUM, False
-        if "vest" in missing_ppe:
+        if "VISIBILITY" in missing_ppe:
             return Severity.MEDIUM, False
             
         # LOW conditions
@@ -63,6 +65,7 @@ class SafetyRuleEngine:
     def evaluate_rules(self, worker_state):
         """
         Evaluates context-aware zone-based safety rules using EWMA smoothed confidence scores.
+        Crucially, only evaluates PPE categories that the CURRENT YOLO MODEL actually supports.
         """
         violations = []
         zone_type = worker_state.get("zone_type", "SAFE")
@@ -82,17 +85,20 @@ class SafetyRuleEngine:
             return violations
 
         # Get Required PPE for this specific zone
-        required_ppe = self.get_required_ppe(zone_type)
+        required_ppe_categories = self.get_required_ppe(zone_type)
         missing_ppe = []
         
-        # Evaluate each required PPE using the EWMA-smoothed confidence in the worker state
-        for ppe in required_ppe:
-            # We assume EWMA smoothing has already happened upstream and provided boolean flags
-            # e.g., 'is_helmet_present', 'is_vest_present', etc.
-            key = f"is_{ppe}_present"
+        for ppe_category in required_ppe_categories:
+            # RULE: NEVER FAKE AI DETECTION.
+            # If the current model cannot detect this category, we cannot flag it as missing.
+            if not is_ppe_supported(ppe_category):
+                continue
+                
+            # e.g., 'is_HEAD_present', 'is_VISIBILITY_present'
+            key = f"is_{ppe_category}_present"
             is_present = worker_state.get(key, False)
             if not is_present:
-                missing_ppe.append(ppe)
+                missing_ppe.append(ppe_category)
                 
         # If PPE is missing, generate the appropriate violation
         if missing_ppe:
