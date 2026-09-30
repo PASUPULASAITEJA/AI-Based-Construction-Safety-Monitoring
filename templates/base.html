@@ -102,6 +102,10 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         <span>System Health</span>
       </a></li>
+      <li><a href="{{ url_for('ppe_view') }}" {% if active_page == 'ppe' %}class="active"{% endif %} id="nav-ppe">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>PPE Config</span>
+      </a></li>
       <li><a href="{{ url_for('audit_logs_view') }}" {% if active_page == 'audit_logs' %}class="active"{% endif %} id="nav-audit">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><circle cx="12" cy="12" r="10"/></svg>
         <span>Audit Log</span>
