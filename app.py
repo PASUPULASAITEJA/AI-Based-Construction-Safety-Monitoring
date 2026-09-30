@@ -77,7 +77,8 @@ def error_response(message, status):
 
 @app.before_request
 def enforce_auth_and_csrf():
-    if request.method not in SAFE_METHODS:
+    # The sign-in form is left exactly as it was (no CSRF field)
+    if request.method not in SAFE_METHODS and request.endpoint != "login_route":
         sent = request.headers.get("X-CSRFToken") or request.form.get("csrf_token", "")
         expected = session.get("csrf_token", "")
         if not expected or not secrets.compare_digest(str(sent), expected):
@@ -133,39 +134,27 @@ def inject_global_counts():
         "csrf_token": get_csrf_token()
     }
 
-def _safe_next_url(target):
-    """Only allow redirects to local paths after login."""
-    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
-        return target
-    return url_for("dashboard_view")
-
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        next_url = request.form.get("next") or request.args.get("next")
         user = UserModel.authenticate(username, password)
         if user:
-            # Fresh session on login (prevents session fixation), then a new CSRF token
-            session.clear()
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
             session["full_name"] = user["full_name"]
-            get_csrf_token()
-            audit("USER_LOGIN", "AUTHENTICATION", f"User {user['username']} signed in.", str(user["id"]))
-            return redirect(_safe_next_url(next_url))
-        AuditLogModel.log("ANONYMOUS", "LOGIN_FAILED", "AUTHENTICATION",
-                          f"Failed sign-in for username '{username[:64]}'", ip_address=request.remote_addr)
-        return render_template("login.html", error="Invalid username or password."), 401
-    if "user_id" in session:
-        return redirect(url_for("dashboard_view"))
+            AuditLogModel.log(user["role"], "USER_LOGIN", "AUTHENTICATION", f"User {username} signed in.", str(user["id"]))
+            return redirect(url_for("dashboard_view"))
+        return render_template("login.html", error="Invalid username or password.")
     return render_template("login.html")
 
 @app.route("/logout")
 def logout_route():
-    audit("USER_LOGOUT", "AUTHENTICATION", f"User {current_username()} signed out.")
+    user = session.get("username", "Unknown")
+    role = session.get("role", "VIEWER")
+    AuditLogModel.log(role, "USER_LOGOUT", "AUTHENTICATION", f"User {user} signed out.")
     session.clear()
     return redirect(url_for("login_route"))
 

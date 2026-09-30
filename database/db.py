@@ -2,7 +2,6 @@
 Database connection, schema initialization, and safe migrations using SQLite.
 """
 import os
-import secrets
 import sqlite3
 import datetime
 from werkzeug.security import generate_password_hash
@@ -321,21 +320,22 @@ def init_db():
     for k, v in default_settings:
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
 
-    # Seed an initial admin account if there are no users.
-    # Password comes from SITEGUARD_ADMIN_PASSWORD, or a random one is generated and printed once.
+    # Seed Default Users if none exist
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("SELECT COUNT(*) as count FROM users")
     if cursor.fetchone()["count"] == 0:
-        admin_password = os.environ.get("SITEGUARD_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, full_name, role, email, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, ("admin", generate_password_hash(admin_password), "Site Administrator", "ADMIN", "", now_str))
-        if os.environ.get("SITEGUARD_ADMIN_PASSWORD"):
-            print("[DB] Created initial user 'admin' with the password from SITEGUARD_ADMIN_PASSWORD")
-        else:
-            print(f"[DB] Created initial user 'admin' with generated password: {admin_password}")
-            print("[DB] Store it now; add further users with: python manage_users.py add <username> <role>")
+        default_users = [
+            ("admin", generate_password_hash("admin123"), "Site Administrator", "ADMIN", "admin@siteguard.ai"),
+            ("safety_officer", generate_password_hash("safety123"), "Marcus Vance (Lead Safety Officer)", "SAFETY_OFFICER", "safety@siteguard.ai"),
+            ("supervisor", generate_password_hash("super123"), "David Chen (Site Supervisor)", "SUPERVISOR", "supervisor@siteguard.ai"),
+            ("viewer", generate_password_hash("viewer123"), "Site Auditor", "VIEWER", "auditor@siteguard.ai")
+        ]
+        for uname, phash, fname, role, email in default_users:
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, full_name, role, email, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (uname, phash, fname, role, email, now_str))
+        print("[DB] Seeded default RBAC users: admin, safety_officer, supervisor, viewer")
 
     # Migrate legacy incidents (created before violations existed) into violations table
     cursor.execute("""

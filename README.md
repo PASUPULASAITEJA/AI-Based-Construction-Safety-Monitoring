@@ -156,13 +156,6 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
-On first start an `admin` account is created. Its password is taken from the `SITEGUARD_ADMIN_PASSWORD`
-environment variable, or generated and printed once in the console. Add more users with:
-```bash
-python manage_users.py add <username> <ADMIN|SAFETY_OFFICER|SUPERVISOR|VIEWER> [full name]
-python manage_users.py list
-python manage_users.py passwd <username>
-```
 Open your browser and navigate to:
 ```
 http://127.0.0.1:5000
@@ -172,7 +165,6 @@ http://127.0.0.1:5000
 | Variable | Default | Purpose |
 |---|---|---|
 | `SECRET_KEY` | random, stored in `database/.secret_key` | Flask session signing key |
-| `SITEGUARD_ADMIN_PASSWORD` | generated | Password of the initial `admin` user |
 | `SITEGUARD_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` to expose on the network) |
 | `SITEGUARD_PORT` | `5000` | HTTP port |
 
