@@ -4,9 +4,11 @@
 {% block page_title %}Cameras{% endblock %}
 
 {% block top_actions %}
+  {% if current_role != 'VIEWER' %}
   <button class="btn btn-primary" onclick="openAddCameraModal()">
-    âž• Add Camera Stream
+    ➕ Add Camera Stream
   </button>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -50,8 +52,10 @@
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
-          <a href="{{ url_for('monitor_view') }}" class="btn btn-sm btn-primary">View Feed</a>
-          <button class="btn btn-sm btn-danger" onclick="deleteCamera('{{ c.id }}')">Delete</button>
+          <a href="{{ url_for('monitor_view', camera_id=c.id) }}" class="btn btn-sm btn-primary">View Feed</a>
+          {% if current_role != 'VIEWER' %}
+          <button class="btn btn-sm btn-danger js-delete-camera" data-id="{{ c.id }}">Delete</button>
+          {% endif %}
         </div>
       </div>
     {% endfor %}
@@ -61,7 +65,7 @@
         <div class="empty-state-icon"></div>
         <div class="empty-state-title">No cameras configured yet</div>
         <div class="empty-state-text">Connect hardware webcams, RTSP streams, or simulator channels to begin automated surveillance.</div>
-        <button class="btn btn-primary" onclick="openAddCameraModal()">âž• Add First Camera</button>
+        {% if current_role != 'VIEWER' %}<button class="btn btn-primary" onclick="openAddCameraModal()">➕ Add First Camera</button>{% endif %}
       </div>
     </div>
   {% endif %}
@@ -74,8 +78,8 @@
     <h3 style="margin-bottom: 16px;">Add Camera Stream</h3>
 
     <div class="form-group">
-      <label class="form-label">Camera Code</label>
-      <input type="text" id="cam-code" class="form-input" placeholder="e.g. CAM-01">
+      <label class="form-label">Camera Code <span style="color: var(--text-muted); font-weight: 400;">(optional)</span></label>
+      <input type="text" id="cam-code" class="form-input" placeholder="Leave blank to auto-generate (e.g. CAM-01)">
     </div>
 
     <div class="form-group">
@@ -119,7 +123,7 @@
 {% block scripts %}
 <script>
 function openAddCameraModal() {
-  document.getElementById('cam-code').value = 'CAM-0' + Math.floor(1 + Math.random()*9);
+  document.getElementById('cam-code').value = '';
   document.getElementById('cam-name').value = '';
   document.getElementById('cam-source').value = '0';
   document.getElementById('camera-modal').style.display = 'flex';
@@ -130,7 +134,7 @@ function closeCameraModal() {
 }
 
 function saveCamera() {
-  const code = document.getElementById('cam-code').value;
+  const code = document.getElementById('cam-code').value.trim();
   const name = document.getElementById('cam-name').value;
   const siteId = document.getElementById('cam-site-id').value;
   const source = document.getElementById('cam-source').value;
@@ -141,32 +145,29 @@ function saveCamera() {
     return;
   }
 
-  fetch('/api/cameras', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      camera_code: code,
-      name: name,
-      site_id: siteId ? parseInt(siteId) : null,
-      stream_source: source,
-      stream_type: streamType
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) window.location.reload();
-    else alert('Error: ' + data.message);
-  });
+  const payload = {
+    name: name,
+    site_id: siteId ? parseInt(siteId, 10) : null,
+    stream_source: source,
+    stream_type: streamType
+  };
+  if (code) payload.camera_code = code;
+
+  apiJSON('/api/cameras', 'POST', payload)
+    .then(() => window.location.reload())
+    .catch(err => alert('Error saving camera: ' + err.message));
 }
 
 function deleteCamera(id) {
   if (!confirm('Are you sure you want to delete this camera configuration?')) return;
-  fetch(`/api/cameras/${id}`, { method: 'DELETE' })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) window.location.reload();
-    else alert('Error deleting camera.');
-  });
+  apiJSON(`/api/cameras/${encodeURIComponent(id)}`, 'DELETE')
+    .then(() => window.location.reload())
+    .catch(err => alert('Error deleting camera: ' + err.message));
 }
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.js-delete-camera');
+  if (btn) deleteCamera(btn.dataset.id);
+});
 </script>
 {% endblock %}

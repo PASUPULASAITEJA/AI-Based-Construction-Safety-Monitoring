@@ -3,6 +3,7 @@ AI-Based Construction Safety Monitoring
 Central Configuration Module
 """
 import os
+import secrets
 import torch
 
 # Base directories
@@ -29,7 +30,7 @@ for folder in [MODEL_DIR, UPLOADS_DIR, OUTPUTS_DIR, SNAPSHOTS_DIR, RUNS_DIR, os.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # CV & Inference Hyperparameters (Defaults)
-CONFIDENCE_THRESHOLD = 0.02
+CONFIDENCE_THRESHOLD = 0.25
 IOU_THRESHOLD = 0.45
 IMG_SIZE = 640
 
@@ -41,14 +42,39 @@ VIOLATION_COOLDOWN_FRAMES = 30 # Cooldown frames between duplicate alerts for th
 # Anatomical Sub-region Thresholds for Worker-PPE Association
 HEAD_REGION_SPAN = (0.0, 0.45)   # Top 45% for head/helmet (generous for bending workers)
 TORSO_REGION_SPAN = (0.15, 0.85) # Middle 15% to 85% for torso/vest
-MIN_OVERLAP_RATIO = 0.05        # Minimum bounding box overlap ratio to link PPE item to worker
+MIN_OVERLAP_RATIO = 0.15        # Minimum fraction of a PPE box inside a body region to link it to that worker
 
 # Video processing
 DEFAULT_FRAME_SKIP = 1           # Process every Nth frame (1 = process all)
 MAX_VIDEO_PREVIEW_WIDTH = 1280
 
+# Video upload processing limits
+MAX_VIDEO_FRAMES = 600           # Upper bound of frames analysed per uploaded video
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "bmp", "webp"}
+ALLOWED_VIDEO_EXTENSIONS = {"mp4", "avi", "mov", "mkv", "webm"}
+
+# Minimum seconds between workers_track DB writes for the same tracked worker
+WORKER_OBSERVATION_INTERVAL_SEC = 1.0
+
 # Web server
-HOST = "0.0.0.0"
-PORT = 5000
+HOST = os.environ.get("SITEGUARD_HOST", "127.0.0.1")
+PORT = int(os.environ.get("SITEGUARD_PORT", "5000"))
 DEBUG = False
-SECRET_KEY = "construction-safety-monitoring-secret-key-2026"
+
+def _load_secret_key():
+    """SECRET_KEY env var wins; otherwise a random key is generated once and kept in database/.secret_key."""
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        return env_key
+    key_path = os.path.join(BASE_DIR, "database", ".secret_key")
+    if os.path.exists(key_path):
+        with open(key_path, "r", encoding="utf-8") as f:
+            key = f.read().strip()
+            if key:
+                return key
+    key = secrets.token_hex(32)
+    with open(key_path, "w", encoding="utf-8") as f:
+        f.write(key)
+    return key
+
+SECRET_KEY = _load_secret_key()

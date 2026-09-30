@@ -9,8 +9,11 @@ import config
 
 def get_db_connection():
     os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(config.DB_PATH, timeout=20.0)
+    # Autocommit: every statement commits on its own, so a statement that fails (e.g. a UNIQUE or
+    # FOREIGN KEY violation) can never leave a write transaction open and lock the database.
+    conn = sqlite3.connect(config.DB_PATH, timeout=20.0, isolation_level=None)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 def init_db():
@@ -194,8 +197,9 @@ def init_db():
         ("resolved_at", "TEXT"),
         ("resolution_note", "TEXT")
     ]
+    # Only migrate an existing (legacy) table; a fresh database gets the full schema below
     for col_name, col_type in alert_migration_cols:
-        if col_name not in existing_alert_cols:
+        if existing_alert_cols and col_name not in existing_alert_cols:
             cursor.execute(f"ALTER TABLE alerts ADD COLUMN {col_name} {col_type}")
 
     # Also check zones table for site_id
@@ -308,12 +312,10 @@ def init_db():
 
     # Seed Default Settings if missing
     default_settings = [
-        ("conf_thresh", "0.25"),
-        ("iou_thresh", "0.45"),
-        ("min_violation_duration_sec", "1.5"),
-        ("min_zone_duration_sec", "1.0"),
-        ("alert_cooldown_sec", "15.0"),
-        ("track_timeout_sec", "30.0")
+        ("conf_thresh", str(config.CONFIDENCE_THRESHOLD)),
+        ("iou_thresh", str(config.IOU_THRESHOLD)),
+        ("min_violation_frames", str(config.MIN_VIOLATION_FRAMES)),
+        ("min_zone_frames", str(config.MIN_ZONE_FRAMES))
     ]
     for k, v in default_settings:
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
@@ -335,14 +337,20 @@ def init_db():
             """, (uname, phash, fname, role, email, now_str))
         print("[DB] Seeded default RBAC users: admin, safety_officer, supervisor, viewer")
 
-    # Migrate any existing incidents into violations table
+    # Migrate legacy incidents (created before violations existed) into violations table
     cursor.execute("""
         INSERT OR IGNORE INTO violations 
         (violation_code, worker_id, worker_label, violation_type, description, severity, confidence, timestamp, source, snapshot_path, status, incident_id)
         SELECT 'VIO-' || substr(incident_code, 5), worker_id, worker_label, violation_type, description, severity, confidence, timestamp, source, snapshot_path, 
                CASE WHEN status = 'RESOLVED' THEN 'RESOLVED' ELSE 'OPEN' END, id
         FROM incidents
-        WHERE 'VIO-' || substr(incident_code, 5) NOT IN (SELECT violation_code FROM violations)
+        WHERE violation_id IS NULL
+          AND 'VIO-' || substr(incident_code, 5) NOT IN (SELECT violation_code FROM violations)
+    """)
+    cursor.execute("""
+        UPDATE incidents
+        SET violation_id = (SELECT v.id FROM violations v WHERE v.violation_code = 'VIO-' || substr(incidents.incident_code, 5))
+        WHERE violation_id IS NULL
     """)
 
     # Sync any violations/incidents into alerts table
@@ -353,6 +361,7 @@ def init_db():
                timestamp
         FROM incidents
         WHERE id NOT IN (SELECT incident_id FROM alerts WHERE incident_id IS NOT NULL)
+          AND violation_id NOT IN (SELECT violation_id FROM alerts WHERE violation_id IS NOT NULL)
     """)
 
     conn.commit()

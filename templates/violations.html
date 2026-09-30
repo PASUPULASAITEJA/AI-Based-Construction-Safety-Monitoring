@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Safety Violations â€” SiteGuard AI{% endblock %}
+{% block title %}Safety Violations — SiteGuard AI{% endblock %}
 {% block page_title %}Safety Violations{% endblock %}
 
 {% block top_actions %}
@@ -59,12 +59,9 @@
         <label class="form-label">Violation Type</label>
         <select name="violation_type" class="form-select" style="width: 180px;" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Types</option>
-          <option value="NO_HELMET" {% if current_v_type == 'NO_HELMET' %}selected{% endif %}>Missing Helmet</option>
-          <option value="NO_VEST" {% if current_v_type == 'NO_VEST' %}selected{% endif %}>Missing Safety Vest</option>
-          <option value="RESTRICTED_ZONE_BREACH" {% if current_v_type == 'RESTRICTED_ZONE_BREACH' %}selected{% endif %}>Restricted Zone</option>
-          <option value="HAZARD_NO_HELMET" {% if current_v_type == 'HAZARD_NO_HELMET' %}selected{% endif %}>Hazard (No Helmet)</option>
-          <option value="HAZARD_NO_VEST" {% if current_v_type == 'HAZARD_NO_VEST' %}selected{% endif %}>Hazard (No Vest)</option>
-          <option value="HAZARD_NO_PPE" {% if current_v_type == 'HAZARD_NO_PPE' %}selected{% endif %}>Hazard (No PPE)</option>
+          {% for vt in violation_types|default([]) %}
+            <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -148,7 +145,7 @@
                 <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">ID: TRK-{{ "%03d"|format(v.worker_id) }}</div>
               </td>
               <td>
-                <span style="font-weight: 600; font-size: 13px;">{{ v.violation_type }}</span>
+                <span style="font-weight: 600; font-size: 13px;">{{ v.violation_type|replace('_', ' ') }}</span>
                 <div style="font-size: 11px; color: var(--text-muted); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                   {{ v.description }}
                 </div>
@@ -189,7 +186,7 @@
               </td>
               <td>
                 {% if v.snapshot_path %}
-                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}', '{{ v.violation_code }}', '{{ v.violation_type }}', 'Worker: {{ v.worker_label }} | Conf: {{ (v.confidence * 100)|round(1) }}% | Time: {{ v.timestamp }}')">
+                  <button class="btn btn-sm btn-secondary" data-snapshot="{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}" data-code="{{ v.violation_code }}" data-vtype="{{ v.violation_type }}" data-meta="Worker: {{ v.worker_label }} | Conf: {{ (v.confidence * 100)|round(1) }}% | Time: {{ v.timestamp }}">
                     Evidence
                   </button>
                 {% else %}
@@ -197,15 +194,17 @@
                 {% endif %}
               </td>
               <td style="text-align: right;">
-                {% if v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
+                {% if v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] and current_role != 'VIEWER' %}
                   <div style="display: flex; gap: 6px; justify-content: flex-end;">
-                    <button class="btn btn-sm btn-danger" onclick="openConfirmModal({{ v.id }}, '{{ v.violation_code }}', '{{ v.violation_type }}')">
+                    <button class="btn btn-sm btn-danger" data-confirm-id="{{ v.id }}">
                       Confirm
                     </button>
-                    <button class="btn btn-sm btn-secondary" onclick="openFpModal({{ v.id }}, '{{ v.violation_code }}')">
+                    <button class="btn btn-sm btn-secondary" data-fp-id="{{ v.id }}">
                       False +
                     </button>
                   </div>
+                {% elif v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
+                  <span style="font-size: 12px; color: var(--text-muted);">Pending</span>
                 {% else %}
                   <span style="font-size: 12px; color: var(--text-muted);">Reviewed</span>
                 {% endif %}
@@ -240,9 +239,8 @@
     </p>
     <form id="confirm-form" onsubmit="submitConfirm(event)">
       <input type="hidden" id="confirm-violation-id">
-      <div style="margin-bottom: 12px;">
-        <label class="form-label">Reviewing Officer</label>
-        <input type="text" id="confirm-officer" class="form-input" value="{{ session.get('username', 'Safety Officer') }}" required>
+      <div style="margin-bottom: 12px; font-size: 12px; color: var(--text-muted);">
+        Reviewing as <strong style="color: var(--text-primary);">{{ current_user }}</strong>
       </div>
       <div style="margin-bottom: 16px;">
         <label class="form-label">Investigation Notes / Directive</label>
@@ -270,9 +268,8 @@
     </p>
     <form id="fp-form" onsubmit="submitFalsePositive(event)">
       <input type="hidden" id="fp-violation-id">
-      <div style="margin-bottom: 12px;">
-        <label class="form-label">Reviewer</label>
-        <input type="text" id="fp-officer" class="form-input" value="{{ session.get('username', 'Safety Officer') }}" required>
+      <div style="margin-bottom: 12px; font-size: 12px; color: var(--text-muted);">
+        Reviewing as <strong style="color: var(--text-primary);">{{ current_user }}</strong>
       </div>
       <div style="margin-bottom: 16px;">
         <label class="form-label">Reason for False Positive</label>
@@ -298,12 +295,19 @@
 
 {% block scripts %}
 <script>
-  function openConfirmModal(id, code, type) {
+  document.addEventListener('click', (e) => {
+    const confirmBtn = e.target.closest('[data-confirm-id]');
+    if (confirmBtn) { openConfirmModal(confirmBtn.dataset.confirmId); return; }
+    const fpBtn = e.target.closest('[data-fp-id]');
+    if (fpBtn) openFpModal(fpBtn.dataset.fpId);
+  });
+
+  function openConfirmModal(id) {
     document.getElementById('confirm-violation-id').value = id;
     document.getElementById('confirm-modal').style.display = 'flex';
   }
 
-  function openFpModal(id, code) {
+  function openFpModal(id) {
     document.getElementById('fp-violation-id').value = id;
     document.getElementById('fp-modal').style.display = 'flex';
   }
@@ -316,46 +320,26 @@
   async function submitConfirm(e) {
     e.preventDefault();
     const id = document.getElementById('confirm-violation-id').value;
-    const officer = document.getElementById('confirm-officer').value;
     const notes = document.getElementById('confirm-notes').value;
 
     try {
-      const res = await fetch(`/api/violations/${id}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewer: officer, notes: notes })
-      });
-      const data = await res.json();
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert('Error confirming violation: ' + (data.message || 'Unknown error'));
-      }
+      await apiJSON(`/api/violations/${encodeURIComponent(id)}/confirm`, 'POST', { notes: notes });
+      window.location.reload();
     } catch (err) {
-      alert('Network error: ' + err.message);
+      alert('Error confirming violation: ' + err.message);
     }
   }
 
   async function submitFalsePositive(e) {
     e.preventDefault();
     const id = document.getElementById('fp-violation-id').value;
-    const officer = document.getElementById('fp-officer').value;
     const reason = document.getElementById('fp-reason').value;
 
     try {
-      const res = await fetch(`/api/violations/${id}/false-positive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewer: officer, reason: reason })
-      });
-      const data = await res.json();
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert('Error updating false positive: ' + (data.message || 'Unknown error'));
-      }
+      await apiJSON(`/api/violations/${encodeURIComponent(id)}/false-positive`, 'POST', { reason: reason });
+      window.location.reload();
     } catch (err) {
-      alert('Network error: ' + err.message);
+      alert('Error updating false positive: ' + err.message);
     }
   }
 </script>

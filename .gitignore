@@ -47,6 +47,7 @@ Thumbs.db
 
 # Local runtime database (created automatically by init_db) and generated dataset files
 database/*.db
+database/.secret_key
 construction/labels/*.cache
 dataset_train.yaml
 dataset_eval.yaml

@@ -4,13 +4,22 @@
 {% block page_title %}System Health{% endblock %}
 
 {% block content %}
+{% set h = health|default({}) %}
+{% set core_issues = [] %}
+{% if not h.db_ok %}{% set _ = core_issues.append('Database') %}{% endif %}
+{% if not h.model_loaded %}{% set _ = core_issues.append('AI Model') %}{% endif %}
+{% if not h.snapshots_writable %}{% set _ = core_issues.append('Snapshot Storage') %}{% endif %}
 <!-- Overall Status Hero Card -->
 <div class="card" style="margin-bottom: 24px;">
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
     <div>
-      <span class="badge badge-compliant" style="font-size: 13px; padding: 4px 10px;">ALL CORE SUBSYSTEMS OPERATIONAL</span>
+      {% if core_issues|length == 0 %}
+        <span class="badge badge-compliant" style="font-size: 13px; padding: 4px 10px;">ALL CORE SUBSYSTEMS OPERATIONAL</span>
+      {% else %}
+        <span class="badge badge-critical" style="font-size: 13px; padding: 4px 10px;">DEGRADED: {{ core_issues|join(', ') }}</span>
+      {% endif %}
       <h2 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 8px 0 2px;">SiteGuard AI Operations Platform Health</h2>
-      <div style="font-size: 13px; color: var(--text-secondary);">Real-time runtime verification of database, AI inference, file storage, and background stream workers.</div>
+      <div style="font-size: 13px; color: var(--text-secondary);">Runtime checks of database, AI inference model, camera stream and file storage, evaluated when this page was loaded.</div>
     </div>
     <div style="font-family: var(--font-mono); font-size: 13px; color: var(--text-muted);">
       Last Health Check: {{ now_str }}
@@ -25,15 +34,13 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;"></span>
         <strong style="font-size: 15px;">Flask Web Application</strong>
       </div>
-      <span class="badge badge-compliant">OPERATIONAL</span>
+      <span class="badge badge-compliant">RESPONDING</span>
     </div>
     <div style="font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
-      <div>WSGI Process: Active & Responding</div>
       <div>HTTP Port: {{ config_port }}</div>
-      <div>Security Header Check: Passed</div>
+      <div>Process Uptime: <strong>{{ h.uptime|default('Unknown', true) }}</strong></div>
     </div>
   </div>
 
@@ -41,15 +48,24 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;"></span>
         <strong style="font-size: 15px;">SQLite Safety Database</strong>
       </div>
-      <span class="badge badge-compliant">OPERATIONAL</span>
+      {% if h.db_ok %}
+        <span class="badge badge-compliant">OPERATIONAL</span>
+      {% else %}
+        <span class="badge badge-critical">UNREACHABLE</span>
+      {% endif %}
     </div>
     <div style="font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
       <div>Database Path: {{ db_path }}</div>
       <div>Total Incident Records: <strong>{{ total_incidents }}</strong></div>
-      <div>Connection Lock Latency: &lt; 2ms</div>
+      <div>Query Latency:
+        {% if h.db_ok and h.db_latency_ms is not none %}
+          <strong>{{ '%.2f'|format(h.db_latency_ms) }} ms</strong>
+        {% else %}
+          <span style="color: var(--color-critical);">Check failed</span>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -57,15 +73,18 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;"></span>
         <strong style="font-size: 15px;">YOLOv8 CV Detector</strong>
       </div>
-      <span class="badge badge-compliant">OPERATIONAL</span>
+      {% if h.model_loaded %}
+        <span class="badge badge-compliant">LOADED</span>
+      {% else %}
+        <span class="badge badge-critical">NOT LOADED</span>
+      {% endif %}
     </div>
     <div style="font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
       <div>PyTorch Device: <strong>{{ device_str }}</strong></div>
-      <div>Loaded Model: {{ model_path }}</div>
-      <div>Inference Status: Ready & Thread-Safe</div>
+      <div>Model Weights: {{ model_path }}</div>
+      <div>Model Classes: <strong>{{ h.model_class_count|default(0) }}</strong></div>
     </div>
   </div>
 
@@ -73,15 +92,17 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;"></span>
         <strong style="font-size: 15px;">Live Stream Engine</strong>
       </div>
-      <span class="badge badge-compliant">OPERATIONAL</span>
+      {% if h.camera_online %}
+        <span class="badge badge-compliant">CAMERA ONLINE</span>
+      {% else %}
+        <span class="badge badge-muted">CAMERA OFFLINE</span>
+      {% endif %}
     </div>
     <div style="font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
-      <div>Background Worker Thread: Running</div>
       <div>Active Camera Mode: {{ camera_mode }}</div>
-      <div>MJPEG Distribution: Active</div>
+      <div>Frame Capture: {% if h.camera_online %}Receiving frames{% else %}No active capture (start a camera from Live Monitoring){% endif %}</div>
     </div>
   </div>
 
@@ -89,15 +110,24 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;"></span>
         <strong style="font-size: 15px;">File Storage Subsystem</strong>
       </div>
-      <span class="badge badge-compliant">OPERATIONAL</span>
+      {% if h.snapshots_writable %}
+        <span class="badge badge-compliant">WRITABLE</span>
+      {% else %}
+        <span class="badge badge-critical">NOT WRITABLE</span>
+      {% endif %}
     </div>
     <div style="font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
       <div>Snapshots Directory: {{ snapshots_count }} saved files</div>
-      <div>Uploads Directory: Read/Write OK</div>
-      <div>Outputs Directory: Read/Write OK</div>
+      <div>Snapshots Write Test: {% if h.snapshots_writable %}Passed{% else %}<span style="color: var(--color-critical);">Failed</span>{% endif %}</div>
+      <div>Free Disk Space:
+        {% if h.disk_free_gb is not none and h.disk_free_gb is defined %}
+          <strong{% if h.disk_free_gb < 1 %} style="color: var(--color-critical);"{% endif %}>{{ '%.1f'|format(h.disk_free_gb) }} GB</strong>
+        {% else %}
+          Unknown
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -105,15 +135,17 @@
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 20px;"></span>
-        <strong style="font-size: 15px;">Alerts & Notification Dispatcher</strong>
+        <strong style="font-size: 15px;">Alerts & Notifications</strong>
       </div>
-      <span class="badge badge-compliant">OPERATIONAL</span>
+      {% if unread_count and unread_count > 0 %}
+        <span class="badge badge-warning">{{ unread_count }} UNREAD</span>
+      {% else %}
+        <span class="badge badge-muted">NO UNREAD</span>
+      {% endif %}
     </div>
     <div style="font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
-      <div>In-App Queue: Active</div>
-      <div>Cooldown Deduplication: Enabled</div>
       <div>Unread Notifications: {{ unread_count }}</div>
+      <div><a href="{{ url_for('notifications_view') }}" style="color: var(--orange);">Open notification feed &rarr;</a></div>
     </div>
   </div>
 

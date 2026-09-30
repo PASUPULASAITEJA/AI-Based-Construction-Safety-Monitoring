@@ -7,9 +7,29 @@ let currentSource = 'webcam';
 let browserStream = null;
 let browserCaptureInterval = null;
 
+// Local fallback in case the shared helper from base.html is unavailable
+const esc = (typeof escapeHtml === 'function') ? escapeHtml : (v) => String(v == null ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+// Camera selected via /monitor?camera_id=<id> (e.g. "View Feed" on the Cameras page)
+function getRequestedCameraId() {
+  const raw = new URLSearchParams(window.location.search).get('camera_id');
+  if (!raw) return null;
+  const id = parseInt(raw, 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+function setStreamBadge(text, cls) {
+  const badge = document.getElementById('live-stream-badge');
+  if (!badge) return;
+  badge.textContent = text;
+  badge.className = 'badge ' + cls;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   startPollingStatus();
   setupStreamErrorHandler();
+  if (getRequestedCameraId() !== null) startCamera();
 });
 
 function setupStreamErrorHandler() {
@@ -84,8 +104,8 @@ function updateWorkerRoster(workers) {
 
     card.innerHTML = `
       <div class="worker-card-header">
-        <span class="worker-id-title">${w.label}</span>
-        <span class="badge ${badgeClass}">${w.status}</span>
+        <span class="worker-id-title">${esc(w.label)}</span>
+        <span class="badge ${badgeClass}">${esc(w.status)}</span>
       </div>
       <div class="worker-ppe-status">
         <div style="font-size: 11px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">CURRENT PPE STATUS</div>
@@ -94,7 +114,7 @@ function updateWorkerRoster(workers) {
             if (cat.is_supported) {
                 return `
                 <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
-                    <span style="color: var(--text-primary);">${cat.name}</span>
+                    <span style="color: var(--text-primary);">${esc(cat.name)}</span>
                     <span style="color: ${hasCat ? 'var(--color-compliant)' : 'var(--color-critical)'}; font-weight: 600;">
                         ${hasCat ? '✓ Detected' : '✗ Missing'}
                     </span>
@@ -102,7 +122,7 @@ function updateWorkerRoster(workers) {
             } else {
                 return `
                 <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
-                    <span style="color: var(--text-muted);">${cat.name}</span>
+                    <span style="color: var(--text-muted);">${esc(cat.name)}</span>
                     <span style="color: var(--text-muted);">— Unsupported</span>
                 </div>`;
             }
@@ -114,8 +134,8 @@ function updateWorkerRoster(workers) {
         `}
       </div>
       <div style="margin-top:8px;font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;border-top:1px solid var(--border-color);padding-top:6px;">
-        <span>Zone: <strong>${w.zone_name || 'General'}</strong></span>
-        ${isViolation ? '<span style="color:var(--red);font-weight:600;max-width:150px;text-align:right;">' + w.violations.join(', ') + '</span>' : ''}
+        <span>Zone: <strong>${esc(w.zone_name || 'General')}</strong></span>
+        ${isViolation ? '<span style="color:var(--red);font-weight:600;max-width:150px;text-align:right;">' + w.violations.map(esc).join(', ') + '</span>' : ''}
       </div>`;
     container.appendChild(card);
   });
@@ -200,16 +220,28 @@ function stopBrowserWebcam() {
 
 async function startCamera() {
   if (currentSource === 'browser') { startBrowserWebcam(); return; }
+  const cameraId = getRequestedCameraId();
+  const opts = { method: 'POST' };
+  if (cameraId !== null) {
+    opts.headers = { 'Content-Type': 'application/json' };
+    opts.body = JSON.stringify({ camera_id: cameraId });
+  }
   try {
-    const res = await fetch('/camera/start', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
+    const res = await fetch('/camera/start', opts);
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (res.ok && data && data.success) {
       const streamImg = document.getElementById('live-video-stream');
-      if (streamImg) streamImg.src = '/video_feed?' + Date.now();
-      document.getElementById('live-stream-badge').textContent = 'Online';
-      document.getElementById('live-stream-badge').className = 'badge badge-green';
+      if (streamImg) { streamImg.style.opacity = ''; streamImg.src = '/video_feed?' + Date.now(); }
+      setStreamBadge('Online', 'badge-green');
+    } else {
+      setStreamBadge('Error', 'badge-red');
+      alert('Could not start camera: ' + ((data && data.message) || `HTTP ${res.status}`));
     }
-  } catch (err) { alert('Camera error: ' + err.message); }
+  } catch (err) {
+    setStreamBadge('Error', 'badge-red');
+    alert('Camera error: ' + err.message);
+  }
 }
 
 async function stopCamera() {
@@ -221,10 +253,12 @@ async function stopCamera() {
   }
   try {
     const res = await fetch('/camera/stop', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      document.getElementById('live-stream-badge').textContent = 'Stopped';
-      document.getElementById('live-stream-badge').className = 'badge badge-yellow';
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (res.ok && data && data.success) {
+      setStreamBadge('Stopped', 'badge-yellow');
+    } else {
+      alert('Could not stop camera: ' + ((data && data.message) || `HTTP ${res.status}`));
     }
-  } catch (err) { console.error('Stop error:', err); }
+  } catch (err) { alert('Camera error: ' + err.message); }
 }

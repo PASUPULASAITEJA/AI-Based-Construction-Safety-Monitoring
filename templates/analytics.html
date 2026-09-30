@@ -22,25 +22,31 @@
   {% if ppe.is_supported %}
   <div class="metric-card warning">
     <div class="metric-header"><span>Missing {{ ppe.name }}</span><span class="metric-icon"></span></div>
-    <div class="metric-value">{{ summary.type_distribution.get('MISSING_' ~ ppe.category, 0) + summary.type_distribution.get('NO_' ~ ppe.category, 0) + summary.type_distribution.get('NO_HELMET', 0 if ppe.category != 'HEAD' else summary.type_distribution.get('NO_HELMET', 0)) + summary.type_distribution.get('NO_VEST', 0 if ppe.category != 'VISIBILITY' else summary.type_distribution.get('NO_VEST', 0)) }}</div>
+    <div class="metric-value">{{ (summary.ppe_category_counts or {}).get(ppe.category, 0) }}</div>
     <div class="metric-footer">PPE Rule Breaches</div>
   </div>
   {% endif %}
   {% endfor %}
 
   <div class="metric-card critical">
-    <div class="metric-header"><span>Zone Incursions</span><span class="metric-icon">â›”</span></div>
-    <div class="metric-value">{{ summary.type_distribution.get('RESTRICTED_ZONE_BREACH', 0) + summary.type_distribution.get('HAZARD_ZONE_ENTRY', 0) + summary.type_distribution.get('HAZARD_NO_PPE', 0) }}</div>
-    <div class="metric-footer">Restricted area breaches</div>
+    <div class="metric-header"><span>Restricted Zone Breaches</span><span class="metric-icon">⛔</span></div>
+    <div class="metric-value">{{ summary.restricted_breach_count|default(0) }}</div>
+    <div class="metric-footer">Entries into restricted areas</div>
+  </div>
+
+  <div class="metric-card warning">
+    <div class="metric-header"><span>In-Zone Violations</span><span class="metric-icon"></span></div>
+    <div class="metric-value">{{ summary.zone_violation_count|default(0) }}</div>
+    <div class="metric-footer">Violations inside non-safe zones</div>
   </div>
 
   <div class="metric-card success">
-    <div class="metric-header"><span>Resolved Rate</span><span class="metric-icon">âœ…</span></div>
+    <div class="metric-header"><span>Resolved Rate</span><span class="metric-icon">✅</span></div>
     <div class="metric-value">
       {% if summary.total_incidents > 0 %}
         {{ ((summary.resolved_incidents / summary.total_incidents) * 100)|round(1) }}%
       {% else %}
-        100%
+        &mdash;
       {% endif %}
     </div>
     <div class="metric-footer">{{ summary.resolved_incidents|default(0) }} of {{ summary.total_incidents|default(0) }} audited</div>
@@ -130,9 +136,11 @@
 <script>
 const analyticsData = {{ summary|tojson }};
 
+function renderAnalyticsCharts() {
+
 // 1. Violations by Type Chart
 const typeCtx = document.getElementById('chart-violation-types').getContext('2d');
-const typeLabels = Object.keys(analyticsData.type_distribution || {});
+const typeLabels = Object.keys(analyticsData.type_distribution || {}).map(t => t.replace(/_/g, ' '));
 const typeValues = Object.values(analyticsData.type_distribution || {});
 
 new Chart(typeCtx, {
@@ -302,6 +310,19 @@ new Chart(siteCtx, {
     }
   }
 });
+}
+
+if (typeof Chart === 'undefined') {
+  // Chart.js CDN failed to load (offline / blocked) - show a notice instead of throwing
+  document.querySelectorAll('canvas[id^="chart-"]').forEach(c => {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;text-align:center;';
+    msg.textContent = 'Chart library could not be loaded. Check your network connection and reload.';
+    c.replaceWith(msg);
+  });
+} else {
+  renderAnalyticsCharts();
+}
 </script>
 {% endif %}
 {% endblock %}

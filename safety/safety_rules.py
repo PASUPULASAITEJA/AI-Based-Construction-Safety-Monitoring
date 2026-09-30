@@ -2,14 +2,14 @@
 Safety Module: Safety Rule Engine
 Evaluates safety compliance rules and determines violation types and severity levels based on context-aware zone rules.
 """
+import config
+from .ppe_config import is_ppe_supported
 
 class Severity:
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
-
-from .ppe_config import get_ppe_capabilities, is_ppe_supported
 
 # Define mandatory PPE categories for each work zone
 ZONE_RULES = {
@@ -64,22 +64,25 @@ class SafetyRuleEngine:
 
     def evaluate_rules(self, worker_state):
         """
-        Evaluates context-aware zone-based safety rules using EWMA smoothed confidence scores.
+        Evaluates context-aware zone-based safety rules.
+        worker_state carries "is_<CATEGORY>_present" flags (already temporally verified by the caller),
+        "zone_type", "zone_frames" and "min_zone_frames".
         Crucially, only evaluates PPE categories that the CURRENT YOLO MODEL actually supports.
         """
         violations = []
         zone_type = worker_state.get("zone_type", "SAFE")
         zone_frames = worker_state.get("zone_frames", 0)
-        zone_duration = worker_state.get("zone_duration", 0.0)
-        
+        min_zone_frames = worker_state.get("min_zone_frames", config.MIN_ZONE_FRAMES)
+
         # Restricted Zone Breach (Independent of PPE)
-        if zone_type == "RESTRICTED" and (zone_frames >= 5 or zone_duration >= 1.0):
+        if zone_type == "RESTRICTED" and zone_frames >= min_zone_frames:
             violations.append({
                 "rule_id": 3,
                 "type": "RESTRICTED_ZONE_BREACH",
                 "description": "Worker entered Restricted Zone",
                 "severity": Severity.CRITICAL,
-                "is_critical": True
+                "is_critical": True,
+                "missing_ppe": []
             })
             # No PPE checks needed if they shouldn't be there at all
             return violations
@@ -112,7 +115,8 @@ class SafetyRuleEngine:
                 "type": f"{zone_type}_NO_{missing_ppe[0].upper()}",
                 "description": f"Missing mandatory PPE in {zone_type} Zone: {missing_str}",
                 "severity": severity,
-                "is_critical": is_critical
+                "is_critical": is_critical,
+                "missing_ppe": missing_ppe
             })
             
         return violations
