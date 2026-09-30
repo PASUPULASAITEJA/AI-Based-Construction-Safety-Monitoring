@@ -8,6 +8,44 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <script>
+    // Shared helpers: HTML escaping + CSRF header on same-origin, state-changing fetch() calls.
+    function escapeHtml(v){
+      if(v===null||v===undefined)return '';
+      return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    // JSON request helper: rejects with a readable Error on non-2xx or {success:false}.
+    async function apiJSON(url,method,body){
+      const opts={method:method||'POST',headers:{'Content-Type':'application/json'}};
+      if(body!==undefined)opts.body=JSON.stringify(body);
+      const res=await fetch(url,opts);
+      let data=null;
+      try{data=await res.json();}catch(e){}
+      if(!res.ok||!data||data.success===false){
+        throw new Error((data&&(data.message||data.error))||('Request failed (HTTP '+res.status+')'));
+      }
+      return data;
+    }
+    (function(){
+      const meta=document.querySelector('meta[name="csrf-token"]');
+      const token=meta?meta.getAttribute('content'):'';
+      const origFetch=window.fetch.bind(window);
+      window.fetch=function(input,init){
+        init=init||{};
+        const method=((init.method)||(input&&input.method)||'GET').toUpperCase();
+        const url=(typeof input==='string'||input instanceof URL)?String(input):(input&&input.url)||'';
+        let sameOrigin=true;
+        try{sameOrigin=new URL(url,window.location.href).origin===window.location.origin;}catch(e){}
+        if(token&&sameOrigin&&method!=='GET'&&method!=='HEAD'){
+          const headers=new Headers(init.headers||(input&&input.headers)||{});
+          if(!headers.has('X-CSRFToken'))headers.set('X-CSRFToken',token);
+          init=Object.assign({},init,{headers:headers});
+        }
+        return origFetch(input,init);
+      };
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -68,6 +106,17 @@
           <span class="nav-badge">{{ open_alerts_count }}</span>
         {% endif %}
       </a></li>
+      <li><a href="{{ url_for('notifications_view') }}" {% if active_page == 'notifications' %}class="active"{% endif %} id="nav-notifications">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H5.17L4 17.17V4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
+        <span>Notifications</span>
+        {% if unread_notifs_count and unread_notifs_count > 0 %}
+          <span class="nav-badge">{{ unread_notifs_count }}</span>
+        {% endif %}
+      </a></li>
+      <li><a href="{{ url_for('workers_view') }}" {% if active_page == 'workers' %}class="active"{% endif %} id="nav-workers">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>Workers</span>
+      </a></li>
     </ul>
 
     <!-- ANALYZE -->
@@ -84,6 +133,10 @@
       <li><a href="{{ url_for('analytics_view') }}" {% if active_page == 'analytics' %}class="active"{% endif %} id="nav-analytics">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         <span>Analytics</span>
+      </a></li>
+      <li><a href="{{ url_for('insights_view') }}" {% if active_page == 'insights' %}class="active"{% endif %} id="nav-insights">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4 12.74V16h8v-1.26A7 7 0 0012 2z"/></svg>
+        <span>Insights</span>
       </a></li>
       <li><a href="{{ url_for('reports_view') }}" {% if active_page == 'reports' %}class="active"{% endif %} id="nav-reports">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
@@ -106,10 +159,12 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>PPE Config</span>
       </a></li>
+      {% if current_role == 'ADMIN' %}
       <li><a href="{{ url_for('audit_logs_view') }}" {% if active_page == 'audit_logs' %}class="active"{% endif %} id="nav-audit">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><circle cx="12" cy="12" r="10"/></svg>
         <span>Audit Log</span>
       </a></li>
+      {% endif %}
       <li><a href="{{ url_for('settings_view') }}" {% if active_page == 'settings' %}class="active"{% endif %} id="nav-settings">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         <span>Settings</span>
@@ -148,6 +203,13 @@
     </header>
 
     <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category if category in ['error', 'success', 'warning'] else 'info' }}" role="alert">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -179,6 +241,27 @@
         mt.textContent=meta||'Incident: '+code+' | Type: '+vType;m.style.display='flex';}
     }
     function closeSnapshotModal(){const m=document.getElementById('snapshot-modal');if(m)m.style.display='none';}
+    // Drag & drop: feeds a dropped file into <input type=file> and calls the page's selection handler.
+    function enableFileDrop(zoneId,inputId,onSelect){
+      const zone=document.getElementById(zoneId),input=document.getElementById(inputId);
+      if(!zone||!input)return;
+      ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();zone.classList.add('drag-over');}));
+      ['dragleave','dragend'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('drag-over');}));
+      zone.addEventListener('drop',e=>{
+        e.preventDefault();e.stopPropagation();zone.classList.remove('drag-over');
+        const files=e.dataTransfer&&e.dataTransfer.files;
+        if(!files||!files.length)return;
+        try{const dt=new DataTransfer();dt.items.add(files[0]);input.files=dt.files;}catch(err){}
+        onSelect({target:{files:[files[0]]}});
+      });
+    }
+    // Evidence buttons: <button data-snapshot="url" data-code=".." data-vtype=".." data-meta="..">
+    document.addEventListener('click',function(e){
+      const b=e.target.closest?e.target.closest('[data-snapshot]'):null;
+      if(!b)return;
+      e.preventDefault();
+      viewSnapshot(b.dataset.snapshot,b.dataset.code||'',b.dataset.vtype||'',b.dataset.meta||'');
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

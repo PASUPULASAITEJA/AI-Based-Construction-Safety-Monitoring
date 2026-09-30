@@ -18,12 +18,9 @@
         <label class="form-label">Violation Type</label>
         <select name="violation_type" class="form-select" style="width: 190px;" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Violation Types</option>
-          <option value="NO_HELMET" {% if current_v_type == 'NO_HELMET' %}selected{% endif %}>Missing Helmet</option>
-          <option value="NO_VEST" {% if current_v_type == 'NO_VEST' %}selected{% endif %}>Missing Safety Vest</option>
-          <option value="RESTRICTED_ZONE_BREACH" {% if current_v_type == 'RESTRICTED_ZONE_BREACH' %}selected{% endif %}>Restricted Zone</option>
-          <option value="HAZARD_NO_HELMET" {% if current_v_type == 'HAZARD_NO_HELMET' %}selected{% endif %}>Hazard Zone (No Helmet)</option>
-          <option value="HAZARD_NO_VEST" {% if current_v_type == 'HAZARD_NO_VEST' %}selected{% endif %}>Hazard Zone (No Vest)</option>
-          <option value="HAZARD_NO_PPE" {% if current_v_type == 'HAZARD_NO_PPE' %}selected{% endif %}>Hazard Zone (No PPE)</option>
+          {% for vt in violation_types|default([]) %}
+            <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
+          {% endfor %}
         </select>
       </div>
 
@@ -93,7 +90,7 @@
               </td>
               <td><strong>{{ inc.worker_label }}</strong></td>
               <td>
-                <div style="font-weight: 600;">{{ inc.violation_type }}</div>
+                <div style="font-weight: 600;">{{ inc.violation_type|replace('_', ' ') }}</div>
                 <div style="font-size: 11px; color: var(--text-muted); max-width: 220px;">{{ inc.description }}</div>
               </td>
               <td>
@@ -117,17 +114,17 @@
               <td>
                 {% if inc.status == 'RESOLVED' %}
                   <div style="font-size: 11.5px; color: var(--color-compliant); font-weight: 600;">
-                    âœ“ Resolved: {{ inc.resolution_note|default('Completed') }}
+                    ✓ Resolved{% if inc.resolution_note %}: {{ inc.resolution_note }}{% endif %}
                   </div>
-                {% else %}
-                  <button class="btn btn-sm btn-primary" onclick="openIncidentActionModal('{{ inc.id }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                {% elif current_role != 'VIEWER' %}
+                  <button class="btn btn-sm btn-primary" data-incident-id="{{ inc.id }}" data-incident-code="{{ inc.incident_code }}" data-incident-type="{{ inc.violation_type }}">
                     Manage & Resolve
                   </button>
                 {% endif %}
               </td>
               <td>
                 {% if inc.snapshot_path %}
-                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                  <button class="btn btn-sm btn-secondary" data-snapshot="{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}" data-code="{{ inc.incident_code }}" data-vtype="{{ inc.violation_type }}">
                     View
                   </button>
                 {% else %}
@@ -164,7 +161,7 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Root Cause Analysis</label>
+      <label class="form-label">Root Cause Analysis <span style="color: var(--red);">*</span></label>
       <textarea id="inc-root-cause" class="form-textarea" rows="2" placeholder="e.g. PPE supply shortage in Zone B, worker failed to adhere to entry checkpoint protocol..."></textarea>
     </div>
 
@@ -190,9 +187,16 @@
 <script>
 let activeIncidentId = null;
 
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-incident-id]');
+  if (btn) {
+    openIncidentActionModal(btn.dataset.incidentId, btn.dataset.incidentCode, btn.dataset.incidentType);
+  }
+});
+
 function openIncidentActionModal(id, code, vType) {
   activeIncidentId = id;
-  document.getElementById('incident-modal-title').innerText = `Incident Review: ${code} (${vType})`;
+  document.getElementById('incident-modal-title').textContent = `Incident Review: ${code} (${vType})`;
   document.getElementById('incident-action-modal').style.display = 'flex';
 }
 
@@ -204,30 +208,28 @@ function closeIncidentModal() {
 function submitIncidentUpdate() {
   if (!activeIncidentId) return;
 
-  const officer = document.getElementById('inc-officer').value;
-  const rootCause = document.getElementById('inc-root-cause').value;
-  const correctiveAction = document.getElementById('inc-action').value;
-  const resolutionNote = document.getElementById('inc-resolution-note').value;
+  const officer = document.getElementById('inc-officer').value.trim();
+  const rootCause = document.getElementById('inc-root-cause').value.trim();
+  const correctiveAction = document.getElementById('inc-action').value.trim();
+  const resolutionNote = document.getElementById('inc-resolution-note').value.trim();
 
-  fetch(`/api/incidents/${activeIncidentId}/update`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      status: 'RESOLVED',
-      assigned_to: officer || 'Safety Officer',
-      root_cause: rootCause || 'Worker non-compliance with standard PPE protocol',
-      corrective_action: correctiveAction || 'Site verbal warning and PPE replacement',
-      resolution_note: resolutionNote || 'Safety protocol verified.'
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      window.location.reload();
-    } else {
-      alert('Error updating incident: ' + data.message);
-    }
-  });
+  if (!rootCause) {
+    alert('A root cause is required before an incident can be marked RESOLVED.');
+    document.getElementById('inc-root-cause').focus();
+    return;
+  }
+
+  const payload = {
+    status: 'RESOLVED',
+    root_cause: rootCause,
+    corrective_action: correctiveAction,
+    resolution_note: resolutionNote
+  };
+  if (officer) payload.assigned_to = officer;
+
+  apiJSON(`/api/incidents/${encodeURIComponent(activeIncidentId)}/update`, 'POST', payload)
+    .then(() => window.location.reload())
+    .catch(err => alert('Error updating incident: ' + err.message));
 }
 </script>
 {% endblock %}

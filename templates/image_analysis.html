@@ -133,13 +133,20 @@
 {% block scripts %}
 <script>
 let selectedImageFile = null;
+const RUN_BTN_HTML = '<svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection';
+
+enableFileDrop('image-dropzone', 'image-file-input', handleImageSelection);
 
 function handleImageSelection(e) {
   const file = e.target.files[0];
   if (file) {
+    if (file.type && !/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      alert('Unsupported file type. Please choose a JPG, PNG or WEBP image.');
+      return;
+    }
     selectedImageFile = file;
     const label = document.getElementById('image-selected-label');
-    label.innerText = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    label.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
     label.style.display = 'block';
     document.getElementById('btn-process-image').disabled = false;
   }
@@ -159,10 +166,16 @@ function submitImageAnalysis() {
     method: 'POST',
     body: formData
   })
-  .then(res => res.json())
+  .then(async res => {
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!data) data = { success: false, message: `HTTP ${res.status}` };
+    if (!res.ok) data.success = false;
+    return data;
+  })
   .then(data => {
     btnProcess.disabled = false;
-          <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection
+    btnProcess.innerHTML = RUN_BTN_HTML;
 
     if (data.success) {
       displayImageResults(data);
@@ -172,8 +185,8 @@ function submitImageAnalysis() {
   })
   .catch(err => {
     btnProcess.disabled = false;
-          <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection
-    alert('Server connection error: ' + err);
+    btnProcess.innerHTML = RUN_BTN_HTML;
+    alert('Server connection error: ' + err.message);
   });
 }
 
@@ -186,8 +199,8 @@ function displayImageResults(data) {
   dlBtn.href = data.annotated_url;
 
   const stats = data.stats || {};
-  document.getElementById('result-workers-count').innerText = stats.worker_count || 0;
-  document.getElementById('result-violations-count').innerText = stats.violation_count || 0;
+  document.getElementById('result-workers-count').textContent = stats.worker_count || 0;
+  document.getElementById('result-violations-count').textContent = stats.violation_count || 0;
 
   // Workers table
   const wBody = document.getElementById('result-workers-table-body');
@@ -197,22 +210,27 @@ function displayImageResults(data) {
   if (workers.length > 0) {
     workers.forEach(w => {
       const tr = document.createElement('tr');
+      const viols = Array.isArray(w.violations) ? w.violations : [];
+      const violText = viols
+        .map(v => (v && typeof v === 'object') ? (v.description || v.type || '') : String(v))
+        .filter(Boolean);
       tr.innerHTML = `
-        <td><strong>${w.label || 'Worker #' + w.worker_id}</strong></td>
+        <td><strong>${escapeHtml(w.label || 'Worker #' + w.worker_id)}</strong></td>
         <td>
           <span class="badge ${w.helmet ? 'badge-compliant' : 'badge-danger'}">
-            ${w.helmet ? 'YES (' + ((w.helmet_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
+            ${w.helmet ? 'YES (' + ((w.HEAD_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
           </span>
         </td>
         <td>
           <span class="badge ${w.vest ? 'badge-compliant' : 'badge-danger'}">
-            ${w.vest ? 'YES (' + ((w.vest_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
+            ${w.vest ? 'YES (' + ((w.VISIBILITY_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
           </span>
         </td>
         <td>
-          <span class="badge ${w.violations && w.violations.length > 0 ? 'badge-critical' : 'badge-compliant'}">
-            ${w.status || 'COMPLIANT'}
+          <span class="badge ${viols.length > 0 ? 'badge-critical' : 'badge-compliant'}" title="${escapeHtml(violText.join('; '))}">
+            ${escapeHtml(w.status || (viols.length > 0 ? 'VIOLATION' : 'COMPLIANT'))}
           </span>
+          ${violText.length ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">${violText.map(escapeHtml).join('<br>')}</div>` : ''}
         </td>
       `;
       wBody.appendChild(tr);
@@ -230,9 +248,9 @@ function displayImageResults(data) {
     rawDets.forEach(d => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong style="color: var(--text-primary);">${d.class_name || d.category}</strong></td>
+        <td><strong style="color: var(--text-primary);">${escapeHtml(d.class_name || d.category)}</strong></td>
         <td style="font-family: var(--font-mono); color: var(--color-info);">${((d.confidence || 0)*100).toFixed(1)}%</td>
-        <td style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);">${JSON.stringify(d.bbox)}</td>
+        <td style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);">${escapeHtml(JSON.stringify(d.bbox))}</td>
       `;
       rawBody.appendChild(tr);
     });

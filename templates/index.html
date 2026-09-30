@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard â€” SiteGuard AI{% endblock %}
+{% block title %}Dashboard — SiteGuard AI{% endblock %}
 {% block page_title %}Construction Safety Overview{% endblock %}
 
 {% block content %}
@@ -17,7 +17,7 @@
   <div class="kpi kpi-orange">
     <div class="kpi-label">Workers Observed</div>
     <div class="kpi-value" id="card-workers-count">{{ stats.workers_count|default(0) }}</div>
-    <div class="kpi-sub">Currently in camera view</div>
+    <div class="kpi-sub">Currently in camera view<span id="card-live-status"></span></div>
   </div>
 
   <div class="kpi kpi-yellow">
@@ -98,14 +98,14 @@
               <tr>
                 <td class="mono">{{ a.alert_code|default(a.incident_code) }}</td>
                 <td>
-                  <div class="fw-600">{{ a.violation_type }}</div>
+                  <div class="fw-600">{{ a.violation_type|replace('_', ' ') }}</div>
                   <div class="text-xs text-muted">{{ a.worker_label }}</div>
                 </td>
                 <td><span class="badge badge-{{ a.severity|lower }}">{{ a.severity }}</span></td>
                 <td class="mono muted">{{ a.timestamp }}</td>
                 <td>
                   {% if a.snapshot_path %}
-                    <button class="btn btn-xs btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}', '{{ a.alert_code|default(a.incident_code) }}', '{{ a.violation_type }}')">Evidence</button>
+                    <button class="btn btn-xs btn-secondary" data-snapshot="{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}" data-code="{{ a.alert_code|default(a.incident_code) }}" data-vtype="{{ a.violation_type }}">Evidence</button>
                   {% else %}
                     <a href="{{ url_for('alerts_view') }}" class="btn btn-xs btn-secondary">Review</a>
                   {% endif %}

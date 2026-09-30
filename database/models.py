@@ -3,8 +3,26 @@ Database models and queries for Users, Sites, Cameras, Zones, Violations, Incide
 """
 import json
 import datetime
+import threading
 from werkzeug.security import check_password_hash, generate_password_hash
 from database.db import get_db_connection
+
+# Serializes allocation of the shared INC-/VIO-/ALT- sequence numbers within this process
+RECORD_CODE_LOCK = threading.Lock()
+
+PPE_CATEGORY_IDS = ["HEAD", "EYE", "HEARING", "VISIBILITY", "HAND", "FALL_PROTECTION", "LEG_PROTECTION", "FOOT"]
+
+def next_record_number(cursor):
+    """Next free number of the sequence shared by incident, violation and alert codes (INC-0007, VIO-0007, ...)."""
+    cursor.execute("""
+        SELECT MAX(n) as max_n FROM (
+            SELECT MAX(CAST(substr(incident_code, 5) AS INTEGER)) as n FROM incidents
+            UNION ALL SELECT MAX(CAST(substr(violation_code, 5) AS INTEGER)) FROM violations
+            UNION ALL SELECT MAX(CAST(substr(alert_code, 5) AS INTEGER)) FROM alerts
+        )
+    """)
+    row = cursor.fetchone()
+    return (row["max_n"] or 0) + 1
 
 class UserModel:
     @staticmethod
@@ -145,8 +163,8 @@ class CameraModel:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("""
             INSERT INTO cameras (camera_code, name, site_id, zone_id, stream_source, stream_type, status, resolution, fps, last_seen, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'ONLINE', ?, ?, ?, ?)
-        """, (camera_code.strip(), name.strip(), site_id, zone_id, str(stream_source), stream_type, resolution, fps, now_str, now_str))
+            VALUES (?, ?, ?, ?, ?, ?, 'OFFLINE', ?, ?, ?, ?)
+        """, (camera_code.strip(), name.strip(), site_id, zone_id, str(stream_source), stream_type, resolution, fps, None, now_str))
         conn.commit()
         cam_id = cursor.lastrowid
         conn.close()
@@ -177,6 +195,13 @@ class CameraModel:
         row = cursor.fetchone()
         conn.close()
         return dict(row) if row else None
+
+    @staticmethod
+    def code_exists(camera_code):
+        conn = get_db_connection()
+        row = conn.execute("SELECT 1 FROM cameras WHERE camera_code = ?", (camera_code,)).fetchone()
+        conn.close()
+        return row is not None
 
     @staticmethod
     def update_status(camera_id, status, fps=None):
@@ -277,7 +302,7 @@ class ViolationModel:
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute("""
-            INSERT OR REPLACE INTO violations 
+            INSERT INTO violations
             (violation_code, worker_id, worker_label, violation_type, description, severity, confidence, timestamp, duration_sec, source, snapshot_path, status, site_id, zone_id, camera_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?)
         """, (violation_code, worker_id, worker_label, violation_type, description, severity, confidence, now_str, duration_sec, source, snapshot_path, site_id, zone_id, camera_id))
@@ -372,25 +397,43 @@ class ViolationModel:
             return None
 
         v_dict = dict(v)
-        inc_count = cursor.execute("SELECT COUNT(*) as c FROM incidents").fetchone()["c"]
-        inc_code = f"INC-{inc_count + 1:04d}"
 
-        # Create Incident record
-        cursor.execute("""
+        # The AI pipeline already opened an incident for this violation: confirm that one instead of duplicating it
+        if v_dict.get("incident_id"):
+            existing = cursor.execute("SELECT id, incident_code FROM incidents WHERE id = ?", (v_dict["incident_id"],)).fetchone()
+            if existing:
+                cursor.execute("""
+                    UPDATE incidents SET assigned_to = COALESCE(assigned_to, ?), acknowledged_at = COALESCE(acknowledged_at, ?)
+                    WHERE id = ?
+                """, (reviewer, now_str, existing["id"]))
+                cursor.execute("""
+                    UPDATE violations
+                    SET status = 'CONFIRMED', review_decision = 'CONFIRMED', reviewed_by = ?, reviewed_at = ?, review_notes = ?
+                    WHERE id = ?
+                """, (reviewer, now_str, notes, v_dict["id"]))
+                conn.commit()
+                conn.close()
+                return existing["incident_code"]
+
+        with RECORD_CODE_LOCK:
+            inc_code = f"INC-{next_record_number(cursor):04d}"
+            # Create Incident record
+            cursor.execute("""
             INSERT INTO incidents 
             (incident_code, violation_id, worker_id, worker_label, violation_type, description, severity, confidence, timestamp, duration, source, snapshot_path, status, site_id, camera_id, zone_id, assigned_to, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?)
         """, (inc_code, v_dict["id"], v_dict["worker_id"], v_dict["worker_label"], v_dict["violation_type"], v_dict["description"], v_dict["severity"], v_dict["confidence"], v_dict["timestamp"], v_dict["duration_sec"], v_dict["source"], v_dict["snapshot_path"], v_dict["site_id"], v_dict["camera_id"], v_dict["zone_id"], reviewer, now_str))
-        inc_id = cursor.lastrowid
+            inc_id = cursor.lastrowid
 
-        # Update Violation
-        cursor.execute("""
-            UPDATE violations 
-            SET status = 'CONFIRMED', review_decision = 'CONFIRMED', reviewed_by = ?, reviewed_at = ?, review_notes = ?, incident_id = ?
-            WHERE id = ?
-        """, (reviewer, now_str, notes, inc_id, v_dict["id"]))
+            # Update Violation
+            cursor.execute("""
+                UPDATE violations
+                SET status = 'CONFIRMED', review_decision = 'CONFIRMED', reviewed_by = ?, reviewed_at = ?, review_notes = ?, incident_id = ?
+                WHERE id = ?
+            """, (reviewer, now_str, notes, inc_id, v_dict["id"]))
 
-        conn.commit()
+            # Commit before releasing the lock so the next allocation sees this code
+            conn.commit()
         conn.close()
         return inc_code
 
@@ -406,6 +449,16 @@ class ViolationModel:
             SET status = 'FALSE_POSITIVE', review_decision = 'FALSE_POSITIVE', reviewed_by = ?, reviewed_at = ?, review_notes = ?
             WHERE id = ? OR violation_code = ?
         """, (reviewer, now_str, reason, violation_id, violation_id))
+        found = cursor.rowcount > 0
+
+        # Close the incident the pipeline opened for it
+        cursor.execute("""
+            UPDATE incidents
+            SET status = 'CLOSED', closed_by = ?, resolved_at = ?,
+                resolution_note = COALESCE(resolution_note, ?)
+            WHERE violation_id IN (SELECT id FROM violations WHERE id = ? OR violation_code = ?)
+              AND status NOT IN ('RESOLVED', 'CLOSED')
+        """, (reviewer, now_str, f"False positive: {reason}", violation_id, violation_id))
 
         # Close any alert
         cursor.execute("""
@@ -416,6 +469,14 @@ class ViolationModel:
 
         conn.commit()
         conn.close()
+        return found
+
+    @staticmethod
+    def get_distinct_types():
+        conn = get_db_connection()
+        rows = conn.execute("SELECT DISTINCT violation_type FROM violations ORDER BY violation_type").fetchall()
+        conn.close()
+        return [r["violation_type"] for r in rows]
 
     @staticmethod
     def get_stats():
@@ -465,16 +526,19 @@ class ViolationModel:
 
 class IncidentModel:
     @staticmethod
-    def create(incident_code, worker_id, worker_label, violation_type, description, severity, confidence, source, snapshot_path=None, duration=0.0, site_id=None, camera_id=None, zone_id=None, assigned_to=None):
+    def create(incident_code, worker_id, worker_label, violation_type, description, severity, confidence, source, snapshot_path=None, duration=0.0, site_id=None, camera_id=None, zone_id=None, assigned_to=None, violation_id=None):
         conn = get_db_connection()
         cursor = conn.cursor()
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute("""
-            INSERT OR REPLACE INTO incidents 
-            (incident_code, worker_id, worker_label, violation_type, description, severity, confidence, timestamp, duration, source, snapshot_path, status, site_id, camera_id, zone_id, assigned_to, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?)
-        """, (incident_code, worker_id, worker_label, violation_type, description, severity, confidence, now_str, duration, source, snapshot_path, site_id, camera_id, zone_id, assigned_to, now_str))
+            INSERT INTO incidents
+            (incident_code, violation_id, worker_id, worker_label, violation_type, description, severity, confidence, timestamp, duration, source, snapshot_path, status, site_id, camera_id, zone_id, assigned_to, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?)
+        """, (incident_code, violation_id, worker_id, worker_label, violation_type, description, severity, confidence, now_str, duration, source, snapshot_path, site_id, camera_id, zone_id, assigned_to, now_str))
+        incident_id = cursor.lastrowid
+        if violation_id is not None:
+            cursor.execute("UPDATE violations SET incident_id = ? WHERE id = ?", (incident_id, violation_id))
 
         conn.commit()
         last_id = cursor.lastrowid
@@ -557,12 +621,21 @@ class IncidentModel:
         return IncidentModel.get_all(limit=limit)
 
     @staticmethod
-    def get_count(today_only=False):
+    def get_distinct_types():
+        conn = get_db_connection()
+        rows = conn.execute("SELECT DISTINCT violation_type FROM incidents ORDER BY violation_type").fetchall()
+        conn.close()
+        return [r["violation_type"] for r in rows]
+
+    @staticmethod
+    def get_count(today_only=False, status=None):
         conn = get_db_connection()
         cursor = conn.cursor()
         if today_only:
             today_str = datetime.datetime.now().strftime("%Y-%m-%d")
             cursor.execute("SELECT COUNT(*) as total FROM incidents WHERE substr(timestamp, 1, 10) = ?", (today_str,))
+        elif status:
+            cursor.execute("SELECT COUNT(*) as total FROM incidents WHERE status = ?", (status,))
         else:
             cursor.execute("SELECT COUNT(*) as total FROM incidents")
         row = cursor.fetchone()
@@ -674,6 +747,26 @@ class IncidentModel:
         """)
         site_dist = {r["site_name"]: r["count"] for r in cursor.fetchall()}
 
+        # Missing-PPE counts per category. PPE violation descriptions end with
+        # "...: Head, Visibility" (see SafetyRuleEngine.evaluate_rules).
+        ppe_category_counts = {cat: 0 for cat in PPE_CATEGORY_IDS}
+        title_to_cat = {cat.replace("_", " ").title(): cat for cat in PPE_CATEGORY_IDS}
+        cursor.execute("SELECT description FROM violations WHERE violation_type LIKE '%!_NO!_%' ESCAPE '!'")
+        for r in cursor.fetchall():
+            desc = r["description"] or ""
+            if ":" not in desc:
+                continue
+            for item in desc.rsplit(":", 1)[1].split(","):
+                cat = title_to_cat.get(item.strip())
+                if cat:
+                    ppe_category_counts[cat] += 1
+
+        cursor.execute("SELECT COUNT(*) as total FROM violations WHERE violation_type = 'RESTRICTED_ZONE_BREACH'")
+        restricted_breach_count = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as total FROM violations WHERE violation_type NOT LIKE 'SAFE!_%' ESCAPE '!'")
+        zone_violation_count = cursor.fetchone()["total"]
+
         conn.close()
 
         return {
@@ -688,7 +781,10 @@ class IncidentModel:
             "hourly_distribution": hourly_dist,
             "timeline": timeline,
             "camera_distribution": camera_dist,
-            "site_distribution": site_dist
+            "site_distribution": site_dist,
+            "ppe_category_counts": ppe_category_counts,
+            "restricted_breach_count": restricted_breach_count,
+            "zone_violation_count": zone_violation_count
         }
 
 

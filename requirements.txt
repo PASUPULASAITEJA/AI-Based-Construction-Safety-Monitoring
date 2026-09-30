@@ -6,7 +6,3 @@ pillow>=9.5.0
 torch>=2.0.0
 torchvision>=0.15.0
 pyyaml>=6.0
-matplotlib>=3.7.0
-pandas>=2.0.0
-scikit-learn>=1.2.0
-requests>=2.31.0

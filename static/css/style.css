@@ -40,6 +40,16 @@
   --purple: #a855f7;
   --purple-dim: rgba(168,85,247,0.10);
 
+  /* Semantic aliases (used by templates) */
+  --color-compliant: var(--green);
+  --color-critical: var(--red);
+  --color-danger: var(--red);
+  --color-warning: var(--yellow);
+  --color-info: var(--blue);
+  --safety-orange: var(--orange);
+  --safety-yellow: var(--yellow);
+  --border-color: var(--border);
+
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
@@ -305,6 +315,15 @@ button { font-family: inherit; }
   gap: 8px;
 }
 .card-label .icon { width: 16px; height: 16px; opacity: 0.6; }
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
 
 /* ============================================================================
    KPI METRICS
@@ -456,11 +475,12 @@ button { font-family: inherit; }
 .badge-open { background: var(--orange-dim); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
 .badge-ack { background: var(--blue-dim); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
 .badge-review { background: var(--purple-dim); color: #c084fc; border: 1px solid rgba(168,85,247,0.25); }
+.badge-ai { background: var(--purple-dim); color: #c084fc; border: 1px solid rgba(168,85,247,0.25); }
 
 /* ============================================================================
    DATA TABLES
    ============================================================================ */
-.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap, .table-container { width: 100%; overflow-x: auto; }
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -913,6 +933,18 @@ button { font-family: inherit; }
   font-size: 12px;
   margin-bottom: 16px;
 }
+.flash-message {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-bottom: 12px;
+  background: var(--blue-dim);
+  border: 1px solid rgba(59,130,246,0.25);
+  color: #93c5fd;
+}
+.flash-error { background: var(--red-dim); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+.flash-success { background: var(--green-dim); border-color: rgba(34,197,94,0.25); color: #86efac; }
+.flash-warning { background: var(--yellow-dim); border-color: rgba(234,179,8,0.25); color: #fde047; }
 
 /* ============================================================================
    PROGRESS BAR
