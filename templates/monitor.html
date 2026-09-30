@@ -94,6 +94,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+  window.PPE_CAPABILITIES = {{ ppe_capabilities | tojson | safe }};
+</script>
 <script src="{{ url_for('static', filename='js/zones.js') }}"></script>
 <script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
 {% endblock %}
