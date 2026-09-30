@@ -1,20 +1,20 @@
-"""
-Safety Module: Temporal Violation Manager
-Maintains temporal buffers per worker to verify persistent violations and eliminate transient false alerts using EWMA smoothing.
-"""
 import time
 import config
 from safety.safety_rules import SafetyRuleEngine
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from safety.ppe_config import PPE_CATEGORIES, is_ppe_supported
 
 class WorkerTemporalState:
     def __init__(self, worker_id):
         self.worker_id = worker_id
         
-        # All 8 PPE classes
-        self.ppe_classes = ["helmet", "vest", "boots", "gloves", "goggles", "ear_muffs", "harness", "chaps"]
+        # Track by Category ID (HEAD, VISIBILITY, etc.)
+        self.ppe_categories = [cat["category"] for cat in PPE_CATEGORIES]
         
         # EWMA smoothed confidence scores (initialize to 0.0)
-        self.ewma_scores = {ppe: 0.0 for ppe in self.ppe_classes}
+        self.ewma_scores = {cat: 0.0 for cat in self.ppe_categories}
         self.is_first_update = True
         
         # EWMA hyperparameter (alpha): lower means more smoothing/hysteresis
@@ -31,25 +31,25 @@ class WorkerTemporalState:
         self.frames_seen = 0
         self.resolved_at_frame = {} # violation_type -> frames_seen when it last cleared
 
-    def update(self, ppe_detections, zone_type):
+    def update(self, category_detections, zone_type):
         """
-        Updates the EWMA score for all PPE classes.
-        ppe_detections: dict mapping ppe class name to YOLO confidence score (0.0 if not detected)
+        Updates the EWMA score for all PPE categories.
+        category_detections: dict mapping category name to YOLO confidence score (0.0 if not detected)
         """
         now = time.time()
         self.last_seen_time = now
         self.current_zone_type = zone_type
         self.frames_seen += 1
 
-        # Update EWMA for all PPE
-        for ppe in self.ppe_classes:
-            raw_conf = ppe_detections.get(ppe, 0.0)
+        # Update EWMA for all PPE categories
+        for cat in self.ppe_categories:
+            raw_conf = category_detections.get(cat, 0.0)
             
             if self.is_first_update:
-                self.ewma_scores[ppe] = raw_conf
+                self.ewma_scores[cat] = raw_conf
             else:
                 # $S_t = \alpha \cdot P_t + (1 - \alpha) \cdot S_{t-1}$
-                self.ewma_scores[ppe] = (self.alpha * raw_conf) + ((1.0 - self.alpha) * self.ewma_scores[ppe])
+                self.ewma_scores[cat] = (self.alpha * raw_conf) + ((1.0 - self.alpha) * self.ewma_scores[cat])
                 
         self.is_first_update = False
 
@@ -103,19 +103,18 @@ class ViolationManager:
 
             state = self.worker_states[wid]
             
-            # Map the raw detections into the ppe_detections dict expected by EWMA update
-            ppe_detections = {}
-            for ppe in state.ppe_classes:
-                # In a real implementation, ppe_confidence would be the highest confidence among assigned bboxes
-                # For this transition, we map binary state to confidence (1.0 or 0.0)
-                # If they have actual confidence scores in w['assigned_ppe'], we'd use those.
-                has_ppe = w.get(f"has_{ppe}", False)
-                # If True, simulate high confidence. If False, simulate 0.0.
-                # In future updates, this should pass the actual YOLO float confidence.
-                ppe_detections[ppe] = 0.9 if has_ppe else 0.0
+            # Extract category detections from enriched worker
+            category_detections = {}
+            for cat in state.ppe_categories:
+                # The ppe_association.py script maps best item confidence to {cat}_conf
+                # We use that if available, otherwise fallback to binary has_{cat} mapping
+                conf = w.get(f"{cat}_conf", 0.0)
+                if conf == 0.0 and w.get(f"has_{cat}", False):
+                    conf = 0.9  # simulated high confidence if flag is present but no conf
+                category_detections[cat] = conf
 
             # Update temporal state (EWMA)
-            state.update(ppe_detections, w.get("zone_type", "SAFE"))
+            state.update(category_detections, w.get("zone_type", "SAFE"))
 
             # Build state dictionary for the rule engine
             rule_state = {
@@ -126,9 +125,9 @@ class ViolationManager:
             }
             
             # Feed the EWMA threshold results to the rule engine
-            for ppe in state.ppe_classes:
+            for cat in state.ppe_categories:
                 # If the smoothed score is above the threshold, consider it present
-                rule_state[f"is_{ppe}_present"] = (state.ewma_scores[ppe] >= self.ewma_threshold)
+                rule_state[f"is_{cat}_present"] = (state.ewma_scores[cat] >= self.ewma_threshold)
 
             # Evaluate Rule Engine
             violations = self.rule_engine.evaluate_rules(rule_state)
