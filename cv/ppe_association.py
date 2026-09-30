@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 import config
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from safety.ppe_config import PPE_CATEGORIES, get_supported_model_classes
 
 def compute_box_overlap(inner_box, outer_box):
     """
@@ -38,12 +42,11 @@ class PPEAssociator:
         self.torso_span = torso_span
         self.min_overlap = min_overlap
         
-        # All 8 supported PPE classes in the SOTA system
-        self.supported_classes = [
-            "helmet", "vest", "boots", "gloves", 
-            "goggles", "ear_muffs", "harness", "chaps"
-        ]
-
+        # Collect all possible model classes across all categories
+        self.all_ppe_classes = []
+        for cat in PPE_CATEGORIES:
+            self.all_ppe_classes.extend(cat["model_classes"])
+            
     def get_head_box(self, person_box):
         px1, py1, px2, py2 = person_box
         ph = py2 - py1
@@ -64,24 +67,23 @@ class PPEAssociator:
 
     def associate(self, workers, detections, frame=None):
         """
-        Associates all 8 PPE detections with each worker using 1-to-1 spatial matching.
+        Associates PPE detections with each worker using 1-to-1 spatial matching.
         """
-        # Dictionary to store filtered detections by category
-        category_detections = {cat: [] for cat in self.supported_classes}
+        # Dictionary to store filtered detections by class name
+        class_detections = {cls: [] for cls in self.all_ppe_classes}
         
         for d in detections:
             cat = d["category"]
-            if cat in self.supported_classes:
-                category_detections[cat].append(d)
+            if cat in self.all_ppe_classes:
+                class_detections[cat].append(d)
 
         num_workers = len(workers)
         
-        # Store associated item for each worker (worker_idx -> category -> detection dict)
-        worker_ppe = {i: {cat: None for cat in self.supported_classes} for i in range(num_workers)}
+        # Store associated item for each worker (worker_idx -> model_class -> detection dict)
+        worker_ppe = {i: {cls: None for cls in self.all_ppe_classes} for i in range(num_workers)}
 
-        # Perform assignment for all classes (simplified heuristic: closest center within bounding box)
-        for cat in self.supported_classes:
-            items = category_detections[cat]
+        for cls in self.all_ppe_classes:
+            items = class_detections[cls]
             for item in items:
                 item_box = item["bbox"]
                 item_center = ((item_box[0] + item_box[2]) / 2, (item_box[1] + item_box[3]) / 2)
@@ -90,13 +92,14 @@ class PPEAssociator:
 
                 for i, worker in enumerate(workers):
                     w_box = worker["bbox"]
-                    # Depending on the item, we check overlap with specific body regions (head vs torso vs full body)
-                    if cat in ["helmet", "goggles", "ear_muffs"]:
+                    
+                    # Heuristics for body regions
+                    if cls in ["helmet", "goggles", "ear_muffs", "ear_protection", "hardhat"]:
                         region_box = self.get_head_box(w_box)
-                    elif cat in ["vest", "harness"]:
+                    elif cls in ["vest", "harness", "safety_vest"]:
                         region_box = self.get_torso_box(w_box)
-                    else: # gloves, boots, chaps
-                        region_box = w_box # Full body for now
+                    else: # gloves, boots, pants
+                        region_box = w_box
 
                     overlap = compute_box_overlap(item_box, region_box)
 
@@ -107,11 +110,11 @@ class PPEAssociator:
                             best_i = i
 
                 if best_i is not None:
-                    existing = worker_ppe[best_i][cat]
+                    existing = worker_ppe[best_i][cls]
                     if existing is None or item["confidence"] > existing["confidence"]:
-                        worker_ppe[best_i][cat] = item
+                        worker_ppe[best_i][cls] = item
 
-        # Build enriched worker dictionary
+        # Build enriched worker dictionary based on Categories
         enriched_workers = []
         for i, worker in enumerate(workers):
             w_box = worker["bbox"]
@@ -126,19 +129,26 @@ class PPEAssociator:
                 "associated_items": {}
             }
             
-            # Map the 8 PPE classes into the worker_data dict
-            for cat in self.supported_classes:
-                matched_item = worker_ppe[i][cat]
-                has_item = matched_item is not None
+            # Map into PPE categories (HEAD, VISIBILITY, etc)
+            for ppe_cat in PPE_CATEGORIES:
+                cat_id = ppe_cat["category"]
                 
-                # Flag expected by ViolationManager EWMA
-                worker_data[f"has_{cat}"] = has_item
-                worker_data[f"{cat}_conf"] = round(matched_item["confidence"], 3) if has_item else 0.0
-                worker_data["associated_items"][f"{cat}_box"] = matched_item["bbox"] if has_item else None
+                # Check if ANY of the model classes for this category was found
+                best_item = None
+                for m_cls in ppe_cat["model_classes"]:
+                    if worker_ppe[i].get(m_cls):
+                        if best_item is None or worker_ppe[i][m_cls]["confidence"] > best_item["confidence"]:
+                            best_item = worker_ppe[i][m_cls]
+                            
+                has_item = best_item is not None
                 
-                # For backwards compatibility with older templates (helmet/vest)
-                if cat in ["helmet", "vest"]:
-                    worker_data[cat] = has_item
+                worker_data[f"has_{cat_id}"] = has_item
+                worker_data[f"{cat_id}_conf"] = round(best_item["confidence"], 3) if has_item else 0.0
+                worker_data["associated_items"][f"{cat_id}_box"] = best_item["bbox"] if has_item else None
+                
+            # For backwards compatibility with older templates (helmet/vest)
+            worker_data["helmet"] = worker_data.get("has_HEAD", False)
+            worker_data["vest"] = worker_data.get("has_VISIBILITY", False)
 
             enriched_workers.append(worker_data)
 
