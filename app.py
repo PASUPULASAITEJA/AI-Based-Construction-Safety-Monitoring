@@ -34,6 +34,8 @@ init_db()
 pipeline = SafetyPipeline()
 
 # Global Context Processor for Navigation, Telemetry & Authentication across All Views
+from safety.ppe_config import get_ppe_capabilities
+
 @app.context_processor
 def inject_global_counts():
     try:
@@ -47,7 +49,8 @@ def inject_global_counts():
         "unread_notifs_count": unread_notifs,
         "current_user": session.get("username", "Operator"),
         "current_role": session.get("role", "ADMIN"),
-        "is_authenticated": "user_id" in session
+        "is_authenticated": "user_id" in session,
+        "ppe_capabilities": get_ppe_capabilities()
     }
 
 # ==============================================================================
@@ -650,6 +653,10 @@ def system_health_view():
         unread_count=unread,
         now_str=now_str
     )
+
+@app.route("/ppe")
+def ppe_view():
+    return render_template("ppe.html", active_page="ppe")
 
 @app.route("/notifications")
 def notifications_view():
