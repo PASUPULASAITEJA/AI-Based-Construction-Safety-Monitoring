@@ -66,8 +66,58 @@
   </div>
 </div>
 
+<!-- PPE CAPABILITY MATRIX -->
+<div class="card" style="margin-top: 24px;">
+  <div class="card-title">
+    <span>PPE Capability Matrix (8-Category Standard)</span>
+  </div>
+  <div style="font-size: 12px; color: var(--text-muted); margin-top: -8px; margin-bottom: 14px;">
+    AI detection support dynamically evaluated from the loaded weights file.
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>PPE Category</th>
+        <th>Expected Gear</th>
+        <th>Model Support</th>
+        <th>Active Model Class</th>
+        <th>Safety Rules</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ppe in ppe_capabilities %}
+      <tr>
+        <td style="font-weight: 600;">{{ ppe.name }}</td>
+        <td>{{ ppe.item }}</td>
+        <td>
+          {% if ppe.is_supported %}
+          <span class="badge badge-compliant">SUPPORTED</span>
+          {% else %}
+          <span class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">UNSUPPORTED</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if ppe.is_supported %}
+          <span style="font-family: var(--font-mono); color: var(--safety-orange); font-size: 12px;">'{{ ppe.active_model_class }}'</span>
+          {% else %}
+          <span style="color: var(--text-muted); font-size: 12px;">N/A</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if ppe.is_supported %}
+          <span style="color: var(--color-compliant);">Active</span>
+          {% else %}
+          <span style="color: var(--text-muted);">Disabled</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 <!-- Spatial Reasoning Pipeline Architecture -->
-<div class="card">
+<div class="card" style="margin-top: 24px;">
   <div class="card-title">
     <span>Multi-Stage Safety Reasoning Pipeline Flow</span>
   </div>
@@ -88,13 +138,13 @@
     <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-top: 3px solid var(--safety-yellow);">
       <div style="font-size: 11px; color: var(--safety-yellow); font-weight: 700;">STAGE 3</div>
       <h4 style="font-size: 14px; margin: 6px 0;">Spatial Association</h4>
-      <p style="font-size: 12px; color: var(--text-secondary);">Maps helmets to head spans and vests to torso regions with chromatic verification.</p>
+      <p style="font-size: 12px; color: var(--text-secondary);">Maps PPE detections to worker body regions via bounding box overlap and geometric heuristics.</p>
     </div>
 
     <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-top: 3px solid var(--color-critical);">
       <div style="font-size: 11px; color: var(--color-critical); font-weight: 700;">STAGE 4</div>
       <h4 style="font-size: 14px; margin: 6px 0;">Temporal Rule Engine</h4>
-      <p style="font-size: 12px; color: var(--text-secondary);">Verifies 10+ frame consistency and zone coordinates before logging incidents.</p>
+      <p style="font-size: 12px; color: var(--text-secondary);">Applies Exponential Moving Average (EWMA) and Zone rules before logging incidents.</p>
     </div>
   </div>
 </div>
