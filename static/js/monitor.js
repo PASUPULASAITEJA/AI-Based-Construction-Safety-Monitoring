@@ -87,13 +87,35 @@ function updateWorkerRoster(workers) {
         <span class="worker-id-title">${w.label}</span>
         <span class="badge ${badgeClass}">${w.status}</span>
       </div>
-      <div class="worker-ppe-row">
-        <span class="ppe-pill ${w.helmet ? 'ok' : 'no'}">${w.helmet ? 'Helmet ✓' : 'No Helmet'}</span>
-        <span class="ppe-pill ${w.vest ? 'ok' : 'no'}">${w.vest ? 'Vest ✓' : 'No Vest'}</span>
+      <div class="worker-ppe-status">
+        <div style="font-size: 11px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">CURRENT PPE STATUS</div>
+        ${window.PPE_CAPABILITIES ? window.PPE_CAPABILITIES.map(cat => {
+            const hasCat = w[`has_${cat.category}`];
+            if (cat.is_supported) {
+                return `
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
+                    <span style="color: var(--text-primary);">${cat.name}</span>
+                    <span style="color: ${hasCat ? 'var(--color-compliant)' : 'var(--color-critical)'}; font-weight: 600;">
+                        ${hasCat ? '✓ Detected' : '✗ Missing'}
+                    </span>
+                </div>`;
+            } else {
+                return `
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
+                    <span style="color: var(--text-muted);">${cat.name}</span>
+                    <span style="color: var(--text-muted);">— Unsupported</span>
+                </div>`;
+            }
+        }).join('') : `
+        <div class="worker-ppe-row">
+            <span class="ppe-pill ${w.helmet ? 'ok' : 'no'}">${w.helmet ? 'Helmet ✓' : 'No Helmet'}</span>
+            <span class="ppe-pill ${w.vest ? 'ok' : 'no'}">${w.vest ? 'Vest ✓' : 'No Vest'}</span>
+        </div>
+        `}
       </div>
-      <div style="margin-top:6px;font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;">
+      <div style="margin-top:8px;font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;border-top:1px solid var(--border-color);padding-top:6px;">
         <span>Zone: <strong>${w.zone_name || 'General'}</strong></span>
-        ${isViolation ? '<span style="color:var(--red);font-weight:600;">' + w.violations.join(', ') + '</span>' : ''}
+        ${isViolation ? '<span style="color:var(--red);font-weight:600;max-width:150px;text-align:right;">' + w.violations.join(', ') + '</span>' : ''}
       </div>`;
     container.appendChild(card);
   });
