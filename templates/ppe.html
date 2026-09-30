@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}PPE Safety Requirements — SiteGuard AI{% endblock %}
+{% block page_title %}PPE Safety Requirements{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px; max-width: 1200px;">
+  <p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 24px;">
+    Master configuration for all recognized Personal Protective Equipment (PPE) categories. Detection support is dynamically linked to the active AI model capability.
+  </p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+    {% for ppe in ppe_capabilities %}
+    <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 16px; color: var(--text-primary);">{{ ppe.name }}</h3>
+          
+          {% if ppe.is_supported %}
+          <span class="badge badge-compliant" style="font-size: 10px;">AVAILABLE</span>
+          {% else %}
+          <span class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-muted); font-size: 10px;">UNAVAILABLE</span>
+          {% endif %}
+        </div>
+        
+        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+          {{ ppe.item }}
+        </div>
+      </div>
+      
+      <div style="padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 12px;">
+        <span style="color: var(--text-muted);">Status:</span>
+        {% if ppe.is_supported %}
+          <span style="color: var(--color-compliant); font-weight: 600; margin-left: 4px;">Supported</span>
+        {% else %}
+          <span style="color: var(--color-critical); margin-left: 4px;">Not supported by current YOLO model</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
