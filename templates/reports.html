@@ -14,12 +14,12 @@
 
 {% block content %}
 <!-- Report Configuration Bar -->
-<div class="card" style="padding: 16px; margin-bottom: 24px;">
+<div class="card filter-card mb-24">
   <form id="report-filter-form" method="GET" action="{{ url_for('reports_view') }}">
-    <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;">
+    <div class="filter-row">
       <div>
         <label class="form-label">Report Period</label>
-        <select name="period" class="form-select" style="width: 180px;" onchange="document.getElementById('report-filter-form').submit()">
+        <select name="period" class="form-select w-180" title="Report Period" aria-label="Report Period" onchange="document.getElementById('report-filter-form').submit()">
           <option value="ALL" {% if period == 'ALL' %}selected{% endif %}>Lifetime Complete Log</option>
           <option value="TODAY" {% if period == 'TODAY' %}selected{% endif %}>Today's Operations</option>
           <option value="7DAYS" {% if period == '7DAYS' %}selected{% endif %}>Last 7 Days</option>
@@ -29,7 +29,7 @@
 
       <div>
         <label class="form-label">Construction Site</label>
-        <select name="site_id" class="form-select" style="width: 180px;" onchange="document.getElementById('report-filter-form').submit()">
+        <select name="site_id" class="form-select w-180" title="Construction Site" aria-label="Construction Site" onchange="document.getElementById('report-filter-form').submit()">
           <option value="ALL">All Monitored Sites</option>
           {% for s in sites %}
             <option value="{{ s.id }}" {% if current_site == s.id|string %}selected{% endif %}>{{ s.name }}</option>
@@ -38,70 +38,70 @@
       </div>
 
       <div>
-        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Generate Report</button>
+        <button type="submit" class="btn btn-primary btn-sm h-38">Generate Report</button>
       </div>
     </div>
   </form>
 </div>
 
 <!-- Formal Printable Safety Compliance Report -->
-<div class="card" style="padding: 32px; background: var(--bg-card); border-radius: var(--radius-md);">
+<div class="card report-card-container">
   
   <!-- Report Header -->
-  <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--border-color); padding-bottom: 20px; margin-bottom: 24px;">
+  <div class="report-header-row">
     <div>
-      <div style="font-size: 22px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px;">
-        SiteGuard AI â€” Safety Compliance Audit Report
+      <div class="report-title-lg">
+        SiteGuard AI — Safety Compliance Audit Report
       </div>
-      <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+      <div class="fs-13 text-secondary mt-4">
         Generated automatically from real computer vision inference & database records
       </div>
     </div>
 
-    <div style="text-align: right; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">
-      <div>Report Period: <strong style="color: var(--safety-orange);">{{ period }}</strong></div>
+    <div class="text-right font-mono fs-12 text-muted">
+      <div>Report Period: <strong class="text-orange">{{ period }}</strong></div>
       <div>Generated At: {{ generated_at }}</div>
       <div>Audit Authority: Site Safety Operations</div>
     </div>
   </div>
 
   <!-- Executive Summary Metrics -->
-  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px;">
-    <div style="background: rgba(0,0,0,0.25); padding: 16px; border-radius: 8px; border-left: 3px solid var(--safety-orange);">
-      <div style="font-size: 11.5px; color: var(--text-secondary); text-transform: uppercase;">Total Violations</div>
-      <div style="font-size: 24px; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin-top: 4px;">
+  <div class="report-kpi-grid">
+    <div class="report-kpi-card border-l-orange">
+      <div class="fs-11-5 text-secondary text-uppercase">Total Violations</div>
+      <div class="fs-24 fw-800 font-mono text-primary mt-4">
         {{ report_incidents|length }}
       </div>
     </div>
 
-    <div style="background: rgba(0,0,0,0.25); padding: 16px; border-radius: 8px; border-left: 3px solid var(--color-critical);">
-      <div style="font-size: 11.5px; color: var(--text-secondary); text-transform: uppercase;">Critical Severity</div>
-      <div style="font-size: 24px; font-weight: 800; font-family: var(--font-mono); color: var(--color-critical); margin-top: 4px;">
+    <div class="report-kpi-card border-l-critical">
+      <div class="fs-11-5 text-secondary text-uppercase">Critical Severity</div>
+      <div class="fs-24 fw-800 font-mono text-critical mt-4">
         {{ crit_count|default(0) }}
       </div>
     </div>
 
-    <div style="background: rgba(0,0,0,0.25); padding: 16px; border-radius: 8px; border-left: 3px solid var(--color-compliant);">
-      <div style="font-size: 11.5px; color: var(--text-secondary); text-transform: uppercase;">Resolved Incidents</div>
-      <div style="font-size: 24px; font-weight: 800; font-family: var(--font-mono); color: var(--color-compliant); margin-top: 4px;">
+    <div class="report-kpi-card border-l-compliant">
+      <div class="fs-11-5 text-secondary text-uppercase">Resolved Incidents</div>
+      <div class="fs-24 fw-800 font-mono text-compliant mt-4">
         {{ resolved_count|default(0) }}
       </div>
     </div>
 
-    <div style="background: rgba(0,0,0,0.25); padding: 16px; border-radius: 8px; border-left: 3px solid var(--color-info);">
-      <div style="font-size: 11.5px; color: var(--text-secondary); text-transform: uppercase;">Compliance Rate</div>
-      <div style="font-size: 24px; font-weight: 800; font-family: var(--font-mono); color: var(--color-info); margin-top: 4px;">
+    <div class="report-kpi-card border-l-info">
+      <div class="fs-11-5 text-secondary text-uppercase">Compliance Rate</div>
+      <div class="fs-24 fw-800 font-mono text-info mt-4">
         {% if report_compliance is not none %}{{ report_compliance }}%{% else %}N/A{% endif %}
       </div>
     </div>
   </div>
 
   <!-- Detailed Incident Table in Report -->
-  <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 14px; color: var(--text-primary);">
+  <h4 class="fs-15 fw-700 mb-14 text-primary">
     Evaluated Safety Incidents Audit Log ({{ report_incidents|length }} Records)
   </h4>
 
-  <div class="table-container" style="margin-bottom: 24px;">
+  <div class="table-container mb-24">
     <table class="data-table">
       <thead>
         <tr>
@@ -118,7 +118,7 @@
         {% if report_incidents and report_incidents|length > 0 %}
           {% for r in report_incidents %}
             <tr>
-              <td style="font-family: var(--font-mono); font-weight: 700; color: var(--safety-orange);">
+              <td class="font-mono fw-700 text-orange">
                 {{ r.incident_code }}
               </td>
               <td>{{ r.worker_label }}</td>
@@ -126,19 +126,19 @@
               <td>
                 <span class="badge badge-{{ r.severity|lower }}">{{ r.severity }}</span>
               </td>
-              <td style="font-family: var(--font-mono);">{{ (r.confidence * 100)|round(1) }}%</td>
+              <td class="font-mono">{{ (r.confidence * 100)|round(1) }}%</td>
               <td>
                 <span class="badge {% if r.status == 'RESOLVED' %}badge-compliant{% else %}badge-critical{% endif %}">
                   {{ r.status }}
                 </span>
               </td>
-              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">{{ r.timestamp }}</td>
+              <td class="font-mono fs-12 text-muted">{{ r.timestamp }}</td>
             </tr>
           {% endfor %}
         {% else %}
           <tr>
             <td colspan="7">
-              <div class="empty-state-card" style="padding: 24px;">
+              <div class="empty-state-card p-24">
                 <div class="empty-state-title">No report data available for the selected period</div>
                 <div class="empty-state-text">No violation records were found matching the selected timeframe and site criteria.</div>
               </div>
@@ -150,14 +150,14 @@
   </div>
 
   <!-- Auditor Sign-Off Area -->
-  <div style="margin-top: 32px; padding-top: 20px; border-top: 1px dashed var(--border-color); display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+  <div class="report-signoff-row">
     <div>
       <div>Site Safety Officer Signature: _______________________</div>
-      <div style="margin-top: 4px; color: var(--text-muted);">Name: Authorized Inspector</div>
+      <div class="mt-4 text-muted">Name: Authorized Inspector</div>
     </div>
     <div>
       <div>Project Manager Approval: _______________________</div>
-      <div style="margin-top: 4px; color: var(--text-muted);">Date: {{ generated_at.split(' ')[0] }}</div>
+      <div class="mt-4 text-muted">Date: {{ generated_at.split(' ')[0] }}</div>
     </div>
   </div>
 

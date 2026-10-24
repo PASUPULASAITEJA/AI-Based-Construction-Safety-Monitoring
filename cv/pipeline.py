@@ -12,7 +12,7 @@ from cv.zone_detector import ZoneDetector
 from cv.annotator import FrameAnnotator
 from safety.violation_manager import ViolationManager
 from safety.alert_manager import AlertManager
-from database.models import ZoneModel, WorkerTrackModel
+from database.models import ZoneModel, WorkerTrackModel, SettingsModel
 
 class SafetyPipeline:
     def __init__(self, model_path=None, conf=config.CONFIDENCE_THRESHOLD, iou=config.IOU_THRESHOLD):

@@ -4,19 +4,19 @@
 {% block page_title %}Alert Center{% endblock %}
 
 {% block top_actions %}
-  <div style="font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono);">
-    Actionable Alerts: <strong style="color: var(--color-critical);">{{ open_count|default(0) }}</strong>
+  <div class="header-action-summary font-mono">
+    Actionable Alerts: <strong class="text-critical">{{ open_count|default(0) }}</strong>
   </div>
 {% endblock %}
 
 {% block content %}
 <!-- Alert Severity & Status Quick Filters -->
-<div class="card" style="padding: 16px; margin-bottom: 20px;">
+<div class="card card-padded-lg">
   <form id="alert-filter-form" method="GET" action="{{ url_for('alerts_view') }}">
-    <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;">
+    <div class="form-row-flex">
       <div>
         <label class="form-label">Lifecycle Status</label>
-        <select name="status" class="form-select" style="width: 170px;" onchange="document.getElementById('alert-filter-form').submit()">
+        <select name="status" class="form-select w-170" title="Lifecycle Status" aria-label="Lifecycle Status" onchange="document.getElementById('alert-filter-form').submit()">
           <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Alert States</option>
           <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>OPEN (Unacknowledged)</option>
           <option value="ACKNOWLEDGED" {% if current_status == 'ACKNOWLEDGED' %}selected{% endif %}>ACKNOWLEDGED</option>
@@ -27,7 +27,7 @@
 
       <div>
         <label class="form-label">Severity</label>
-        <select name="severity" class="form-select" style="width: 140px;" onchange="document.getElementById('alert-filter-form').submit()">
+        <select name="severity" class="form-select w-140" title="Severity" aria-label="Severity" onchange="document.getElementById('alert-filter-form').submit()">
           <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
           <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
           <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
@@ -38,19 +38,19 @@
 
       <div>
         <label class="form-label">Search Alert</label>
-        <input type="text" name="search" class="form-input" placeholder="Search Alert Code..." value="{{ current_search|default('') }}" style="width: 200px;">
+        <input type="text" name="search" class="form-input w-200" placeholder="Search Alert Code..." value="{{ current_search|default('') }}">
       </div>
 
       <div>
-        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Filter</button>
-        <a href="{{ url_for('alerts_view') }}" class="btn btn-secondary btn-sm" style="height: 38px;">Reset</a>
+        <button type="submit" class="btn btn-primary btn-sm h-38">Filter</button>
+        <a href="{{ url_for('alerts_view') }}" class="btn btn-secondary btn-sm h-38">Reset</a>
       </div>
     </div>
   </form>
 </div>
 
 <!-- Alerts Table with Lifecycle Actions -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card card-unpadded overflow-hidden">
   <div class="table-container">
     <table class="data-table">
       <thead>
@@ -70,7 +70,7 @@
           {% for a in alerts %}
             <tr>
               <td>
-                <strong style="font-family: var(--font-mono); color: var(--safety-orange);">
+                <strong class="font-mono text-orange">
                   {{ a.alert_code }}
                 </strong>
               </td>
@@ -78,14 +78,14 @@
                 <span class="badge badge-{{ a.severity|lower }}">{{ a.severity }}</span>
               </td>
               <td>
-                <div style="font-weight: 600;">{{ a.violation_type }}</div>
-                <div style="font-size: 11.5px; color: var(--text-muted);">{{ a.worker_label }}</div>
+                <div class="fw-600">{{ a.violation_type }}</div>
+                <div class="fs-11 text-muted">{{ a.worker_label }}</div>
               </td>
               <td>
-                <div style="font-size: 12px;">{{ a.site_name|default('Main Site') }}</div>
-                <div style="font-size: 11px; color: var(--text-muted);">{{ a.source|default('Live Stream') }}</div>
+                <div class="fs-12">{{ a.site_name|default('Main Site') }}</div>
+                <div class="fs-11 text-muted">{{ a.source|default('Live Stream') }}</div>
               </td>
-              <td style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
+              <td class="fs-12 text-muted font-mono">
                 {{ a.timestamp }}
               </td>
               <td>
@@ -93,14 +93,15 @@
                   {{ a.status }}
                 </span>
               </td>
-              <td style="font-size: 12px;">
+              <td class="fs-12">
                 {{ a.assigned_to|default('Unassigned', true) }}
               </td>
               <td>
-                <div style="display: flex; gap: 6px; align-items: center;">
+                <div class="actions-row-flex">
                   {% if a.snapshot_path %}
-                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}', '{{ a.alert_code }}', '{{ a.violation_type }}')">
-                                          </button>
+                    <button class="btn btn-sm btn-secondary" title="View Evidence Snapshot" aria-label="View Evidence Snapshot" data-src="{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}" data-code="{{ a.alert_code }}" data-type="{{ a.violation_type }}" onclick="viewSnapshot(this.dataset.src, this.dataset.code, this.dataset.type)">
+                      View
+                    </button>
                   {% endif %}
 
                   {% if a.status == 'OPEN' %}
@@ -116,7 +117,7 @@
                       Resolve
                     </button>
                   {% else %}
-                    <span style="font-size: 12px; color: var(--color-compliant); font-weight: 600;">âœ“ Done</span>
+                    <span class="fs-12 text-compliant fw-600">✓ Done</span>
                   {% endif %}
                 </div>
               </td>
@@ -142,7 +143,7 @@
 <div id="resolve-modal" class="modal-backdrop" onclick="closeResolveModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <button class="modal-close-btn" onclick="closeResolveModal()">&times;</button>
-    <h3 style="margin-bottom: 14px;" id="resolve-modal-title">Resolve Safety Alert</h3>
+    <h3 class="mb-14" id="resolve-modal-title">Resolve Safety Alert</h3>
     
     <div class="form-group">
       <label class="form-label">Assigned Safety Officer</label>
@@ -154,7 +155,7 @@
       <textarea id="resolve-notes" class="form-textarea" rows="3" placeholder="Describe corrective action taken on site (e.g. Worker instructed to put on helmet, hazard perimeter cleared)..."></textarea>
     </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+    <div class="flex flex-end gap-10 mt-20">
       <button class="btn btn-secondary" onclick="closeResolveModal()">Cancel</button>
       <button class="btn btn-success" onclick="submitAlertResolution()">Confirm Resolution</button>
     </div>

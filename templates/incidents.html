@@ -11,12 +11,12 @@
 
 {% block content %}
 <!-- Filter Controls -->
-<div class="card" style="padding: 16px; margin-bottom: 20px;">
+<div class="card filter-card">
   <form id="incident-filter-form" method="GET" action="{{ url_for('incidents_view') }}">
-    <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;">
+    <div class="filter-row">
       <div>
         <label class="form-label">Violation Type</label>
-        <select name="violation_type" class="form-select" style="width: 190px;" onchange="document.getElementById('incident-filter-form').submit()">
+        <select name="violation_type" class="form-select w-190" title="Violation Type" aria-label="Violation Type" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Violation Types</option>
           <option value="NO_HELMET" {% if current_v_type == 'NO_HELMET' %}selected{% endif %}>Missing Helmet</option>
           <option value="NO_VEST" {% if current_v_type == 'NO_VEST' %}selected{% endif %}>Missing Safety Vest</option>
@@ -29,7 +29,7 @@
 
       <div>
         <label class="form-label">Severity</label>
-        <select name="severity" class="form-select" style="width: 140px;" onchange="document.getElementById('incident-filter-form').submit()">
+        <select name="severity" class="form-select w-140" title="Severity" aria-label="Severity" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
           <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
           <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
@@ -40,7 +40,7 @@
 
       <div>
         <label class="form-label">Resolution Status</label>
-        <select name="status" class="form-select" style="width: 150px;" onchange="document.getElementById('incident-filter-form').submit()">
+        <select name="status" class="form-select w-150" title="Resolution Status" aria-label="Resolution Status" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
           <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
           <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
@@ -48,24 +48,24 @@
       </div>
 
       <div>
-        <label class="form-label">Search</label>
-        <input type="text" name="search" class="form-input" placeholder="Search Incident ID, Worker..." value="{{ current_search|default('') }}" style="width: 200px;">
+        <label class="form-label" for="incident-search-input">Search</label>
+        <input type="text" id="incident-search-input" name="search" class="form-input w-200" placeholder="Search Incident ID, Worker..." title="Search Incident ID or Worker" aria-label="Search Incident ID or Worker" value="{{ current_search|default('') }}">
       </div>
 
       <div>
-        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Filter</button>
-        <a href="{{ url_for('incidents_view') }}" class="btn btn-secondary btn-sm" style="height: 38px;">Reset</a>
+        <button type="submit" class="btn btn-primary btn-sm h-38">Filter</button>
+        <a href="{{ url_for('incidents_view') }}" class="btn btn-secondary btn-sm h-38">Reset</a>
       </div>
 
-      <div style="margin-left: auto; font-size: 13px; color: var(--text-secondary); align-self: center;">
-        Total Incidents: <strong style="color: var(--text-primary);">{{ incidents|length }}</strong>
+      <div class="filter-count">
+        Total Incidents: <strong class="text-primary">{{ incidents|length }}</strong>
       </div>
     </div>
   </form>
 </div>
 
 <!-- Incidents Master Table -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card p-0 overflow-hidden">
   <div class="table-container">
     <table class="data-table">
       <thead>
@@ -87,51 +87,51 @@
           {% for inc in incidents %}
             <tr>
               <td>
-                <strong style="font-family: var(--font-mono); color: var(--safety-orange);">
+                <strong class="font-mono text-orange">
                   {{ inc.incident_code }}
                 </strong>
               </td>
               <td><strong>{{ inc.worker_label }}</strong></td>
               <td>
-                <div style="font-weight: 600;">{{ inc.violation_type }}</div>
-                <div style="font-size: 11px; color: var(--text-muted); max-width: 220px;">{{ inc.description }}</div>
+                <div class="fw-600">{{ inc.violation_type }}</div>
+                <div class="fs-11 text-muted max-w-220">{{ inc.description }}</div>
               </td>
               <td>
                 <span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
               </td>
-              <td style="font-family: var(--font-mono); color: var(--color-info);">
+              <td class="font-mono text-info">
                 {{ (inc.confidence * 100)|round(1) }}%
               </td>
               <td>
-                <div style="font-size: 12px;">{{ inc.site_name|default('Default Site') }}</div>
-                <div style="font-size: 11px; color: var(--text-muted);">{{ inc.source }}</div>
+                <div class="fs-12">{{ inc.site_name|default('Default Site') }}</div>
+                <div class="fs-11 text-muted">{{ inc.source }}</div>
               </td>
               <td>
                 <span class="badge {% if inc.status == 'RESOLVED' %}badge-compliant{% else %}badge-critical{% endif %}">
                   {{ inc.status }}
                 </span>
               </td>
-              <td style="font-size: 12px;">
+              <td class="fs-12">
                 {{ inc.assigned_to|default('Unassigned', true) }}
               </td>
               <td>
                 {% if inc.status == 'RESOLVED' %}
-                  <div style="font-size: 11.5px; color: var(--color-compliant); font-weight: 600;">
-                    âœ“ Resolved: {{ inc.resolution_note|default('Completed') }}
+                  <div class="fs-11-5 text-compliant fw-600">
+                    ✓ Resolved: {{ inc.resolution_note|default('Completed') }}
                   </div>
                 {% else %}
-                  <button class="btn btn-sm btn-primary" onclick="openIncidentActionModal('{{ inc.id }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                  <button class="btn btn-sm btn-primary" data-id="{{ inc.id }}" data-code="{{ inc.incident_code }}" data-type="{{ inc.violation_type }}" onclick="openIncidentActionModal(this.dataset.id, this.dataset.code, this.dataset.type)">
                     Manage & Resolve
                   </button>
                 {% endif %}
               </td>
               <td>
                 {% if inc.snapshot_path %}
-                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                  <button class="btn btn-sm btn-secondary" data-src="{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}" data-code="{{ inc.incident_code }}" data-type="{{ inc.violation_type }}" onclick="viewSnapshot(this.dataset.src, this.dataset.code, this.dataset.type)">
                     View
                   </button>
                 {% else %}
-                  <span style="color: var(--text-muted); font-size: 12px;">No Frame</span>
+                  <span class="text-muted fs-12">No Frame</span>
                 {% endif %}
               </td>
             </tr>
@@ -156,29 +156,29 @@
 <div id="incident-action-modal" class="modal-backdrop" onclick="closeIncidentModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <button class="modal-close-btn" onclick="closeIncidentModal()">&times;</button>
-    <h3 style="margin-bottom: 14px;" id="incident-modal-title">Manage Safety Incident</h3>
+    <h3 class="mb-14" id="incident-modal-title">Manage Safety Incident</h3>
     
     <div class="form-group">
-      <label class="form-label">Assigned Safety Officer</label>
-      <input type="text" id="inc-officer" class="form-input" placeholder="Officer Name (e.g. Inspector John Doe)">
+      <label class="form-label" for="inc-officer">Assigned Safety Officer</label>
+      <input type="text" id="inc-officer" class="form-input" placeholder="Officer Name (e.g. Inspector John Doe)" title="Assigned Safety Officer" aria-label="Assigned Safety Officer">
     </div>
 
     <div class="form-group">
-      <label class="form-label">Root Cause Analysis</label>
-      <textarea id="inc-root-cause" class="form-textarea" rows="2" placeholder="e.g. PPE supply shortage in Zone B, worker failed to adhere to entry checkpoint protocol..."></textarea>
+      <label class="form-label" for="inc-root-cause">Root Cause Analysis</label>
+      <textarea id="inc-root-cause" class="form-textarea" rows="2" placeholder="e.g. PPE supply shortage in Zone B, worker failed to adhere to entry checkpoint protocol..." title="Root Cause Analysis" aria-label="Root Cause Analysis"></textarea>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Corrective & Preventive Action</label>
-      <textarea id="inc-action" class="form-textarea" rows="2" placeholder="e.g. Replacement hardhat issued on site, safety briefing conducted..."></textarea>
+      <label class="form-label" for="inc-action">Corrective & Preventive Action</label>
+      <textarea id="inc-action" class="form-textarea" rows="2" placeholder="e.g. Replacement hardhat issued on site, safety briefing conducted..." title="Corrective & Preventive Action" aria-label="Corrective & Preventive Action"></textarea>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Resolution Note</label>
-      <input type="text" id="inc-resolution-note" class="form-input" placeholder="Final resolution note">
+      <label class="form-label" for="inc-resolution-note">Resolution Note</label>
+      <input type="text" id="inc-resolution-note" class="form-input" placeholder="Final resolution note" title="Resolution Note" aria-label="Resolution Note">
     </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+    <div class="flex-end-gap mt-20">
       <button class="btn btn-secondary" onclick="closeIncidentModal()">Cancel</button>
       <button class="btn btn-success" onclick="submitIncidentUpdate()">Save & Mark Resolved</button>
     </div>

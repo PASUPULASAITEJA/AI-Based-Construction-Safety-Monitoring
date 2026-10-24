@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Safety Violations â€” SiteGuard AI{% endblock %}
+{% block title %}Safety Violations — SiteGuard AI{% endblock %}
 {% block page_title %}Safety Violations{% endblock %}
 
 {% block top_actions %}
@@ -9,11 +9,11 @@
 
 {% block content %}
 <!-- Metrics Summary Cards for Human-in-the-Loop Review -->
-<div class="stats-grid" style="margin-bottom: 20px;">
+<div class="stats-grid mb-20">
   <div class="stat-card">
     <div class="stat-header">
       <span class="stat-title">Total AI Detections</span>
-      <span class="stat-icon" style="background: var(--blue-dim); color: var(--blue);">AI</span>
+      <span class="stat-icon stat-icon-blue">AI</span>
     </div>
     <div class="stat-value" id="stat-total-violations">{{ review_stats.total_violations }}</div>
     <div class="stat-trend">Total safety events evaluated by YOLOv8</div>
@@ -22,29 +22,29 @@
   <div class="stat-card">
     <div class="stat-header">
       <span class="stat-title">Human-Confirmed</span>
-      <span class="stat-icon" style="background: var(--red-dim); color: var(--red);">!</span>
+      <span class="stat-icon stat-icon-red">!</span>
     </div>
-    <div class="stat-value" id="stat-confirmed-violations" style="color: var(--color-critical);">{{ review_stats.confirmed_violations }}</div>
+    <div class="stat-value text-critical" id="stat-confirmed-violations">{{ review_stats.confirmed_violations }}</div>
     <div class="stat-trend">
-      <span style="color: var(--color-critical);">{{ review_stats.confirmation_rate }}%</span> confirmed breach rate
+      <span class="text-critical">{{ review_stats.confirmation_rate }}%</span> confirmed breach rate
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-header">
       <span class="stat-title">False Positives Flagged</span>
-      <span class="stat-icon" style="background: var(--orange-dim); color: var(--orange);">FP</span>
+      <span class="stat-icon stat-icon-orange">FP</span>
     </div>
-    <div class="stat-value" id="stat-false-positives" style="color: var(--safety-orange);">{{ review_stats.false_positives }}</div>
+    <div class="stat-value text-orange" id="stat-false-positives">{{ review_stats.false_positives }}</div>
     <div class="stat-trend">
-      <span style="color: var(--safety-orange);">{{ review_stats.false_positive_rate }}%</span> FP rate (model tuning)
+      <span class="text-orange">{{ review_stats.false_positive_rate }}%</span> FP rate (model tuning)
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-header">
       <span class="stat-title">Pending Human Review</span>
-      <span class="stat-icon" style="background: var(--purple-dim); color: var(--purple);">?</span>
+      <span class="stat-icon stat-icon-purple">?</span>
     </div>
     <div class="stat-value" id="stat-pending-reviews">{{ review_stats.pending_reviews }}</div>
     <div class="stat-trend">Awaiting safety officer verification</div>
@@ -52,12 +52,12 @@
 </div>
 
 <!-- Filter Controls Card -->
-<div class="card" style="padding: 16px; margin-bottom: 20px;">
+<div class="card filter-card mb-20">
   <form id="filter-form" method="GET" action="{{ url_for('violations_view') }}">
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+    <div class="filter-row">
       <div>
         <label class="form-label">Violation Type</label>
-        <select name="violation_type" class="form-select" style="width: 180px;" onchange="document.getElementById('filter-form').submit()">
+        <select name="violation_type" class="form-select w-180" title="Violation Type" aria-label="Violation Type" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Types</option>
           <option value="NO_HELMET" {% if current_v_type == 'NO_HELMET' %}selected{% endif %}>Missing Helmet</option>
           <option value="NO_VEST" {% if current_v_type == 'NO_VEST' %}selected{% endif %}>Missing Safety Vest</option>
@@ -70,7 +70,7 @@
 
       <div>
         <label class="form-label">Review Status</label>
-        <select name="status" class="form-select" style="width: 150px;" onchange="document.getElementById('filter-form').submit()">
+        <select name="status" class="form-select w-150" title="Review Status" aria-label="Review Status" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
           <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>OPEN / Pending</option>
           <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
@@ -80,7 +80,7 @@
 
       <div>
         <label class="form-label">Severity</label>
-        <select name="severity" class="form-select" style="width: 130px;" onchange="document.getElementById('filter-form').submit()">
+        <select name="severity" class="form-select w-130" title="Severity" aria-label="Severity" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
           <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
           <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
@@ -91,7 +91,7 @@
 
       <div>
         <label class="form-label">Site</label>
-        <select name="site_id" class="form-select" style="width: 150px;" onchange="document.getElementById('filter-form').submit()">
+        <select name="site_id" class="form-select w-150" title="Site" aria-label="Site" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_site == 'ALL' %}selected{% endif %}>All Sites</option>
           {% for s in sites %}
             <option value="{{ s.id }}" {% if current_site == s.id|string %}selected{% endif %}>{{ s.name }}</option>
@@ -100,24 +100,24 @@
       </div>
 
       <div>
-        <label class="form-label">Search</label>
-        <input type="text" name="search" class="form-input" placeholder="Search Code, Worker..." value="{{ current_search|default('') }}" style="width: 180px;">
+        <label class="form-label" for="violation-search-input">Search</label>
+        <input type="text" id="violation-search-input" name="search" class="form-input w-180" placeholder="Search Code, Worker..." title="Search Code or Worker" aria-label="Search Code or Worker" value="{{ current_search|default('') }}">
       </div>
 
       <div>
-        <button type="submit" class="btn btn-primary btn-sm" style="height: 38px;">Filter</button>
-        <a href="{{ url_for('violations_view') }}" class="btn btn-secondary btn-sm" style="height: 38px;">Reset</a>
+        <button type="submit" class="btn btn-primary btn-sm h-38">Filter</button>
+        <a href="{{ url_for('violations_view') }}" class="btn btn-secondary btn-sm h-38">Reset</a>
       </div>
 
-      <div style="margin-left: auto; font-size: 13px; color: var(--text-secondary); align-self: center;">
-        Records: <strong style="color: var(--text-primary);">{{ violations|length }}</strong>
+      <div class="filter-count">
+        Records: <strong class="text-primary">{{ violations|length }}</strong>
       </div>
     </div>
   </form>
 </div>
 
 <!-- Violations Master Table with Human-in-the-Loop Review -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card p-0 overflow-hidden">
   <div class="table-container">
     <table class="data-table">
       <thead>
@@ -131,7 +131,7 @@
           <th>Detected At</th>
           <th>Review Status</th>
           <th>Evidence</th>
-          <th style="text-align: right;">Officer Action</th>
+          <th class="text-right">Officer Action</th>
         </tr>
       </thead>
       <tbody>
@@ -139,31 +139,31 @@
           {% for v in violations %}
             <tr id="violation-row-{{ v.id }}">
               <td>
-                <strong style="font-family: var(--font-mono); color: var(--orange);">
+                <strong class="font-mono text-orange">
                   {{ v.violation_code }}
                 </strong>
               </td>
               <td>
                 <strong>{{ v.worker_label }}</strong>
-                <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">ID: TRK-{{ "%03d"|format(v.worker_id) }}</div>
+                <div class="fs-11 text-muted font-mono">ID: TRK-{{ "%03d"|format(v.worker_id) }}</div>
               </td>
               <td>
-                <span style="font-weight: 600; font-size: 13px;">{{ v.violation_type }}</span>
-                <div style="font-size: 11px; color: var(--text-muted); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <span class="fw-600 fs-13">{{ v.violation_type }}</span>
+                <div class="fs-11 text-muted max-w-220 text-ellipsis">
                   {{ v.description }}
                 </div>
               </td>
               <td>
                 <span class="badge badge-{{ v.severity|lower }}">{{ v.severity }}</span>
               </td>
-              <td style="font-family: var(--font-mono); color: var(--color-info);">
+              <td class="font-mono text-info">
                 {{ (v.confidence * 100)|round(1) }}%
               </td>
               <td>
-                <div style="font-size: 12px; color: var(--text-primary);">{{ v.site_name|default('Construction Site') }}</div>
-                <div style="font-size: 11px; color: var(--text-muted);">{{ v.camera_name|default(v.source) }}</div>
+                <div class="fs-12 text-primary">{{ v.site_name|default('Construction Site') }}</div>
+                <div class="fs-11 text-muted">{{ v.camera_name|default(v.source) }}</div>
               </td>
-              <td style="color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);">
+              <td class="text-muted fs-12 font-mono">
                 {{ v.timestamp }}
               </td>
               <td>
@@ -172,14 +172,14 @@
                     CONFIRMED
                   </span>
                   {% if v.reviewed_by %}
-                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">by {{ v.reviewed_by }}</div>
+                    <div class="fs-10 text-muted mt-2">by {{ v.reviewed_by }}</div>
                   {% endif %}
                 {% elif v.review_decision == 'FALSE_POSITIVE' %}
                   <span class="badge badge-orange">
                     FALSE POSITIVE
                   </span>
                   {% if v.reviewed_by %}
-                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">by {{ v.reviewed_by }}</div>
+                    <div class="fs-10 text-muted mt-2">by {{ v.reviewed_by }}</div>
                   {% endif %}
                 {% else %}
                   <span class="badge badge-warning">
@@ -189,25 +189,25 @@
               </td>
               <td>
                 {% if v.snapshot_path %}
-                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}', '{{ v.violation_code }}', '{{ v.violation_type }}', 'Worker: {{ v.worker_label }} | Conf: {{ (v.confidence * 100)|round(1) }}% | Time: {{ v.timestamp }}')">
+                  <button class="btn btn-sm btn-secondary" data-src="{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}" data-code="{{ v.violation_code }}" data-type="{{ v.violation_type }}" data-meta="Worker: {{ v.worker_label }} | Conf: {{ (v.confidence * 100)|round(1) }}% | Time: {{ v.timestamp }}" onclick="viewSnapshot(this.dataset.src, this.dataset.code, this.dataset.type, this.dataset.meta)">
                     Evidence
                   </button>
                 {% else %}
-                  <span style="color: var(--text-muted); font-size: 11px;">No Frame</span>
+                  <span class="text-muted fs-11">No Frame</span>
                 {% endif %}
               </td>
-              <td style="text-align: right;">
+              <td class="text-right">
                 {% if v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
-                  <div style="display: flex; gap: 6px; justify-content: flex-end;">
-                    <button class="btn btn-sm btn-danger" onclick="openConfirmModal({{ v.id }}, '{{ v.violation_code }}', '{{ v.violation_type }}')">
+                  <div class="flex-end-gap-6">
+                    <button class="btn btn-sm btn-danger" data-id="{{ v.id }}" data-code="{{ v.violation_code }}" data-type="{{ v.violation_type }}" onclick="openConfirmModal(this.dataset.id, this.dataset.code, this.dataset.type)">
                       Confirm
                     </button>
-                    <button class="btn btn-sm btn-secondary" onclick="openFpModal({{ v.id }}, '{{ v.violation_code }}')">
+                    <button class="btn btn-sm btn-secondary" data-id="{{ v.id }}" data-code="{{ v.violation_code }}" onclick="openFpModal(this.dataset.id, this.dataset.code)">
                       False +
                     </button>
                   </div>
                 {% else %}
-                  <span style="font-size: 12px; color: var(--text-muted);">Reviewed</span>
+                  <span class="fs-12 text-muted">Reviewed</span>
                 {% endif %}
               </td>
             </tr>
@@ -229,26 +229,26 @@
 </div>
 
 <!-- Confirm Violation Modal -->
-<div id="confirm-modal" class="modal-backdrop" style="display: none;">
-  <div class="modal-content" style="max-width: 440px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3 style="margin: 0; font-size: 14px; color: var(--red);">Confirm Safety Breach</h3>
+<div id="confirm-modal" class="modal-backdrop">
+  <div class="modal-content max-w-440">
+    <div class="flex-between-center mb-16">
+      <h3 class="m-0 fs-14 text-critical">Confirm Safety Breach</h3>
       <button class="modal-close-btn" onclick="closeModals()">&times;</button>
     </div>
-    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+    <p class="fs-13 text-secondary mb-14">
       Confirming this detection will formally register an active <strong>Safety Incident (INC)</strong> and assign it to the safety officer for root cause remediation.
     </p>
     <form id="confirm-form" onsubmit="submitConfirm(event)">
       <input type="hidden" id="confirm-violation-id">
-      <div style="margin-bottom: 12px;">
-        <label class="form-label">Reviewing Officer</label>
-        <input type="text" id="confirm-officer" class="form-input" value="{{ session.get('username', 'Safety Officer') }}" required>
+      <div class="mb-12">
+        <label class="form-label" for="confirm-officer">Reviewing Officer</label>
+        <input type="text" id="confirm-officer" class="form-input" placeholder="Reviewing Officer Name" title="Reviewing Officer" aria-label="Reviewing Officer" value="{{ session.get('username', 'Safety Officer') }}" required>
       </div>
-      <div style="margin-bottom: 16px;">
-        <label class="form-label">Investigation Notes / Directive</label>
-        <textarea id="confirm-notes" class="form-input" rows="3" placeholder="e.g. Worker was issued warning and given helmet at Gate 2."></textarea>
+      <div class="mb-16">
+        <label class="form-label" for="confirm-notes">Investigation Notes / Directive</label>
+        <textarea id="confirm-notes" class="form-input" rows="3" placeholder="e.g. Worker was issued warning and given helmet at Gate 2." title="Investigation Notes" aria-label="Investigation Notes"></textarea>
       </div>
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <div class="flex-end-gap">
         <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
         <button type="submit" class="btn btn-danger">
           Confirm & Create Incident
@@ -259,24 +259,24 @@
 </div>
 
 <!-- False Positive Modal -->
-<div id="fp-modal" class="modal-backdrop" style="display: none;">
-  <div class="modal-content" style="max-width: 440px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3 style="margin: 0; font-size: 14px; color: var(--orange);">Flag as False Positive</h3>
+<div id="fp-modal" class="modal-backdrop">
+  <div class="modal-content max-w-440">
+    <div class="flex-between-center mb-16">
+      <h3 class="m-0 fs-14 text-orange">Flag as False Positive</h3>
       <button class="modal-close-btn" onclick="closeModals()">&times;</button>
     </div>
-    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+    <p class="fs-13 text-secondary mb-14">
       Marking as false positive will close associated alerts and adjust the AI model performance metrics.
     </p>
     <form id="fp-form" onsubmit="submitFalsePositive(event)">
       <input type="hidden" id="fp-violation-id">
-      <div style="margin-bottom: 12px;">
-        <label class="form-label">Reviewer</label>
-        <input type="text" id="fp-officer" class="form-input" value="{{ session.get('username', 'Safety Officer') }}" required>
+      <div class="mb-12">
+        <label class="form-label" for="fp-officer">Reviewer</label>
+        <input type="text" id="fp-officer" class="form-input" placeholder="Reviewing Officer Name" title="Reviewing Officer" aria-label="Reviewing Officer" value="{{ session.get('username', 'Safety Officer') }}" required>
       </div>
-      <div style="margin-bottom: 16px;">
-        <label class="form-label">Reason for False Positive</label>
-        <select id="fp-reason" class="form-select" required>
+      <div class="mb-16">
+        <label class="form-label" for="fp-reason">Reason for False Positive</label>
+        <select id="fp-reason" class="form-select" title="Reason for False Positive" aria-label="Reason for False Positive" required>
           <option value="PPE partially occluded / lighting glare">PPE partially occluded / lighting glare</option>
           <option value="Non-worker pedestrian / visitor">Non-worker pedestrian / visitor</option>
           <option value="Reflective vest worn under jacket">Reflective vest worn under jacket</option>
@@ -284,7 +284,7 @@
           <option value="Other model misclassification">Other model misclassification</option>
         </select>
       </div>
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <div class="flex-end-gap">
         <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
         <button type="submit" class="btn btn-primary">
           Mark False Positive

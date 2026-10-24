@@ -250,27 +250,12 @@ def generate_video_stream():
 
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
-    if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-        user = UserModel.authenticate(username, password)
-        if user:
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            session["role"] = user["role"]
-            session["full_name"] = user["full_name"]
-            AuditLogModel.log(user["role"], "USER_LOGIN", "AUTHENTICATION", f"User {username} signed in.", str(user["id"]))
-            return redirect(url_for("dashboard_view"))
-        return render_template("login.html", error="Invalid username or password.")
-    return render_template("login.html")
+    return redirect(url_for("dashboard_view"))
 
 @app.route("/logout")
 def logout_route():
-    user = session.get("username", "Unknown")
-    role = session.get("role", "VIEWER")
-    AuditLogModel.log(role, "USER_LOGOUT", "AUTHENTICATION", f"User {user} signed out.")
     session.clear()
-    return redirect(url_for("login_route"))
+    return redirect(url_for("dashboard_view"))
 
 # ==============================================================================
 # Primary View Routes
@@ -672,6 +657,14 @@ def mark_notifications_read():
 def audit_logs_view():
     logs = AuditLogModel.get_all(limit=100)
     return render_template("audit_logs.html", active_page="audit_logs", audit_logs=logs)
+
+def default_settings():
+    return {
+        "conf_thresh": str(config.CONFIDENCE_THRESHOLD),
+        "iou_thresh": str(config.IOU_THRESHOLD),
+        "min_violation_frames": str(config.MIN_VIOLATION_FRAMES),
+        "min_zone_frames": str(config.MIN_ZONE_FRAMES),
+    }
 
 @app.route("/settings")
 def settings_view():

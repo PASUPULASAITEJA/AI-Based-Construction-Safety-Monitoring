@@ -182,28 +182,6 @@ def init_db():
         if col_name not in existing_viol_cols:
             cursor.execute(f"ALTER TABLE violations ADD COLUMN {col_name} {col_type}")
 
-    # Check alerts table columns
-    cursor.execute("PRAGMA table_info(alerts)")
-    existing_alert_cols = {row["name"] for row in cursor.fetchall()}
-    alert_migration_cols = [
-        ("violation_id", "INTEGER"),
-        ("site_id", "INTEGER"),
-        ("camera_id", "INTEGER"),
-        ("assigned_to", "TEXT"),
-        ("acknowledged_at", "TEXT"),
-        ("resolved_at", "TEXT"),
-        ("resolution_note", "TEXT")
-    ]
-    for col_name, col_type in alert_migration_cols:
-        if col_name not in existing_alert_cols:
-            cursor.execute(f"ALTER TABLE alerts ADD COLUMN {col_name} {col_type}")
-
-    # Also check zones table for site_id
-    cursor.execute("PRAGMA table_info(zones)")
-    existing_zone_cols = {row["name"] for row in cursor.fetchall()}
-    if "site_id" not in existing_zone_cols:
-        cursor.execute("ALTER TABLE zones ADD COLUMN site_id INTEGER")
-
     # 7. Alerts Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS alerts (
@@ -227,6 +205,28 @@ def init_db():
         FOREIGN KEY(camera_id) REFERENCES cameras(id) ON DELETE SET NULL
     )
     """)
+
+    # Check alerts table columns
+    cursor.execute("PRAGMA table_info(alerts)")
+    existing_alert_cols = {row["name"] for row in cursor.fetchall()}
+    alert_migration_cols = [
+        ("violation_id", "INTEGER"),
+        ("site_id", "INTEGER"),
+        ("camera_id", "INTEGER"),
+        ("assigned_to", "TEXT"),
+        ("acknowledged_at", "TEXT"),
+        ("resolved_at", "TEXT"),
+        ("resolution_note", "TEXT")
+    ]
+    for col_name, col_type in alert_migration_cols:
+        if col_name not in existing_alert_cols:
+            cursor.execute(f"ALTER TABLE alerts ADD COLUMN {col_name} {col_type}")
+
+    # Also check zones table for site_id
+    cursor.execute("PRAGMA table_info(zones)")
+    existing_zone_cols = {row["name"] for row in cursor.fetchall()}
+    if "site_id" not in existing_zone_cols:
+        cursor.execute("ALTER TABLE zones ADD COLUMN site_id INTEGER")
 
     # 8. Worker Tracking Table
     cursor.execute("""
@@ -258,11 +258,6 @@ def init_db():
     """)
 
     # 10. Audit Logs Table
-    cursor.execute("PRAGMA table_info(audit_logs)")
-    existing_audit_cols = {row["name"] for row in cursor.fetchall()}
-    if "ip_address" not in existing_audit_cols and existing_audit_cols:
-        cursor.execute("ALTER TABLE audit_logs ADD COLUMN ip_address TEXT")
-
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,6 +270,11 @@ def init_db():
         ip_address TEXT
     )
     """)
+
+    cursor.execute("PRAGMA table_info(audit_logs)")
+    existing_audit_cols = {row["name"] for row in cursor.fetchall()}
+    if "ip_address" not in existing_audit_cols:
+        cursor.execute("ALTER TABLE audit_logs ADD COLUMN ip_address TEXT")
 
     # 11. System Settings Key-Value Table
     cursor.execute("""
