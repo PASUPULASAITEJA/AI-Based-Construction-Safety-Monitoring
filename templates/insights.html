@@ -47,7 +47,7 @@
       <!-- Time Pattern Insight -->
       {% if peak_hour %}
         <div class="insight-callout">
-          <div class="insight-icon">â�°</div>
+          <div class="insight-icon">⏰</div>
           <div class="insight-text">
             <strong>Temporal Pattern Analysis:</strong><br>
             The highest concentration of recorded violations occurred around <strong>{{ peak_hour }}</strong> with {{ peak_count }} safety events logged. Recommended action: Intensify safety officer supervision and automated camera alerts during this operational window.
@@ -57,7 +57,7 @@
 
       <!-- Resolution Progress Insight -->
       <div class="insight-callout">
-        <div class="insight-icon">âœ…</div>
+        <div class="insight-icon">✅</div>
         <div class="insight-text">
           <strong>Operational Remediation:</strong><br>
           <strong>{{ resolved_count }}</strong> of {{ total_events }} ({{ ((resolved_count / total_events) * 100)|round(1) }}%) incidents have been formally reviewed, assigned, and resolved by safety officers.

@@ -220,10 +220,18 @@ function renderActiveZoneBadges() {
     badge.style.display = 'inline-flex';
     badge.style.alignItems = 'center';
     badge.style.gap = '6px';
-    badge.innerHTML = `
-      <span>[${z.zone_type}] ${z.name}</span>
-      <button onclick="deleteZone(${z.id})" style="background:none; border:none; color:inherit; cursor:pointer; font-size:12px;">&times;</button>
-    `;
+    // Build with textContent / listeners - zone names are user input
+    const label = document.createElement('span');
+    label.textContent = `[${z.zone_type}] ${z.name}`;
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.title = 'Delete zone';
+    delBtn.setAttribute('aria-label', 'Delete zone');
+    delBtn.style.cssText = 'background:none; border:none; color:inherit; cursor:pointer; font-size:12px;';
+    delBtn.innerHTML = '&times;';
+    delBtn.addEventListener('click', () => deleteZone(z.id));
+    badge.appendChild(label);
+    badge.appendChild(delBtn);
     container.appendChild(badge);
   });
 }
@@ -253,26 +261,34 @@ async function saveCurrentZone() {
       body: JSON.stringify(payload)
     });
 
-    if (res.ok) {
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (res.ok && (!data || data.success !== false)) {
       zNameInput.value = '';
       clearActiveDrawing();
       await loadSavedZones();
     } else {
-      alert('Failed to save zone.');
+      alert('Failed to save zone: ' + ((data && data.message) || `HTTP ${res.status}`));
     }
   } catch (err) {
     console.error('Save zone error:', err);
+    alert('Failed to save zone: ' + err.message);
   }
 }
 
 async function deleteZone(zoneId) {
   if (!confirm('Are you sure you want to delete this zone?')) return;
   try {
-    const res = await fetch(`/zones/${zoneId}`, { method: 'DELETE' });
-    if (res.ok) {
+    const res = await fetch(`/zones/${encodeURIComponent(zoneId)}`, { method: 'DELETE' });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (res.ok && (!data || data.success !== false)) {
       await loadSavedZones();
+    } else {
+      alert('Failed to delete zone: ' + ((data && data.message) || `HTTP ${res.status}`));
     }
   } catch (err) {
     console.error('Delete zone error:', err);
+    alert('Failed to delete zone: ' + err.message);
   }
 }

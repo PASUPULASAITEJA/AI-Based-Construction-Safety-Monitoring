@@ -28,7 +28,7 @@
           Max file size: 250MB
         </div>
         <button type="button" id="btn-process-video" class="btn btn-primary" onclick="submitVideoAnalysis()" disabled>
-          âš¡ Process Video Stream
+          ⚡ Process Video Stream
         </button>
       </div>
     </form>
@@ -37,7 +37,7 @@
   <!-- Processing Pipeline Explanation Card -->
   <div class="card">
     <div class="card-title">
-      <span>âš™Video Processing Pipeline Architecture</span>
+      <span>⚙ Video Processing Pipeline Architecture</span>
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
@@ -107,7 +107,7 @@
         </div>
         <div class="metric-card success" style="padding: 14px;">
           <div class="metric-header"><span>Compliance</span></div>
-          <div class="metric-value" id="result-compliance-rate" style="font-size: 22px;">100%</div>
+          <div class="metric-value" id="result-compliance-rate" style="font-size: 22px;">&mdash;</div>
         </div>
       </div>
 
@@ -136,12 +136,18 @@
 <script>
 let selectedVideoFile = null;
 
+enableFileDrop('video-dropzone', 'video-file-input', handleVideoSelection);
+
 function handleVideoSelection(e) {
   const file = e.target.files[0];
   if (file) {
+    if (!/\.(mp4|avi|mov)$/i.test(file.name || '')) {
+      alert('Unsupported file type. Please choose an MP4, AVI or MOV video.');
+      return;
+    }
     selectedVideoFile = file;
     const label = document.getElementById('video-selected-label');
-    label.innerText = `Selected: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
+    label.textContent = `Selected: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
     label.style.display = 'block';
     document.getElementById('btn-process-video').disabled = false;
   }
@@ -184,7 +190,13 @@ function submitVideoAnalysis() {
     method: 'POST',
     body: formData
   })
-  .then(res => res.json())
+  .then(async res => {
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!data) data = { success: false, message: `HTTP ${res.status}` };
+    if (!res.ok) data.success = false;
+    return data;
+  })
   .then(data => {
     clearInterval(timer);
     progressBar.style.width = '100%';
@@ -203,7 +215,7 @@ function submitVideoAnalysis() {
   })
   .catch(err => {
     clearInterval(timer);
-    alert('Server connection error during video processing: ' + err);
+    alert('Server connection error during video processing: ' + err.message);
     progressCard.style.display = 'none';
     btnProcess.disabled = false;
   });
@@ -222,10 +234,11 @@ function displayVideoResults(data) {
   document.getElementById('result-workers-count').innerText = stats.total_workers || 0;
   document.getElementById('result-violations-count').innerText = stats.total_violations || 0;
 
-  const compRate = stats.total_workers > 0 
-    ? Math.max(0, Math.round(((stats.total_workers - stats.total_violations) / stats.total_workers) * 100))
-    : 100;
-  document.getElementById('result-compliance-rate').innerText = compRate + '%';
+  // No workers tracked -> no compliance figure (avoid a misleading 100%)
+  const compRate = stats.total_workers > 0
+    ? Math.max(0, Math.round(((stats.total_workers - (stats.total_violations || 0)) / stats.total_workers) * 100)) + '%'
+    : '\u2014';
+  document.getElementById('result-compliance-rate').textContent = compRate;
 
   const tbody = document.getElementById('result-workers-table-body');
   tbody.innerHTML = '';
@@ -235,10 +248,10 @@ function displayVideoResults(data) {
     sampleWorkers.forEach(w => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${w.label || 'Worker #' + w.worker_id}</strong></td>
+        <td><strong>${escapeHtml(w.label || 'Worker #' + w.worker_id)}</strong></td>
         <td><span class="badge ${w.helmet ? 'badge-compliant' : 'badge-danger'}">${w.helmet ? 'YES' : 'NO'}</span></td>
         <td><span class="badge ${w.vest ? 'badge-compliant' : 'badge-danger'}">${w.vest ? 'YES' : 'NO'}</span></td>
-        <td><span class="badge ${w.violations && w.violations.length > 0 ? 'badge-critical' : 'badge-compliant'}">${w.status || 'COMPLIANT'}</span></td>
+        <td><span class="badge ${w.violations && w.violations.length > 0 ? 'badge-critical' : 'badge-compliant'}">${escapeHtml(w.status || 'COMPLIANT')}</span></td>
       `;
       tbody.appendChild(tr);
     });

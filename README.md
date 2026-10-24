@@ -98,7 +98,7 @@ A professional, modern, production-grade Computer Vision and Web Application pla
 
 ### 📷 9. Camera Network (`/cameras`)
 - Manage physical and virtual cameras across construction sites.
-- Stream sources: Hardware Webcam (DirectShow/V4L2), Browser WebRTC, Dataset Simulator, RTSP IP stream.
+- Stream sources: Hardware Webcam (DirectShow/V4L2), Browser WebRTC, RTSP/HTTP IP stream. "View Feed" opens the camera's configured source on the monitor page.
 - Live status heartbeat tracking (`ONLINE` / `OFFLINE`) with last-seen timestamps and resolution/FPS specs.
 
 ### 👷 10. Worker Tracking & Compliance (`/workers`)
@@ -121,13 +121,14 @@ A professional, modern, production-grade Computer Vision and Web Application pla
 
 ### 🧠 13. AI Detection Model Architecture (`/model`)
 - YOLOv8 weights inspection (`model/best.pt`), inference device (PyTorch CUDA/CPU), and confidence/IoU hyperparameters.
-- Dynamic class schema directly read from `construction/data.yaml` (`['Boots', 'Ear-protection', 'Glass', 'Glove', 'Helmet', 'Mask', 'Person', 'Vest']`).
+- Class schema read from the weights themselves. The bundled `model/best.pt` detects 11 classes: `helmet, gloves, vest, boots, goggles, none, Person, no_helmet, no_goggle, no_gloves, no_boots`. Class names are normalized (e.g. `Glove`→`gloves`, `Ear-protection`→`ear_protection`), so other PPE datasets map onto the same 8 PPE categories. `no_*` detections override a weaker positive detection on the same worker.
+- PPE categories the model cannot detect (hearing protection, harness, protective pants with the bundled weights) are never reported as missing.
 
 ### 💡 14. AI Safety Insights (`/insights`)
 - Deterministic fact synthesis engine analyzing actual recorded violation events without hallucinated numbers.
 
 ### 💓 15. System Health Diagnostics (`/system-health`)
-- Real-time diagnostic monitors for Backend Web Server, SQLite Database, YOLOv8 AI Model, Live Video Engine, Storage Subsystem, and Alert Dispatcher.
+- Live checks: SQLite round-trip latency, model loaded and class count, camera device open, snapshot directory writable, free disk space, uptime.
 
 ### 🔔 16. In-App Notifications (`/notifications`)
 - Real-time notification feed for `HIGH` and `CRITICAL` severity events with "Mark All as Read" action.
@@ -160,10 +161,25 @@ Open your browser and navigate to:
 http://127.0.0.1:5000
 ```
 
-### 3. Run End-to-End System Verification Suite
-```bash
-python verify_full_system.py
-```
+### 3. Configuration (environment variables)
+| Variable | Default | Purpose |
+|---|---|---|
+| `SECRET_KEY` | random, stored in `database/.secret_key` | Flask session signing key |
+| `SITEGUARD_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` to expose on the network) |
+| `SITEGUARD_PORT` | `5000` | HTTP port |
+
+### 4. Roles
+| Role | Can |
+|---|---|
+| `ADMIN` | Everything, including sites, cameras, settings and the audit log |
+| `SAFETY_OFFICER` | Review violations, manage alerts/incidents, draw zones, run image/video analysis |
+| `SUPERVISOR` | Review violations, manage alerts/incidents, run image/video analysis |
+| `VIEWER` | Read-only |
+
+### 5. How violations are raised
+- **Live / video:** a required PPE item must be missing for `MIN_VIOLATION_FRAMES` consecutive frames (Settings page) before a violation is logged; a cleared violation is not re-raised for the same worker within `VIOLATION_COOLDOWN_FRAMES`. A restricted zone breach needs `MIN_ZONE_FRAMES` frames inside the zone.
+- **Single image:** rules are evaluated directly on the detections.
+- Each violation opens an incident and an alert automatically; confirming a violation in review confirms that incident, and marking it a false positive closes it.
 
 ---
 

@@ -5,7 +5,7 @@
 
 {% block top_actions %}
   <button class="btn btn-secondary" onclick="markAllNotificationsRead()">
-    âœ“ Mark All as Read
+    ✓ Mark All as Read
   </button>
 {% endblock %}
 
@@ -65,11 +65,9 @@
 {% block scripts %}
 <script>
 function markAllNotificationsRead() {
-  fetch('/api/notifications/mark-read', { method: 'POST' })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) window.location.reload();
-  });
+  apiJSON('/api/notifications/mark-read', 'POST')
+    .then(() => window.location.reload())
+    .catch(err => alert('Error marking notifications as read: ' + err.message));
 }
 </script>
 {% endblock %}

@@ -14,6 +14,12 @@ COLOR_HAZARD = (0, 69, 255)         # Bright Orange-Red
 COLOR_TEXT = (255, 255, 255)
 COLOR_DARK_BG = (20, 24, 30)
 
+def _violation_field(v, key):
+    """Violations are rule dicts ({"type", "severity", ...}); tolerate plain description strings too."""
+    if isinstance(v, dict):
+        return str(v.get(key, ""))
+    return str(v)
+
 class FrameAnnotator:
     def __init__(self):
         pass
@@ -62,7 +68,7 @@ class FrameAnnotator:
         associated_items = worker.get("associated_items", {})
 
         # Determine box color
-        if "CRITICAL" in status or any("CRITICAL" in str(v.get("severity", "")) for v in violations):
+        if "CRITICAL" in status or any("CRITICAL" in _violation_field(v, "severity") for v in violations):
             box_color = (0, 0, 255)
         elif violations:
             box_color = COLOR_VIOLATION
@@ -90,14 +96,14 @@ class FrameAnnotator:
 
         # 2. Draw Associated PPE item boxes (Helmet / Vest)
         if associated_items:
-            h_box = associated_items.get("helmet_box")
+            h_box = associated_items.get("HEAD_box")
             if h_box and has_helmet:
                 hx1, hy1, hx2, hy2 = h_box
                 cv2.rectangle(frame, (hx1, hy1), (hx2, hy2), (50, 220, 50), 1)
                 cv2.putText(frame, "Helmet", (hx1, max(12, hy1 - 3)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (50, 220, 50), 1, cv2.LINE_AA)
 
-            v_box = associated_items.get("vest_box")
+            v_box = associated_items.get("VISIBILITY_box")
             if v_box and has_vest:
                 vx1, vy1, vx2, vy2 = v_box
                 cv2.rectangle(frame, (vx1, vy1), (vx2, vy2), (0, 240, 255), 1)
@@ -122,7 +128,7 @@ class FrameAnnotator:
 
         # 4. Violation Banner if active
         if violations:
-            v_desc = ", ".join([v.get("type", "Violation") for v in violations])
+            v_desc = ", ".join(_violation_field(v, "type") for v in violations)
             v_h = 20
             cv2.rectangle(frame, (x1, y2), (x1 + badge_w, y2 + v_h), (0, 0, 200), -1)
             cv2.putText(frame, f"! {v_desc}", (x1 + 4, y2 + v_h - 5),

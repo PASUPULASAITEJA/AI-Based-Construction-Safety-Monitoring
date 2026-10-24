@@ -17,7 +17,7 @@
   <div class="kpi kpi-orange">
     <div class="kpi-label">Workers Observed</div>
     <div class="kpi-value" id="card-workers-count">{{ stats.workers_count|default(0) }}</div>
-    <div class="kpi-sub">Currently in camera view</div>
+    <div class="kpi-sub">Currently in camera view<span id="card-live-status"></span></div>
   </div>
 
   <div class="kpi kpi-yellow">
@@ -98,7 +98,7 @@
               <tr>
                 <td class="mono">{{ a.alert_code|default(a.incident_code) }}</td>
                 <td>
-                  <div class="fw-600">{{ a.violation_type }}</div>
+                  <div class="fw-600">{{ a.violation_type|replace('_', ' ') }}</div>
                   <div class="text-xs text-muted">{{ a.worker_label }}</div>
                 </td>
                 <td><span class="badge badge-{{ a.severity|lower }}">{{ a.severity }}</span></td>

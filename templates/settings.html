@@ -6,6 +6,7 @@
 {% block content %}
 <div style="max-width: 860px;">
   <form id="settings-form" action="{{ url_for('update_settings_route') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     
     <!-- AI Detection Parameters -->
     <div class="card" style="margin-bottom: 24px;">
@@ -38,7 +39,7 @@
     <!-- Temporal Verification State Machine -->
     <div class="card" style="margin-bottom: 24px;">
       <div class="card-title">
-        <span>â�±Temporal Verification State Machine</span>
+        <span>⏱ Temporal Verification State Machine</span>
       </div>
 
       <div class="form-group">
@@ -59,8 +60,12 @@
     </div>
 
     <div style="display: flex; justify-content: flex-end; gap: 12px;">
-      <button type="button" class="btn btn-secondary" onclick="window.location.reload()">Reset Defaults</button>
+      <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">Reset Defaults</button>
+      {% if current_role == 'ADMIN' %}
       <button type="submit" class="btn btn-primary">Save Configuration</button>
+      {% else %}
+      <span class="text-muted">Only administrators can change settings.</span>
+      {% endif %}
     </div>
   </form>
 </div>
@@ -73,8 +78,10 @@
   const VALUE_LABELS = { conf_thresh: 'conf-val', iou_thresh: 'iou-val', min_violation_frames: 'mv-val', min_zone_frames: 'mz-val' };
   function resetToDefaults() {
     Object.entries(SETTINGS_DEFAULTS).forEach(([key, value]) => {
-      document.getElementById(key).value = value;
-      document.getElementById(VALUE_LABELS[key]).innerText = value;
+      const input = document.getElementById(key);
+      const label = document.getElementById(VALUE_LABELS[key]);
+      if (input) input.value = value;
+      if (label) label.textContent = value;
     });
   }
 </script>
