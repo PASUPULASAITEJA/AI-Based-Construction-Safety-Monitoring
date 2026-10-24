@@ -374,6 +374,36 @@ def generate_video_stream():
 # Helpers
 # ==============================================================================
 
+def optional_int(value):
+    if value in (None, "", "null", "None"):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+def clean_text(value, max_len=200):
+    """Stripped string (or None if blank), truncated to max_len."""
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value[:max_len] if value else None
+
+def allowed_extension(filename, allowed):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed
+
+def save_upload(file, allowed):
+    """Validates the extension and saves under a unique, sanitized name. Returns (path, stem, ext) or raises ValueError."""
+    original = secure_filename(file.filename or "")
+    if not original or not allowed_extension(original, allowed):
+        raise ValueError(f"Unsupported file type. Allowed: {', '.join(sorted(allowed))}.")
+    ext = original.rsplit(".", 1)[1].lower()
+    stem = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    path = os.path.join(config.UPLOADS_DIR, f"upload_{stem}.{ext}")
+    file.save(path)
+    return path, stem, ext
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     return redirect(url_for("dashboard_view"))
