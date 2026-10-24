@@ -6,7 +6,7 @@
   <title>{% block title %}SiteGuard AI{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <script>
@@ -183,13 +183,24 @@
   <!-- Main -->
   <div class="main-wrapper">
     <header class="header">
-      <div class="header-title">{% block page_title %}Dashboard{% endblock %}</div>
-      <div class="header-right">
-        <div class="header-chip">
-          <span class="dot dot-green"></span>
-          <span id="live-clock-display">--:--:--</span>
+      <div class="header-left-group">
+        <div class="header-breadcrumb">
+          <span class="header-breadcrumb-root">SiteGuard AI</span>
+          <span class="header-breadcrumb-sep">/</span>
+          <h1 class="header-title m-0 fs-15">{% block page_title %}Dashboard{% endblock %}</h1>
         </div>
-        <div class="header-chip">
+        <div class="header-engine-status" title="Real-time Ultralytics YOLOv8 Computer Vision Engine">
+          <span class="engine-pulse-dot"></span>
+          <span class="engine-status-text">AI Engine <span class="engine-status-accent">Online</span></span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="header-chip header-chip-clock" title="Synchronized System Time">
+          <span class="dot dot-green"></span>
+          <span id="live-clock-display" class="font-mono">--:--:--</span>
+        </div>
+        <div class="header-chip header-chip-user">
+          <div class="user-avatar-badge">{{ current_user[0]|upper if current_user else 'O' }}</div>
           <span class="user-display-name fw-600">{{ current_user }}</span>
           <span class="badge badge-orange badge-role-tag">{{ current_role }}</span>
         </div>

@@ -29,6 +29,20 @@
       </div>
 
       <div class="video-feed-container" id="stream-wrapper">
+        <div class="camera-hud-top">
+          <div class="camera-rec-pill">
+            <span class="camera-rec-dot"></span>
+            <span>LIVE REC</span>
+          </div>
+          <div class="camera-spec-pill">
+            <span>YOLOv8 INFERENCE HUD</span>
+          </div>
+        </div>
+        <div class="camera-hud-corner tl"></div>
+        <div class="camera-hud-corner tr"></div>
+        <div class="camera-hud-corner bl"></div>
+        <div class="camera-hud-corner br"></div>
+
         <img id="live-video-stream" src="{{ url_for('video_feed') }}" alt="Live Feed" class="video-stream-img" onerror="this.classList.add('stream-error');">
         <video id="browser-webcam-element" autoplay muted class="d-none"></video>
         <canvas id="browser-capture-canvas" class="d-none"></canvas>
@@ -40,7 +54,7 @@
         <span>FPS <span class="hud-val hud-val-blue" id="hud-fps">--</span></span>
         <span>Workers <span class="hud-val hud-val-orange" id="hud-workers">0</span></span>
         <span>Violations <span class="hud-val hud-val-red" id="hud-violations">0</span></span>
-        <span>Status <span class="hud-val hud-val-green" id="hud-channel">Idle</span></span>
+        <span>Channel <span class="hud-val hud-val-green" id="hud-channel">Idle</span></span>
       </div>
     </div>
 
