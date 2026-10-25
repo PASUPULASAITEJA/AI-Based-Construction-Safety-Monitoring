@@ -948,8 +948,52 @@ def stop_camera():
     return jsonify({"success": success, "message": "Camera stopped."})
 
 @app.route("/api/status")
+@app.route("/api/stats")
 def get_status():
-    return jsonify(latest_frame_summary)
+    """Returns combined real-time live telemetry and database KPIs for smart client polling."""
+    worker_stats = WorkerTrackModel.get_summary_stats()
+    today_violations = ViolationModel.get_count(today_only=True)
+    open_alerts = AlertModel.get_open_count()
+    total_incidents = IncidentModel.get_count()
+
+    response = dict(latest_frame_summary)
+    response.update({
+        "today_violations": today_violations,
+        "open_alerts": open_alerts,
+        "total_incidents": total_incidents,
+        "compliance_rate": worker_stats.get("compliance_rate", 100.0) if worker_stats.get("compliance_rate") is not None else 100.0,
+        "total_workers_tracked": worker_stats.get("total_tracked", 0),
+        "camera_online": camera.is_open(),
+        "camera_mode": camera.describe(),
+        "uptime": _format_uptime(time.time() - APP_START_TIME)
+    })
+    return jsonify(response)
+
+@app.route("/api/alerts/active")
+def get_active_alerts():
+    """Returns list of open and active alerts for client notification tickers and toast alerts."""
+    alerts = AlertModel.get_all(limit=50, status="OPEN")
+    if not alerts:
+        alerts = AlertModel.get_all(limit=10)
+    return jsonify({
+        "success": True,
+        "count": len(alerts),
+        "alerts": alerts
+    })
+
+@app.route("/api/detections/frame")
+def get_detections_frame():
+    """Returns the latest frame's raw worker detections, spatial associations, and zone incursions."""
+    return jsonify({
+        "success": True,
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "worker_count": latest_frame_summary.get("worker_count", 0),
+        "violation_count": latest_frame_summary.get("violation_count", 0),
+        "critical_count": latest_frame_summary.get("critical_count", 0),
+        "workers": latest_frame_summary.get("workers", []),
+        "fps": latest_frame_summary.get("fps", 0.0),
+        "camera_online": camera.is_open()
+    })
 
 @app.route("/api/process_browser_frame", methods=["POST"])
 def process_browser_frame():

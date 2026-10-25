@@ -212,6 +212,15 @@ def test_flask_routes():
             ("/ppe", "PPE Requirements"),
             ("/model", "AI Model Info"),
             ("/settings", "System Settings"),
+            ("/video-analysis", "Video Analysis Studio"),
+            ("/image-analysis", "Image Inspection Studio"),
+            ("/sites", "Sites & Zones"),
+            ("/workers", "Worker Tracking"),
+            ("/insights", "AI Insights"),
+            ("/system-health", "System Health"),
+            ("/notifications", "Notifications"),
+            ("/audit-logs", "Audit Logs"),
+            ("/upload", "Media Studio Launchpad"),
         ]
 
         all_views_ok = True
@@ -237,6 +246,9 @@ def test_flask_routes():
         # REST API Routes
         api_routes = [
             ("/api/status", 200),
+            ("/api/stats", 200),
+            ("/api/alerts/active", 200),
+            ("/api/detections/frame", 200),
             ("/api/zones", 200),
             ("/api/incidents/export", 200),
             ("/api/violations/export", 200),

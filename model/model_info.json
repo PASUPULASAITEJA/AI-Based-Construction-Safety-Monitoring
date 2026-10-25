@@ -1,0 +1,47 @@
+{
+  "model_name": "SiteGuard AI Construction Safety Monitor",
+  "architecture": "YOLOv8",
+  "weights_file": "model/best.pt",
+  "input_resolution": 640,
+  "last_updated": "2026-10-25 11:50:00",
+  "dataset": "D:/Safe/dataset (8,099 images, 75,994 instances)",
+  "active_classes_count": 11,
+  "active_classes": {
+    "0": "helmet",
+    "1": "gloves",
+    "2": "vest",
+    "3": "boots",
+    "4": "goggles",
+    "5": "none",
+    "6": "Person",
+    "7": "no_helmet",
+    "8": "no_goggle",
+    "9": "no_gloves",
+    "10": "no_boots"
+  },
+  "target_17_classes": {
+    "0": "person",
+    "1": "ear",
+    "2": "ear-mufs",
+    "3": "face",
+    "4": "face-guard",
+    "5": "face-mask-medical",
+    "6": "foot",
+    "7": "tools",
+    "8": "glasses",
+    "9": "gloves",
+    "10": "helmet",
+    "11": "hands",
+    "12": "head",
+    "13": "medical-suit",
+    "14": "shoes",
+    "15": "safety-suit",
+    "16": "safety-vest"
+  },
+  "metrics": {
+    "mAP50": 0.884,
+    "mAP50_95": 0.672,
+    "precision": 0.891,
+    "recall": 0.854
+  }
+}

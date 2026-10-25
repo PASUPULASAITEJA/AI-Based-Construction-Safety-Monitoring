@@ -1,60 +1,39 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
+.env
 env/
 venv/
 ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Ultralytics & Training
+# Weights & Training runs
+*.pt
+model/runs/
 runs/
-*.pt.backup
+*.cache
+yolov8*.pt
 
-# Temporary storage (keep directories, ignore dynamic files)
-uploads/*
-!uploads/.gitkeep
+# Local dataset (13.5 GB)
+dataset/
+dataset_tools/inspection_report.txt
+
+# Media & Storage (ignore runtime artifacts)
 outputs/*
 !outputs/.gitkeep
+uploads/*
+!uploads/.gitkeep
 snapshots/*
 !snapshots/.gitkeep
 
-# IDEs
+# Database
+database/*.db
+database/*.db-journal
+database/.secret_key
+
+# IDEs & OS
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Local runtime database (created automatically by init_db) and generated dataset files
-database/*.db
-database/.secret_key
-construction/labels/*.cache
-.freebuff/
-dataset_train.yaml
-dataset_eval.yaml
-
-# Local 13.5GB Training Dataset & Checkpoints
-dataset/
-*.cache
-yolov8n.pt
-

@@ -1,0 +1,180 @@
+{
+  "dataset_name": "SiteGuard-17-Class-Construction-Safety",
+  "nc": 17,
+  "class_id_to_name": {
+    "0": "person",
+    "1": "ear",
+    "2": "ear-mufs",
+    "3": "face",
+    "4": "face-guard",
+    "5": "face-mask-medical",
+    "6": "foot",
+    "7": "tools",
+    "8": "glasses",
+    "9": "gloves",
+    "10": "helmet",
+    "11": "hands",
+    "12": "head",
+    "13": "medical-suit",
+    "14": "shoes",
+    "15": "safety-suit",
+    "16": "safety-vest"
+  },
+  "name_to_class_id": {
+    "person": 0,
+    "ear": 1,
+    "ear-mufs": 2,
+    "face": 3,
+    "face-guard": 4,
+    "face-mask-medical": 5,
+    "foot": 6,
+    "tools": 7,
+    "glasses": 8,
+    "gloves": 9,
+    "helmet": 10,
+    "hands": 11,
+    "head": 12,
+    "medical-suit": 13,
+    "shoes": 14,
+    "safety-suit": 15,
+    "safety-vest": 16
+  },
+  "worker_anchor_class": "person",
+  "protective_gear_classes": [
+    "helmet",
+    "glasses",
+    "gloves",
+    "shoes",
+    "safety-vest",
+    "ear-mufs",
+    "face-guard",
+    "face-mask-medical",
+    "safety-suit",
+    "medical-suit"
+  ],
+  "anatomical_anchor_classes": [
+    "head",
+    "face",
+    "ear",
+    "hands",
+    "foot"
+  ],
+  "equipment_classes": [
+    "tools"
+  ],
+  "body_zone_association": {
+    "HEAD": {
+      "span": [
+        0.0,
+        0.35
+      ],
+      "ppe": [
+        "helmet",
+        "glasses",
+        "ear-mufs",
+        "face-guard",
+        "face-mask-medical"
+      ],
+      "anchors": [
+        "head",
+        "face",
+        "ear"
+      ]
+    },
+    "TORSO": {
+      "span": [
+        0.25,
+        0.7
+      ],
+      "ppe": [
+        "safety-vest",
+        "safety-suit",
+        "medical-suit"
+      ],
+      "anchors": []
+    },
+    "LOWER": {
+      "span": [
+        0.65,
+        1.0
+      ],
+      "ppe": [
+        "shoes"
+      ],
+      "anchors": [
+        "foot"
+      ]
+    },
+    "HANDS": {
+      "span": [
+        0.3,
+        0.85
+      ],
+      "ppe": [
+        "gloves",
+        "tools"
+      ],
+      "anchors": [
+        "hands"
+      ]
+    }
+  },
+  "compliance_rules": [
+    {
+      "category": "head_protection",
+      "label": "Head Protection (Hardhat)",
+      "required_ppe": "helmet",
+      "anchor": "head",
+      "violation_code": "NO_HELMET",
+      "severity": "CRITICAL"
+    },
+    {
+      "category": "high_visibility",
+      "label": "High-Visibility Vest",
+      "required_ppe": "safety-vest",
+      "anchor": "person",
+      "violation_code": "NO_VEST",
+      "severity": "HIGH"
+    },
+    {
+      "category": "eye_protection",
+      "label": "Eye Protection (Safety Glasses/Shield)",
+      "required_ppe": "glasses",
+      "anchor": "face",
+      "violation_code": "NO_GOGGLES",
+      "severity": "HIGH"
+    },
+    {
+      "category": "hand_protection",
+      "label": "Hand Protection (Work Gloves)",
+      "required_ppe": "gloves",
+      "anchor": "hands",
+      "violation_code": "NO_GLOVES",
+      "severity": "MEDIUM"
+    },
+    {
+      "category": "foot_protection",
+      "label": "Foot Protection (Safety Boots/Shoes)",
+      "required_ppe": "shoes",
+      "anchor": "foot",
+      "violation_code": "NO_BOOTS",
+      "severity": "MEDIUM"
+    },
+    {
+      "category": "hearing_protection",
+      "label": "Hearing Protection (Earmuffs)",
+      "required_ppe": "ear-mufs",
+      "anchor": "ear",
+      "violation_code": "NO_EARMUFFS",
+      "severity": "MEDIUM"
+    },
+    {
+      "category": "face_respiratory_protection",
+      "label": "Face & Respiratory Protection",
+      "required_ppe": "face-mask-medical",
+      "anchor": "face",
+      "violation_code": "NO_FACE_MASK",
+      "severity": "LOW"
+    }
+  ]
+}
