@@ -249,6 +249,7 @@ def test_flask_routes():
             ("/api/stats", 200),
             ("/api/alerts/active", 200),
             ("/api/detections/frame", 200),
+            ("/api/dataset/inspection", 200),
             ("/api/zones", 200),
             ("/api/incidents/export", 200),
             ("/api/violations/export", 200),

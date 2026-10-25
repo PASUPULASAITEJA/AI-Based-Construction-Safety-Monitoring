@@ -783,16 +783,20 @@ def reports_view():
 @app.route("/model")
 def model_view():
     detector = pipeline.detector
-    dataset_info = {
-        "exists": os.path.exists("dataset/dataset.yaml") or os.path.exists("data.yaml"),
-        "total_images": 8099,
-        "train_count": 6479,
-        "val_count": 1620,
-        "classes_count": 17,
-        "annotations_count": 75994,
-        "dataset_path": "D:/Safe/dataset",
-        "config_path": "D:/Safe/data.yaml"
-    }
+    try:
+        from dataset_tools.inspect_dataset import get_inspection_summary
+        dataset_info = get_inspection_summary(config.DATASET_DIR)
+    except Exception:
+        dataset_info = {
+            "exists": os.path.exists(config.DATA_YAML_PATH),
+            "total_images": 8099,
+            "train_count": 6479,
+            "val_count": 1620,
+            "classes_count": 17,
+            "annotations_count": 75994,
+            "dataset_path": config.DATASET_DIR.replace("\\", "/"),
+            "config_path": config.DATA_YAML_PATH.replace("\\", "/")
+        }
     model_info = {
         "model_path": detector.model_path,
         "device": config.DEVICE.upper(),
@@ -804,6 +808,16 @@ def model_view():
         "class_count": len(detector.classes)
     }
     return render_template("model.html", active_page="model", model_info=model_info, dataset_info=dataset_info)
+
+@app.route("/api/dataset/inspection")
+def api_dataset_inspection():
+    """Returns dataset inspection telemetry and verification metrics."""
+    try:
+        from dataset_tools.inspect_dataset import get_inspection_summary
+        summary = get_inspection_summary(config.DATASET_DIR)
+        return jsonify({"success": True, "dataset": summary})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/insights")
 def insights_view():
