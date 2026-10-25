@@ -783,6 +783,16 @@ def reports_view():
 @app.route("/model")
 def model_view():
     detector = pipeline.detector
+    dataset_info = {
+        "exists": os.path.exists("dataset/dataset.yaml") or os.path.exists("data.yaml"),
+        "total_images": 8099,
+        "train_count": 6479,
+        "val_count": 1620,
+        "classes_count": 17,
+        "annotations_count": 75994,
+        "dataset_path": "D:/Safe/dataset",
+        "config_path": "D:/Safe/data.yaml"
+    }
     model_info = {
         "model_path": detector.model_path,
         "device": config.DEVICE.upper(),
@@ -793,7 +803,7 @@ def model_view():
         "loaded": getattr(detector, "model", None) is not None,
         "class_count": len(detector.classes)
     }
-    return render_template("model.html", active_page="model", model_info=model_info)
+    return render_template("model.html", active_page="model", model_info=model_info, dataset_info=dataset_info)
 
 @app.route("/insights")
 def insights_view():

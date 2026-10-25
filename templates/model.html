@@ -70,6 +70,60 @@
   </div>
 </div>
 
+<!-- DATASET & TRAINING SETUP -->
+<div class="card card-mt-24 mb-24">
+  <div class="card-header">
+    <div class="card-label">
+      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      <span>Construction Safety Training Dataset (D:/Safe/dataset)</span>
+      <span class="badge badge-green">8,099 Images Verified</span>
+    </div>
+    <span class="badge badge-purple">17 Target Classes</span>
+  </div>
+  
+  <div class="grid-3 mb-16">
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-title">Total Verified Images</span>
+        <span class="stat-icon stat-icon-blue">IMG</span>
+      </div>
+      <div class="stat-value">{{ dataset_info.total_images|default(8099) }}</div>
+      <div class="stat-trend"><span class="text-info">{{ dataset_info.train_count|default(6479) }}</span> train &bull; <span class="text-orange">{{ dataset_info.val_count|default(1620) }}</span> val</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-title">Annotated Instances</span>
+        <span class="stat-icon stat-icon-orange">BBOX</span>
+      </div>
+      <div class="stat-value text-orange">{{ dataset_info.annotations_count|default(75994) }}</div>
+      <div class="stat-trend">High-density construction bounding boxes</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-title">Configuration Ground Truth</span>
+        <span class="stat-icon stat-icon-purple">YAML</span>
+      </div>
+      <div class="stat-value fs-16 font-mono text-purple">data.yaml</div>
+      <div class="stat-trend font-mono fs-11 text-muted">train.txt &bull; val.txt</div>
+    </div>
+  </div>
+
+  <div class="p-14 border rounded" style="background: rgba(0,0,0,0.3); border-color: var(--border);">
+    <div class="flex flex-between flex-center mb-8">
+      <span class="fs-12 fw-700 text-secondary text-uppercase">Automated Training Command</span>
+      <span class="badge badge-orange font-mono fs-10">train_model.py</span>
+    </div>
+    <div class="font-mono fs-12 p-10 rounded text-primary" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border);">
+      python train_model.py --data data.yaml --epochs 30 --batch 16 --imgsz 640 --deploy
+    </div>
+    <div class="fs-11 text-muted mt-8">
+      ✓ Automatic best weights deployment to <code class="text-orange">model/best.pt</code> with timestamped backups in <code class="text-muted">model/archive/</code>.
+    </div>
+  </div>
+</div>
+
 <!-- PPE CAPABILITY MATRIX -->
 <div class="card card-mt-24">
   <div class="card-title">

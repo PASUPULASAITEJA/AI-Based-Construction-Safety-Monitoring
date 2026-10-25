@@ -1,54 +1,60 @@
 {% extends "base.html" %}
 
-{% block title %}Media Analysis — SiteGuard AI{% endblock %}
-{% block page_title %}Media Analysis{% endblock %}
+{% block title %}Media Analysis Studio — SiteGuard AI{% endblock %}
+{% block page_title %}Media Inspection Studios{% endblock %}
 
 {% block content %}
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+<div class="grid-2 mb-24">
 
-  <!-- Card 1: Single Image Inspection -->
-  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+  <!-- Card 1: Single Image Inspection Studio -->
+  <div class="card flex flex-col flex-between">
     <div>
-      <div class="card-title">
-        <span>Single Image Inspection</span>
-        <span class="badge badge-low">JPG, PNG, WEBP</span>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Single Image Inspection Studio</span>
+        </div>
+        <span class="badge badge-blue">JPG, PNG, WEBP</span>
       </div>
-      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px;">
-        Perform immediate high-resolution object detection, PPE classification, and anatomical spatial association on construction site photos.
+      <p class="fs-13 text-secondary mb-16">
+        Perform immediate high-resolution object detection, 8-category PPE classification, and anatomical spatial association on construction site photos.
       </p>
       
-      <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 8px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 20px;">
-        ✓ Instant bounding box rendering<br>
-        ✓ Confidence score breakdown per item<br>
-        ✓ Automated incident creation on violation
+      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+        <div class="mb-4 text-primary">&bull; Instant bounding box rendering with confidence scores</div>
+        <div class="mb-4 text-primary">&bull; 4-zone anatomical spatial PPE association (Head, Face, Torso, Limbs)</div>
+        <div class="text-primary">&bull; Automated violation logging and snapshot evidence archiving</div>
       </div>
     </div>
 
-    <a href="{{ url_for('image_analysis_view') }}" class="btn btn-primary" style="width: 100%;">
-      Launch Image Inspection Studio &rarr;
+    <a href="{{ url_for('image_analysis_view') }}" class="btn btn-primary w-full">
+      <span>Launch Image Inspection Studio &rarr;</span>
     </a>
   </div>
 
-  <!-- Card 2: Video Stream Processing -->
-  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+  <!-- Card 2: Video Stream Processing Studio -->
+  <div class="card flex flex-col flex-between">
     <div>
-      <div class="card-title">
-        <span>Video Stream Processing</span>
-        <span class="badge badge-low">MP4, AVI, MOV</span>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Video Stream Processing Studio</span>
+        </div>
+        <span class="badge badge-purple">MP4, AVI, MOV</span>
       </div>
-      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px;">
-        Process entire construction site video files frame-by-frame with persistent ByteTrack tracking, zone incursion checks, and temporal state machines.
+      <p class="fs-13 text-secondary mb-16">
+        Process entire construction site video files frame-by-frame with persistent worker tracking, zone incursion checks, and temporal state machines.
       </p>
 
-      <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 8px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 20px;">
-        ✓ Sequential frame extraction & tracking<br>
-        ✓ Temporal occlusion filter (10+ frames)<br>
-        ✓ Full annotated MP4 export & compliance report
+      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+        <div class="mb-4 text-primary">&bull; Sequential frame extraction with ByteTrack worker trajectories</div>
+        <div class="mb-4 text-primary">&bull; Temporal hysteresis occlusion filter (10+ persistent violation frames)</div>
+        <div class="text-primary">&bull; Full annotated video export and automated shift compliance report</div>
       </div>
     </div>
 
-    <a href="{{ url_for('video_analysis_view') }}" class="btn btn-primary" style="width: 100%;">
-      Launch Video Analysis Studio &rarr;
+    <a href="{{ url_for('video_analysis_view') }}" class="btn btn-primary w-full">
+      <span>Launch Video Analysis Studio &rarr;</span>
     </a>
   </div>
 </div>

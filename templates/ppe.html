@@ -1,39 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}PPE Safety Requirements — SiteGuard AI{% endblock %}
-{% block page_title %}PPE Safety Requirements{% endblock %}
+{% block title %}PPE Safety Requirements & Catalog — SiteGuard AI{% endblock %}
+{% block page_title %}8-Category PPE Safety Standard{% endblock %}
 
 {% block content %}
-<div class="ppe-intro-container">
-  <p class="ppe-intro-text">
-    Master configuration for all recognized Personal Protective Equipment (PPE) categories. Detection support is dynamically linked to the active AI model capability.
-  </p>
+<div class="ppe-intro-container mb-24">
+  <div class="card mb-20">
+    <div class="flex flex-between flex-center flex-wrap gap-12">
+      <div>
+        <h2 class="fs-18 fw-800 text-primary mb-4">Industrial Safety Equipment Standard (OSHA / ISO 45001)</h2>
+        <div class="fs-13 text-secondary">
+          Master personal protective equipment categories evaluated by the YOLOv8 computer vision detection engine and per-zone spatial rule matrices.
+        </div>
+      </div>
+      <span class="badge badge-orange font-mono fs-11">8 STANDARD CATEGORIES</span>
+    </div>
+  </div>
 
   <div class="ppe-cards-grid">
     {% for ppe in ppe_capabilities %}
-    <div class="card flex-col-between">
+    <div class="card flex flex-col flex-between" style="border-top: 3px solid {% if ppe.is_supported %}var(--green){% else %}var(--border-light){% endif %};">
       <div>
-        <div class="flex-between-start mb-12">
-          <h3 class="m-0 fs-16 text-primary">{{ ppe.name }}</h3>
+        <div class="flex flex-between flex-center mb-12">
+          <h3 class="m-0 fs-15 fw-700 text-primary">{{ ppe.name }}</h3>
           
           {% if ppe.is_supported %}
-          <span class="badge badge-compliant fs-10">AVAILABLE</span>
+          <span class="badge badge-compliant fs-10">AI SUPPORTED</span>
           {% else %}
-          <span class="badge badge-unsupported fs-10">UNAVAILABLE</span>
+          <span class="badge badge-unsupported fs-10">STANDBY</span>
           {% endif %}
         </div>
         
-        <div class="fs-13 text-secondary mb-20">
+        <div class="fs-13 text-secondary mb-16">
           {{ ppe.item }}
         </div>
       </div>
       
-      <div class="ppe-card-footer">
-        <span class="text-muted">Status:</span>
+      <div class="ppe-card-footer flex flex-between flex-center">
+        <span class="fs-11 text-muted">Model Detection:</span>
         {% if ppe.is_supported %}
-          <span class="ppe-status-active">Supported</span>
+          <span class="badge badge-green font-mono fs-10">ACTIVE INFERENCE</span>
         {% else %}
-          <span class="ppe-status-inactive">Not supported by current YOLO model</span>
+          <span class="badge badge-muted font-mono fs-10">EXPANSION READY</span>
         {% endif %}
       </div>
     </div>

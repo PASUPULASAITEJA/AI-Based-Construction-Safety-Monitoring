@@ -52,3 +52,9 @@ construction/labels/*.cache
 .freebuff/
 dataset_train.yaml
 dataset_eval.yaml
+
+# Local 13.5GB Training Dataset & Checkpoints
+dataset/
+*.cache
+yolov8n.pt
+

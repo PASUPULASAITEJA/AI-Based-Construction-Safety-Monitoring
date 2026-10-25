@@ -1,30 +1,30 @@
 # ==============================================================================
-# SiteGuard AI — 17-Class 8-Category PPE YOLOv8 Dataset Configuration
+# SiteGuard AI — Construction PPE Detection Dataset Configuration
+# 8,099 Total Images (6,479 Train / 1,620 Val) — 17 Classes
 # ==============================================================================
-path: ../datasets/construction_ppe_17class  # Dataset root directory
-train: images/train                         # Train images (relative to 'path')
-val: images/val                             # Validation images (relative to 'path')
-test: images/test                           # Optional test images
+path: D:/Safe/dataset
+train: train.txt
+val: val.txt
 
 # Number of classes
 nc: 17
 
 # Class index mapping
 names:
-  0: helmet
-  1: no-helmet
-  2: goggles
-  3: no-goggles
-  4: earmuff
-  5: no-earmuff
-  6: vest
-  7: no-vest
-  8: safety-pants
-  9: no-safety-pants
-  10: gloves
-  11: no-gloves
-  12: boots
-  13: no-boots
-  14: harness
-  15: no-harness
-  16: person
+  0: person
+  1: ear
+  2: ear-mufs
+  3: face
+  4: face-guard
+  5: face-mask-medical
+  6: foot
+  7: tools
+  8: glasses
+  9: gloves
+  10: helmet
+  11: hands
+  12: head
+  13: medical-suit
+  14: shoes
+  15: safety-suit
+  16: safety-vest
