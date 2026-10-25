@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}SiteGuard AI{% endblock %} — Safety Intelligence Platform</title>
 
+  <!-- Prevent Theme & Sidebar Layout Shifts (FOUC) -->
+  <script>
+    (function() {
+      try {
+        const theme = localStorage.getItem('sg_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        const collapsed = localStorage.getItem('sg_sidebar_collapsed') === 'true';
+        if (collapsed) {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
   <!-- Typography: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,39 +30,48 @@
   <!-- Chart Scripts (optional in head) -->
   {% block head_charts %}{% endblock %}
 
-  <!-- SiteGuard Industrial Light Enterprise Design System -->
+  <!-- SiteGuard Industrial Enterprise Design System -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/siteguard.css') }}">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
 
-<aside class="sidebar">
-  <!-- LOGO -->
-  <a href="{{ url_for('main.index') }}" class="sg-logo">
-    <div class="sg-logo-icon"><i data-lucide="hard-hat"></i></div>
-    <div>
-      <div class="sg-logo-name">SiteGuard<span> AI</span></div>
-      <span class="sg-logo-sub">Safety Intelligence Platform</span>
-    </div>
-  </a>
+<aside class="sidebar" id="app-sidebar">
+  <!-- LOGO & SIDEBAR COLLAPSE TOGGLE -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 14px; border-bottom: 1px solid var(--border);">
+    <a href="{{ url_for('main.index') }}" class="sg-logo" style="padding: 0; border-bottom: none;">
+      <div class="sg-logo-icon"><i data-lucide="hard-hat"></i></div>
+      <div>
+        <div class="sg-logo-name">SiteGuard<span> AI</span></div>
+        <span class="sg-logo-sub">Safety Operations</span>
+      </div>
+    </a>
+    <button class="sg-collapse-btn" id="sidebar-collapse-toggle" title="Collapse Sidebar (Ctrl+B)" onclick="toggleSidebar()">
+      <i data-lucide="chevron-left" id="collapse-icon"></i>
+    </button>
+  </div>
 
   <!-- NAV -->
   <nav class="sg-nav">
     <div class="sg-nav-section">
       <div class="sg-nav-label">Monitoring</div>
       <a href="{{ url_for('main.index') }}"
+         data-tooltip="Overview Dashboard"
          class="sg-nav-item {% if request.endpoint in ['main.index', 'dashboard_view'] and request.path == '/' %}active{% endif %}">
         <i data-lucide="layout-dashboard"></i><span>Overview</span>
       </a>
       <a href="{{ url_for('monitor.monitor') }}"
+         data-tooltip="Live Monitor & Grid"
          class="sg-nav-item {% if 'monitor' in request.endpoint or '/monitor' in request.path %}active{% endif %}">
         <i data-lucide="video"></i><span>Live Monitor</span>
       </a>
       <a href="{{ url_for('video_analysis.video_analysis') }}"
+         data-tooltip="Video Stream Analytics"
          class="sg-nav-item {% if 'video' in request.endpoint or '/video-analysis' in request.path %}active{% endif %}">
         <i data-lucide="film"></i><span>Video Analysis</span>
       </a>
       <a href="{{ url_for('image_analysis.image_analysis') }}"
+         data-tooltip="Static Image Inspection"
          class="sg-nav-item {% if 'image' in request.endpoint or '/image-analysis' in request.path %}active{% endif %}">
         <i data-lucide="image"></i><span>Image Inspect</span>
       </a>
@@ -57,6 +80,7 @@
     <div class="sg-nav-section">
       <div class="sg-nav-label">Safety</div>
       <a href="{{ url_for('violations.violations') }}"
+         data-tooltip="Violations Log"
          class="sg-nav-item {% if 'violation' in request.endpoint or '/violations' in request.path %}active{% endif %}">
         <i data-lucide="alert-triangle"></i><span>Violations</span>
         {% set v_cnt = violation_count if violation_count is defined else (today_violations_count if today_violations_count is defined else 0) %}
@@ -65,6 +89,7 @@
         {% endif %}
       </a>
       <a href="{{ url_for('alerts.alerts') }}"
+         data-tooltip="Active Safety Alerts"
          class="sg-nav-item {% if 'alert' in request.endpoint or '/alerts' in request.path %}active{% endif %}">
         <i data-lucide="bell"></i><span>Alerts</span>
         {% set a_cnt = alert_count if alert_count is defined else (open_alerts_count if open_alerts_count is defined else 0) %}
@@ -73,10 +98,12 @@
         {% endif %}
       </a>
       <a href="{{ url_for('incidents.incidents') }}"
+         data-tooltip="Incident Management"
          class="sg-nav-item {% if 'incident' in request.endpoint or '/incidents' in request.path %}active{% endif %}">
         <i data-lucide="clipboard-list"></i><span>Incidents</span>
       </a>
       <a href="{{ url_for('workers.workers') }}"
+         data-tooltip="Personnel Roster"
          class="sg-nav-item {% if 'worker' in request.endpoint or '/workers' in request.path %}active{% endif %}">
         <i data-lucide="users"></i><span>Workers</span>
       </a>
@@ -85,18 +112,22 @@
     <div class="sg-nav-section">
       <div class="sg-nav-label">Infrastructure</div>
       <a href="{{ url_for('sites.sites') }}"
+         data-tooltip="Sites & Hazardous Zones"
          class="sg-nav-item {% if 'site' in request.endpoint or '/sites' in request.path %}active{% endif %}">
         <i data-lucide="map-pin"></i><span>Sites & Zones</span>
       </a>
       <a href="{{ url_for('cameras.cameras') }}"
+         data-tooltip="Optical Cameras Network"
          class="sg-nav-item {% if 'camera' in request.endpoint or '/cameras' in request.path %}active{% endif %}">
         <i data-lucide="camera"></i><span>Cameras</span>
       </a>
       <a href="{{ url_for('analytics.analytics') }}"
+         data-tooltip="Compliance Analytics"
          class="sg-nav-item {% if 'analytic' in request.endpoint or '/analytics' in request.path %}active{% endif %}">
         <i data-lucide="bar-chart-2"></i><span>Analytics</span>
       </a>
       <a href="{{ url_for('reports.reports') }}"
+         data-tooltip="Safety Auditing Reports"
          class="sg-nav-item {% if 'report' in request.endpoint or '/reports' in request.path %}active{% endif %}">
         <i data-lucide="file-text"></i><span>Reports</span>
       </a>
@@ -105,14 +136,17 @@
     <div class="sg-nav-section">
       <div class="sg-nav-label">System</div>
       <a href="{{ url_for('model.model') }}"
+         data-tooltip="YOLOv8 AI Inference Weights"
          class="sg-nav-item {% if 'model' in request.endpoint or '/model' in request.path %}active{% endif %}">
         <i data-lucide="cpu"></i><span>AI Model</span>
       </a>
       <a href="{{ url_for('insights.insights') }}"
+         data-tooltip="Neural AI Insights"
          class="sg-nav-item {% if 'insight' in request.endpoint or '/insights' in request.path %}active{% endif %}">
         <i data-lucide="lightbulb"></i><span>AI Insights</span>
       </a>
       <a href="{{ url_for('notifications.notifications') }}"
+         data-tooltip="Notification Feeds"
          class="sg-nav-item {% if 'notif' in request.endpoint or '/notifications' in request.path %}active{% endif %}">
         <i data-lucide="bell-dot"></i><span>Notifications</span>
         {% set n_cnt = notif_count if notif_count is defined else (unread_notifs_count if unread_notifs_count is defined else 0) %}
@@ -121,23 +155,26 @@
         {% endif %}
       </a>
       <a href="{{ url_for('audit_logs.audit_logs') }}"
+         data-tooltip="Security Audit Trail"
          class="sg-nav-item {% if 'audit' in request.endpoint or '/audit-logs' in request.path %}active{% endif %}">
         <i data-lucide="shield-check"></i><span>Audit Trail</span>
       </a>
       <a href="{{ url_for('system_health.system_health') }}"
+         data-tooltip="Cluster Diagnostics"
          class="sg-nav-item {% if 'health' in request.endpoint or '/system-health' in request.path %}active{% endif %}">
         <i data-lucide="activity"></i><span>System Health</span>
       </a>
       <a href="{{ url_for('settings.settings') }}"
+         data-tooltip="Safety Platform Settings"
          class="sg-nav-item {% if 'setting' in request.endpoint or '/settings' in request.path %}active{% endif %}">
         <i data-lucide="settings"></i><span>Settings</span>
       </a>
     </div>
   </nav>
 
-  <!-- USER -->
+  <!-- USER AREA -->
   <div class="sg-user-area">
-    <div class="sg-avatar">
+    <div class="sg-avatar" title="{{ current_user.name if current_user and current_user.name is defined else 'Safety Admin' }}">
       {{ current_user.initials if current_user and current_user.initials is defined else 'ST' }}
     </div>
     <div class="sg-user-info">
@@ -151,30 +188,65 @@
 </aside>
 
 <header class="topbar">
-  <div class="sg-page-title">
-    <h1>{% block page_title %}Dashboard{% endblock %}</h1>
-    <p>{% block page_subtitle %}Real-time site safety telemetry and automated hazard compliance{% endblock %}</p>
+  <!-- TOPBAR LEFT: Toggle, Breadcrumbs, Title -->
+  <div class="sg-topbar-left">
+    <button class="sg-topbar-toggle" id="topbar-sidebar-toggle" title="Toggle Sidebar (Ctrl+B)" onclick="toggleSidebar()">
+      <i data-lucide="panel-left"></i>
+    </button>
+    <div class="sg-page-title">
+      <div class="sg-breadcrumbs">
+        <a href="{{ url_for('main.index') }}">SiteGuard</a>
+        <i data-lucide="chevron-right"></i>
+        <span>{% block breadcrumb %}{% block page_title_short %}Operations{% endblock %}{% endblock %}</span>
+      </div>
+      <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+    </div>
   </div>
+
+  <!-- TOPBAR CENTER: Search / Command Palette Bar -->
+  <div class="sg-topbar-search" onclick="openCmdPalette()" title="Press Ctrl+K to search">
+    <i data-lucide="search"></i>
+    <span class="sg-search-text">Search cameras, workers, hazards, zones...</span>
+    <kbd>Ctrl K</kbd>
+  </div>
+
+  <!-- TOPBAR RIGHT: Action buttons, Site Selector, Status, Theme, Profile -->
   <div class="sg-topbar-right">
-    <div class="sg-site-pill">
+    <a href="{{ url_for('monitor.monitor') }}" class="sg-topbar-action" title="View Real-Time Multi-Camera Grid">
+      <i data-lucide="video"></i>
+      <span>Live Grid</span>
+    </a>
+
+    <div class="sg-site-pill" title="Active Site Scope">
       <i data-lucide="map-pin"></i>
       <span>{{ current_site.name if current_site and current_site.name is defined else 'All Sites' }}</span>
       <i data-lucide="chevron-down"></i>
     </div>
+
     {% if system_online %}
-      <div class="sg-status-online">
-        <div class="sg-dot sg-dot-green"></div>System Online
+      <div class="sg-status-online" title="YOLOv8 Real-time Inference Engine Active">
+        <div class="sg-dot sg-dot-green"></div>Inference Active
       </div>
     {% else %}
-      <div class="sg-status-offline">
-        <div class="sg-dot sg-dot-red"></div>System Offline
+      <div class="sg-status-offline" title="Camera stream or pipeline paused">
+        <div class="sg-dot sg-dot-red"></div>Standby
       </div>
     {% endif %}
-    <a href="{{ url_for('notifications.notifications') }}" class="sg-icon-btn" title="Notifications">
+
+    <!-- Theme Switcher Toggle (Light / Dark) -->
+    <button class="sg-topbar-toggle" id="sg-theme-toggle" title="Switch Theme (Light / Dark)" onclick="toggleTheme()">
+      <i data-lucide="moon" id="sg-theme-icon"></i>
+    </button>
+
+    <!-- Notification Bell -->
+    <a href="{{ url_for('notifications.notifications') }}" class="sg-topbar-toggle" title="Notifications" style="position: relative; text-decoration: none;">
       <i data-lucide="bell"></i>
-      {% if notif_count is defined and notif_count > 0 %}<span class="sg-notif-dot"></span>{% endif %}
+      {% if notif_count is defined and notif_count > 0 %}
+        <span class="sg-notif-dot"></span>
+      {% endif %}
     </a>
-    <div class="sg-avatar sg-avatar-lg">
+
+    <div class="sg-avatar sg-avatar-lg" title="User Profile">
       {{ current_user.initials if current_user and current_user.initials is defined else 'ST' }}
     </div>
   </div>
@@ -197,11 +269,146 @@
   </div>
 </main>
 
+<!-- GLOBAL COMMAND SEARCH PALETTE (Ctrl+K) -->
+<div class="sg-cmd-modal" id="sg-cmd-palette" onclick="handleCmdModalClick(event)">
+  <div class="sg-cmd-box" onclick="event.stopPropagation()">
+    <div class="sg-cmd-header">
+      <i data-lucide="search"></i>
+      <input type="text" id="sg-cmd-input" class="sg-cmd-input" placeholder="Type a destination or search cameras, workers, alerts..." oninput="filterCmdList(this.value)" autofocus>
+      <kbd style="font-size: 11px; padding: 2px 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; color: var(--text-3);">ESC</kbd>
+    </div>
+    <div class="sg-cmd-list" id="sg-cmd-list">
+      <div class="sg-cmd-group-label">Navigation & Views</div>
+      <a href="{{ url_for('main.index') }}" class="sg-cmd-item">
+        <i data-lucide="layout-dashboard"></i> <span>Overview Operations Dashboard</span>
+      </a>
+      <a href="{{ url_for('monitor.monitor') }}" class="sg-cmd-item">
+        <i data-lucide="video"></i> <span>Live Multi-Camera Monitor & Zone Drawing</span>
+      </a>
+      <a href="{{ url_for('video_analysis.video_analysis') }}" class="sg-cmd-item">
+        <i data-lucide="film"></i> <span>Video File Inference & Analysis</span>
+      </a>
+      <a href="{{ url_for('image_analysis.image_analysis') }}" class="sg-cmd-item">
+        <i data-lucide="image"></i> <span>Image Safety Inspection</span>
+      </a>
+      <a href="{{ url_for('violations.violations') }}" class="sg-cmd-item">
+        <i data-lucide="alert-triangle"></i> <span>Safety Violations Telemetry Log</span>
+      </a>
+      <a href="{{ url_for('alerts.alerts') }}" class="sg-cmd-item">
+        <i data-lucide="bell"></i> <span>Incident Alerts & Notification Hub</span>
+      </a>
+      <a href="{{ url_for('workers.workers') }}" class="sg-cmd-item">
+        <i data-lucide="users"></i> <span>Worker Identity & PPE Compliance Directory</span>
+      </a>
+      <a href="{{ url_for('sites.sites') }}" class="sg-cmd-item">
+        <i data-lucide="map-pin"></i> <span>Construction Sites & Safety Zones Management</span>
+      </a>
+      <a href="{{ url_for('cameras.cameras') }}" class="sg-cmd-item">
+        <i data-lucide="camera"></i> <span>Optical Camera Stream Infrastructure</span>
+      </a>
+      <a href="{{ url_for('analytics.analytics') }}" class="sg-cmd-item">
+        <i data-lucide="bar-chart-2"></i> <span>Historical Safety Analytics & Trends</span>
+      </a>
+      <a href="{{ url_for('model.model') }}" class="sg-cmd-item">
+        <i data-lucide="cpu"></i> <span>YOLOv8 AI Inference Weights & Diagnostics</span>
+      </a>
+      <a href="{{ url_for('system_health.system_health') }}" class="sg-cmd-item">
+        <i data-lucide="activity"></i> <span>Cluster Hardware & System Telemetry</span>
+      </a>
+    </div>
+    <div class="sg-cmd-footer">
+      <span>Use <kbd>↑</kbd> <kbd>↓</kbd> to navigate</span>
+      <span>Press <kbd>↵ Enter</kbd> to select &bull; <kbd>Ctrl+B</kbd> sidebar</span>
+    </div>
+  </div>
+</div>
+
 <div class="sg-toasts" id="sg-toasts"></div>
 
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script>lucide.createIcons();</script>
 <script>
+// Sidebar Toggle State
+function toggleSidebar() {
+  const isCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('sg_sidebar_collapsed', isCollapsed);
+  if (window.lucide) lucide.createIcons();
+}
+
+// Theme Toggle State (Light / Dark)
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('sg_theme', next);
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('sg-theme-icon');
+  if (icon) {
+    icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+// Command Palette (Ctrl+K)
+function openCmdPalette() {
+  const modal = document.getElementById('sg-cmd-palette');
+  const input = document.getElementById('sg-cmd-input');
+  if (!modal) return;
+  modal.classList.add('open');
+  if (input) {
+    input.value = '';
+    input.focus();
+    filterCmdList('');
+  }
+}
+
+function closeCmdPalette() {
+  const modal = document.getElementById('sg-cmd-palette');
+  if (modal) modal.classList.remove('open');
+}
+
+function handleCmdModalClick(e) {
+  if (e.target.id === 'sg-cmd-palette') {
+    closeCmdPalette();
+  }
+}
+
+function filterCmdList(query) {
+  const q = query.toLowerCase().trim();
+  const items = document.querySelectorAll('#sg-cmd-list .sg-cmd-item');
+  items.forEach(el => {
+    const text = el.textContent.toLowerCase();
+    el.style.display = text.includes(q) ? 'flex' : 'none';
+  });
+}
+
+// Global Keyboard Shortcuts
+document.addEventListener('keydown', e => {
+  // Ctrl+B or Cmd+B: Toggle Sidebar
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+    e.preventDefault();
+    toggleSidebar();
+  }
+  // Ctrl+K or Cmd+K: Open Search Command Palette
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    const modal = document.getElementById('sg-cmd-palette');
+    if (modal && modal.classList.contains('open')) {
+      closeCmdPalette();
+    } else {
+      openCmdPalette();
+    }
+  }
+  // Escape: Close Command Palette or Modals
+  if (e.key === 'Escape') {
+    closeCmdPalette();
+    document.querySelectorAll('.sg-modal-backdrop.open')
+      .forEach(m => m.classList.remove('open'));
+  }
+});
+
 // Global toast notification dispatcher
 function sgToast(type, title, message, duration=4000) {
   const c = document.getElementById('sg-toasts');
@@ -223,7 +430,7 @@ function sgToast(type, title, message, duration=4000) {
   }, duration);
 }
 
-// Animate numbers smoothly on load
+// Number Counter Animation
 function animCount(el, to, dur=800) {
   if (isNaN(to)) return;
   let start = null;
@@ -240,20 +447,15 @@ function animCount(el, to, dur=800) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  updateThemeIcon(currentTheme);
+
   document.querySelectorAll('[data-count]').forEach(el => {
     const rawVal = parseInt(el.dataset.count, 10);
     if (!isNaN(rawVal)) animCount(el, rawVal);
   });
   if (window.lucide) {
     lucide.createIcons();
-  }
-});
-
-// Close open modals on Escape key
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.sg-modal-backdrop.open')
-      .forEach(m => m.classList.remove('open'));
   }
 });
 </script>

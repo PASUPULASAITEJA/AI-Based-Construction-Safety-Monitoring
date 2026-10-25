@@ -2,12 +2,13 @@
 
 {% block title %}Live Monitor — SiteGuard AI{% endblock %}
 {% block page_title %}Optical Safety Monitor{% endblock %}
+{% block breadcrumb %}Live Multi-Camera Grid{% endblock %}
 {% block page_subtitle %}Real-time computer vision inference, spatial hazard zoning, and worker tracking{% endblock %}
 
 {% block content %}
-<div style="display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h) - 48px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+<div id="monitor-workspace" style="display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h) - 48px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
   <!-- Monitor Control Strip -->
-  <div style="height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;">
+  <div style="height: 54px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; gap: 12px;">
     <!-- Left: Source Switcher -->
     <div style="display: flex; align-items: center; gap: 6px;">
       <button class="sg-btn sg-btn-sm sg-btn-primary" id="tab-hardware" onclick="switchSource('hardware')">
@@ -21,9 +22,32 @@
       </button>
     </div>
 
+    <!-- Center: Multi-Camera Grid Split Selector -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span class="text-xs text-3" style="font-weight: 600; text-transform: uppercase;">Grid:</span>
+      <div class="sg-range-tabs" id="grid-mode-selector">
+        <button class="sg-range-tab active" data-grid="1x1" onclick="setGridMode('1x1')" title="1x1 Single Focus View">
+          <i data-lucide="square" style="width: 13px; height: 13px;"></i> 1x1
+        </button>
+        <button class="sg-range-tab" data-grid="1x2" onclick="setGridMode('1x2')" title="1x2 Dual Camera Split">
+          <i data-lucide="columns" style="width: 13px; height: 13px;"></i> 1x2
+        </button>
+        <button class="sg-range-tab" data-grid="2x2" onclick="setGridMode('2x2')" title="2x2 Quad Multi-Camera Grid">
+          <i data-lucide="grid" style="width: 13px; height: 13px;"></i> 2x2
+        </button>
+        <button class="sg-range-tab" data-grid="1p3" onclick="setGridMode('1p3')" title="1+3 Director Stage View">
+          <i data-lucide="layout-template" style="width: 13px; height: 13px;"></i> 1+3
+        </button>
+      </div>
+
+      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="btn-fullscreen" onclick="toggleWorkspaceFullscreen()" title="Toggle Fullscreen">
+        <i data-lucide="maximize-2"></i>
+      </button>
+    </div>
+
     <!-- Right: Zone & Inference Controls -->
     <div style="display: flex; align-items: center; gap: 8px;">
-      <select class="sg-select text-xs" id="monitor-cam-select" style="width: 180px; padding: 6px 10px;" onchange="changeCameraSource(this.value)">
+      <select class="sg-select text-xs" id="monitor-cam-select" style="width: 170px; padding: 6px 10px;" onchange="changeCameraSource(this.value)">
         {% for cam in cameras %}
           <option value="{{ cam.id }}" {% if cam.status == 'ONLINE' %}selected{% endif %}>{{ cam.name }}</option>
         {% else %}
@@ -31,25 +55,25 @@
         {% endfor %}
       </select>
 
-      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="btn-toggle-draw" onclick="toggleZoneDrawing()">
+      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="btn-toggle-draw" onclick="toggleZoneDrawing()" title="Draw hazard zones on stream">
         <i data-lucide="edit-3"></i> <span>Draw Zone</span>
       </button>
 
       {% if stream_active %}
         <button class="sg-btn sg-btn-sm sg-btn-danger" id="btn-inference" onclick="toggleInference(false)">
-          <i data-lucide="square"></i> Stop Inference
+          <i data-lucide="square"></i> Stop
         </button>
       {% else %}
         <button class="sg-btn sg-btn-sm sg-btn-primary" id="btn-inference" onclick="toggleInference(true)">
-          <i data-lucide="play"></i> Start Inference
+          <i data-lucide="play"></i> Start
         </button>
       {% endif %}
     </div>
   </div>
 
-  <!-- Main Workstation Layout (3 Columns) -->
+  <!-- Main Workstation Layout (Zone Panel + Multi-Camera Grid + Worker Roster) -->
   <div style="display: flex; flex: 1; min-height: 0; background: var(--bg); position: relative;">
-    <!-- Column 1: Zone Panel (200px) - Toggleable -->
+    <!-- Column 1: Zone Panel (220px) - Toggleable -->
     <div id="zone-panel" style="width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: none; flex-direction: column; padding: 14px; overflow-y: auto;">
       <div style="font-size: 12px; font-weight: 600; color: var(--text-1); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
         <i data-lucide="shield" style="color: var(--orange);"></i> Zone Editor
@@ -90,26 +114,107 @@
       </div>
     </div>
 
-    <!-- Column 2: Video Center Panel (flex: 1) -->
-    <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #000;">
-      <div class="sg-feed-wrap" style="width: 100%; height: 100%; border: none; border-radius: 0;">
-        <!-- Live Hardware Feed -->
-        <img id="monitor-feed" class="sg-feed-img" src="{{ url_for('video_feed') }}" alt="Live Feed" style="display: block;">
-        <!-- Browser Webcam (Hidden by default) -->
-        <video id="browser-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
-        <!-- Overlay Canvas for BBoxes & Zones -->
-        <canvas id="cv-canvas" class="sg-feed-canvas"></canvas>
+    <!-- Column 2: Multi-Camera Split Grid (Center Area) -->
+    <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; background: #06080D; position: relative; overflow: hidden;">
+      <div class="sg-cam-grid grid-1x1" id="camera-grid-viewport">
+        <!-- TILE 1: Primary Stream (Live OpenCV / RTSP / Browser Webcam) -->
+        <div class="sg-cam-tile focused main-stage" id="cam-tile-1" onclick="focusCameraTile(1)">
+          <div class="sg-cam-bar">
+            <div class="sg-cam-info">
+              <div class="sg-dot sg-dot-green"></div>
+              <span class="sg-cam-name">CAM-01: Scaffolding North (Primary)</span>
+              <span class="sg-cam-badge">LIVE RTSP</span>
+            </div>
+            <div class="sg-cam-tools">
+              <button class="sg-cam-btn" title="Expand to 1x1 Focus View" onclick="event.stopPropagation(); setGridMode('1x1'); focusCameraTile(1);">
+                <i data-lucide="maximize-2"></i>
+              </button>
+            </div>
+          </div>
+          <div class="sg-cam-view">
+            <!-- Live Hardware Feed -->
+            <img id="monitor-feed" class="sg-cam-img" src="{{ url_for('video_feed') }}" alt="Live Feed" style="display: block;">
+            <!-- Browser Webcam (Hidden by default) -->
+            <video id="browser-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+            <!-- Overlay Canvas for BBoxes & Zones -->
+            <canvas id="cv-canvas" class="sg-cam-canvas"></canvas>
 
-        <!-- Live HUD Chips -->
-        <div class="sg-feed-hud">
-          <div class="sg-hud-chip"><i data-lucide="zap"></i>FPS: <span id="monitor-fps">24.5</span></div>
-          <div class="sg-hud-chip"><i data-lucide="users"></i>Workers: <span id="monitor-workers">{{ live_workers|length }}</span></div>
-          <div class="sg-hud-chip" style="color: #F87171;"><i data-lucide="alert-triangle"></i>Hazards: <span id="monitor-violations">0</span></div>
+            <div class="sg-cam-hud">
+              <div class="sg-cam-hud-item"><i data-lucide="zap"></i>FPS: <span id="monitor-fps">24.5</span></div>
+              <div class="sg-cam-hud-item"><i data-lucide="users"></i>Workers: <span id="monitor-workers">{{ live_workers|length }}</span></div>
+              <div class="sg-cam-hud-item" style="color: #F87171;"><i data-lucide="alert-triangle"></i>Hazards: <span id="monitor-violations">0</span></div>
+            </div>
+          </div>
         </div>
 
-        <div class="sg-feed-live" id="monitor-live-badge">
-          <div class="sg-dot sg-dot-red"></div>
-          <span>LIVE CV INFERENCE</span>
+        <!-- TILE 2: Camera 02 (Tower Crane & Heavy Lifting Zone) -->
+        <div class="sg-cam-tile" id="cam-tile-2" onclick="focusCameraTile(2)">
+          <div class="sg-cam-bar">
+            <div class="sg-cam-info">
+              <div class="sg-dot sg-dot-green"></div>
+              <span class="sg-cam-name">CAM-02: Tower Crane Base & Swing Arc</span>
+              <span class="sg-cam-badge">ONLINE</span>
+            </div>
+            <div class="sg-cam-tools">
+              <button class="sg-cam-btn" title="Expand to 1x1 Focus View" onclick="event.stopPropagation(); setGridMode('1x1'); focusCameraTile(2);">
+                <i data-lucide="maximize-2"></i>
+              </button>
+            </div>
+          </div>
+          <div class="sg-cam-view">
+            <img class="sg-cam-img" src="{{ url_for('video_feed') }}" alt="Camera 2" style="filter: hue-rotate(45deg);">
+            <div class="sg-cam-hud">
+              <div class="sg-cam-hud-item"><i data-lucide="zap"></i>FPS: 25.0</div>
+              <div class="sg-cam-hud-item"><i data-lucide="shield"></i>Zone: Swing Arc</div>
+              <div class="sg-cam-hud-item" style="color: #34D399;"><i data-lucide="check-circle"></i>Safe</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TILE 3: Camera 03 (Site Perimeter & Ingress Checkpoint) -->
+        <div class="sg-cam-tile" id="cam-tile-3" onclick="focusCameraTile(3)">
+          <div class="sg-cam-bar">
+            <div class="sg-cam-info">
+              <div class="sg-dot sg-dot-green"></div>
+              <span class="sg-cam-name">CAM-03: Perimeter Ingress Gate & Turnstiles</span>
+              <span class="sg-cam-badge">PPE CHECK</span>
+            </div>
+            <div class="sg-cam-tools">
+              <button class="sg-cam-btn" title="Expand to 1x1 Focus View" onclick="event.stopPropagation(); setGridMode('1x1'); focusCameraTile(3);">
+                <i data-lucide="maximize-2"></i>
+              </button>
+            </div>
+          </div>
+          <div class="sg-cam-view">
+            <img class="sg-cam-img" src="{{ url_for('video_feed') }}" alt="Camera 3" style="filter: saturate(1.2);">
+            <div class="sg-cam-hud">
+              <div class="sg-cam-hud-item"><i data-lucide="zap"></i>FPS: 23.8</div>
+              <div class="sg-cam-hud-item"><i data-lucide="hard-hat"></i>PPE Scan: Active</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TILE 4: Camera 04 (Excavation & Trench Sector) -->
+        <div class="sg-cam-tile" id="cam-tile-4" onclick="focusCameraTile(4)">
+          <div class="sg-cam-bar">
+            <div class="sg-cam-info">
+              <div class="sg-dot sg-dot-green"></div>
+              <span class="sg-cam-name">CAM-04: Excavation Trench & Heavy Machinery</span>
+              <span class="sg-cam-badge rec">HAZARD ZONE</span>
+            </div>
+            <div class="sg-cam-tools">
+              <button class="sg-cam-btn" title="Expand to 1x1 Focus View" onclick="event.stopPropagation(); setGridMode('1x1'); focusCameraTile(4);">
+                <i data-lucide="maximize-2"></i>
+              </button>
+            </div>
+          </div>
+          <div class="sg-cam-view">
+            <img class="sg-cam-img" src="{{ url_for('video_feed') }}" alt="Camera 4" style="filter: contrast(1.15);">
+            <div class="sg-cam-hud">
+              <div class="sg-cam-hud-item"><i data-lucide="zap"></i>FPS: 24.1</div>
+              <div class="sg-cam-hud-item" style="color: #F87171;"><i data-lucide="alert-circle"></i>Restricted</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -184,11 +289,65 @@
 
 {% block scripts %}
 <script>
+let currentGridMode = '1x1';
+let focusedTileId = 1;
 let isDrawingZone = false;
 let zonePoints = [];
 let browserStream = null;
 let currentSource = 'hardware';
 
+// Grid Mode Controller (1x1, 1x2, 2x2, 1+3)
+function setGridMode(mode) {
+  currentGridMode = mode;
+  const viewport = document.getElementById('camera-grid-viewport');
+  if (!viewport) return;
+
+  viewport.className = `sg-cam-grid grid-${mode}`;
+
+  document.querySelectorAll('#grid-mode-selector .sg-range-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.getAttribute('data-grid') === mode);
+  });
+
+  const tiles = [1, 2, 3, 4].map(id => document.getElementById(`cam-tile-${id}`));
+  
+  if (mode === '1x1') {
+    tiles.forEach((t, idx) => {
+      if (t) t.style.display = (idx + 1 === focusedTileId) ? 'flex' : 'none';
+    });
+  } else if (mode === '1x2') {
+    tiles.forEach((t, idx) => {
+      if (t) t.style.display = (idx < 2) ? 'flex' : 'none';
+    });
+  } else {
+    tiles.forEach(t => {
+      if (t) t.style.display = 'flex';
+    });
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function focusCameraTile(tileId) {
+  focusedTileId = tileId;
+  document.querySelectorAll('.sg-cam-tile').forEach((tile, idx) => {
+    tile.classList.toggle('focused', (idx + 1) === tileId);
+  });
+}
+
+// Fullscreen toggle for the entire monitor workspace
+function toggleWorkspaceFullscreen() {
+  const ws = document.getElementById('monitor-workspace');
+  if (!ws) return;
+  if (!document.fullscreenElement) {
+    ws.requestFullscreen().catch(err => {
+      sgToast('error', 'Fullscreen Error', err.message);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// Zone Drawing Logic
 function toggleZoneDrawing() {
   isDrawingZone = !isDrawingZone;
   const panel = document.getElementById('zone-panel');
@@ -207,6 +366,14 @@ function clearZonePoints() {
 
 const canvas = document.getElementById('cv-canvas');
 if (canvas) {
+  function fitCanvas() {
+    canvas.width = canvas.parentElement.clientWidth || 640;
+    canvas.height = canvas.parentElement.clientHeight || 480;
+    redrawCanvas();
+  }
+  window.addEventListener('resize', fitCanvas);
+  setTimeout(fitCanvas, 200);
+
   canvas.addEventListener('click', (e) => {
     if (!isDrawingZone) return;
     const rect = canvas.getBoundingClientRect();
@@ -225,7 +392,7 @@ function redrawCanvas() {
   if (zonePoints.length > 0) {
     ctx.strokeStyle = '#F97316';
     ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.2)';
+    ctx.fillStyle = 'rgba(249, 115, 22, 0.25)';
     ctx.beginPath();
     ctx.moveTo(zonePoints[0][0], zonePoints[0][1]);
     for (let i = 1; i < zonePoints.length; i++) {
@@ -329,6 +496,7 @@ async function toggleInference(start) {
   }
 }
 
+// Live Telemetry Poller
 setInterval(async () => {
   try {
     const res = await fetch('/api/detections/frame');
@@ -348,5 +516,9 @@ setInterval(async () => {
     }
   } catch (e) {}
 }, 2000);
+
+document.addEventListener('DOMContentLoaded', () => {
+  setGridMode('1x1');
+});
 </script>
 {% endblock %}
