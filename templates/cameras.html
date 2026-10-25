@@ -1,141 +1,123 @@
 {% extends "base.html" %}
 
-{% block title %}Cameras — SiteGuard AI{% endblock %}
-{% block page_title %}Surveillance Cameras{% endblock %}
-
-{% block top_actions %}
-  {% if current_role != 'VIEWER' %}
-  <button class="btn btn-primary" onclick="openAddCameraModal()">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Add Camera Stream
-  </button>
-  {% endif %}
-{% endblock %}
+{% block title %}Camera Network{% endblock %}
+{% block page_title %}Camera Network{% endblock %}
+{% block page_subtitle %}Manage physical RTSP, WebRTC, and hardware cameras across project sites{% endblock %}
 
 {% block content %}
-<!-- Cameras Network Status Grid -->
-<div class="grid-3 mb-24">
-  {% if cameras and cameras|length > 0 %}
-    {% for c in cameras %}
-      <div class="card flex flex-col flex-between">
-        <div>
-          <div class="flex flex-between flex-start mb-12">
-            <div>
-              <span class="badge badge-ai mb-6">{{ c.camera_code }}</span>
-              <h3 class="fs-16 fw-700 text-primary m-0">{{ c.name }}</h3>
-              <div class="fs-12 text-muted mt-4 flex flex-center gap-4">
-                <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>{{ c.site_name|default('Unassigned Site') }}</span>
-              </div>
-            </div>
-            <span class="badge {% if c.status == 'ONLINE' %}badge-compliant{% else %}badge-danger{% endif %}">
-              {{ c.status }}
-            </span>
-          </div>
+<div class="mb-5 flex-between">
+  <div>
+    <span class="text-xs text-3 mono">{{ cameras|length }} Cameras Registered &bull; Real-time OpenCV Pipeline</span>
+  </div>
+  <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="openAddCameraModal()">
+    <i data-lucide="plus"></i> Add Camera
+  </button>
+</div>
 
-          <div class="p-12 rounded mb-16 flex flex-col gap-6 fs-12" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
-            <div class="flex flex-between flex-center">
-              <span class="text-secondary">Source / URI:</span>
-              <span class="font-mono text-primary ellipsis-text max-w-160" title="{{ c.stream_source }}">{{ c.stream_source }}</span>
-            </div>
-            <div class="flex flex-between flex-center">
-              <span class="text-secondary">Stream Type:</span>
-              <span class="badge badge-info fs-10 uppercase">{{ c.stream_type }}</span>
-            </div>
-            <div class="flex flex-between flex-center">
-              <span class="text-secondary">Resolution & FPS:</span>
-              <span class="font-mono text-primary">{{ c.resolution|default('1280x720') }} @ {{ c.fps|default('30') }} FPS</span>
-            </div>
-            <div class="flex flex-between flex-center">
-              <span class="text-secondary">Last Active Ping:</span>
-              <span class="font-mono text-muted fs-11">{{ c.last_seen|default('Active Now') }}</span>
-            </div>
-          </div>
+<!-- 3-Column Grid of Camera Cards -->
+<div class="grid-3 mb-5">
+  {% for cam in cameras %}
+    {% set is_online = (cam.status == 'ONLINE') %}
+    <div class="sg-card">
+      <div class="sg-card-head">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="sg-dot {{ 'sg-dot-pulse-green' if is_online else '' }}" style="background: {{ 'var(--green)' if is_online else 'var(--text-3)' }};"></span>
+          <h2 style="font-size: 13px;">{{ cam.name }}</h2>
         </div>
-
-        <div class="card-footer mt-16 pt-12 border-t flex flex-between flex-center">
-          <a href="{{ url_for('monitor_view') }}" class="btn btn-sm btn-primary">
-            <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-            View Live Feed
-          </a>
-          {% if current_role != 'VIEWER' %}
-          <button class="btn btn-sm btn-danger js-delete-camera" data-id="{{ c.id }}">
-            <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
-            Delete
-          </button>
-          {% endif %}
+        <span class="sg-badge {{ 'sg-badge-resolved' if is_online else 'sg-badge-low' }}">
+          {{ cam.status or 'OFFLINE' }}
+        </span>
+      </div>
+      <div class="sg-card-body">
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
+          <div class="flex-between">
+            <span class="text-3">Camera Code:</span>
+            <span class="text-1">{{ cam.camera_code }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Stream Type:</span>
+            <span class="text-orange">{{ cam.stream_type|upper }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Source:</span>
+            <span class="text-2 text-xs" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ cam.stream_source }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">FPS:</span>
+            <span class="text-1">{{ cam.fps|default('25.0') }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Site Location:</span>
+            <span class="text-1">{{ cam.site_name or 'Main Site Yard' }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Last Seen:</span>
+            <span class="text-3 text-xs">{{ cam.last_seen or 'Active' }}</span>
+          </div>
         </div>
       </div>
-    {% endfor %}
-  {% else %}
-    <div class="card grid-col-full">
-      <div class="empty-state-card">
-        <div class="empty-state-icon">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-        </div>
-        <div class="empty-state-title">No cameras configured yet</div>
-        <div class="empty-state-text">Connect hardware webcams, RTSP streams, or test simulators to begin automated computer vision surveillance.</div>
-        {% if current_role != 'VIEWER' %}
-        <button class="btn btn-primary" onclick="openAddCameraModal()">
-          <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add First Camera
+      <div class="sg-card-foot">
+        <a href="{{ url_for('monitor_view') }}?camera_id={{ cam.id }}" class="sg-btn sg-btn-outline sg-btn-sm">
+          <i data-lucide="video"></i> View Feed
+        </a>
+        <button class="sg-btn sg-btn-ghost sg-btn-sm text-red" title="Delete Camera" onclick="deleteCamera({{ cam.id }})">
+          <i data-lucide="trash-2"></i>
         </button>
-        {% endif %}
       </div>
     </div>
-  {% endif %}
+  {% else %}
+    <div style="grid-column: 1 / -1;">
+      <div class="sg-card">
+        <div class="sg-empty" style="padding: 60px 20px;">
+          <i data-lucide="camera-off" style="color: var(--text-3); width: 44px; height: 44px;"></i>
+          <p class="text-1 fw-600">No cameras registered</p>
+          <p class="text-xs text-3">Click "Add Camera" above to register hardware devices or RTSP feeds.</p>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
 </div>
 
 <!-- Add Camera Modal -->
-<div id="camera-modal" class="modal-backdrop" onclick="closeCameraModal(event)">
-  <div class="modal-dialog" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 class="fs-16 fw-700 text-primary m-0">Add Camera Stream</h3>
-      <button class="modal-close" onclick="closeCameraModal()">&times;</button>
+<div class="sg-modal-backdrop" id="add-cam-modal">
+  <div class="sg-modal" style="max-width: 520px;" onclick="event.stopPropagation()">
+    <div class="sg-modal-head">
+      <h3>Register Optical Camera Stream</h3>
+      <button class="sg-modal-close" onclick="closeAddCameraModal()"><i data-lucide="x"></i></button>
     </div>
-
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label" for="cam-code">Camera Code</label>
-        <input type="text" id="cam-code" class="form-input" placeholder="e.g. CAM-01 (auto-generated if left blank)">
+    <form onsubmit="submitNewCamera(event)">
+      <div class="sg-modal-body-single">
+        <div class="sg-form-group">
+          <label class="sg-form-label">Camera Name</label>
+          <input type="text" id="new-cam-name" class="sg-input" placeholder="e.g. Scaffolding South Feed" required>
+        </div>
+        <div class="sg-form-group">
+          <label class="sg-form-label">Associated Site</label>
+          <select id="new-cam-site" class="sg-select">
+            {% for s in sites %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sg-form-group">
+          <label class="sg-form-label">Stream Protocol Type</label>
+          <select id="new-cam-type" class="sg-select">
+            <option value="webcam">Local Hardware Webcam (Device Index 0)</option>
+            <option value="rtsp">RTSP IP Camera Stream</option>
+            <option value="http">HTTP / MJPEG Video URL</option>
+            <option value="file">Local Video Simulator File</option>
+          </select>
+        </div>
+        <div class="sg-form-group">
+          <label class="sg-form-label">Stream Source / Address</label>
+          <input type="text" id="new-cam-source" class="sg-input mono" placeholder="0 or rtsp://admin:pass@192.168.1.100:554/live" value="0" required>
+        </div>
       </div>
-
-      <div class="form-group">
-        <label class="form-label" for="cam-name">Camera Name</label>
-        <input type="text" id="cam-name" class="form-input" placeholder="e.g. Scaffolding South Perimeter">
+      <div class="sg-modal-foot">
+        <button type="button" class="sg-btn sg-btn-outline" onclick="closeAddCameraModal()">Cancel</button>
+        <button type="submit" class="sg-btn sg-btn-primary">Register Camera</button>
       </div>
-
-      <div class="form-group">
-        <label class="form-label" for="cam-site-id">Associated Construction Site</label>
-        <select id="cam-site-id" class="form-select">
-          <option value="">-- Select Construction Site --</option>
-          {% for s in sites %}
-            <option value="{{ s.id }}">{{ s.name }} ({{ s.site_code }})</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="cam-source">Stream Source / Device Index / RTSP URL</label>
-        <input type="text" id="cam-source" class="form-input" placeholder="0 or rtsp://username:pass@192.168.1.50/live">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="cam-type">Stream Type</label>
-        <select id="cam-type" class="form-select">
-          <option value="webcam">Hardware Webcam (OpenCV / DirectShow)</option>
-          <option value="browser">Browser WebRTC Camera</option>
-          <option value="simulator">Synthetic Simulator Feed</option>
-          <option value="rtsp">RTSP IP Surveillance Camera</option>
-          <option value="http">HTTP / MJPEG Video Stream</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeCameraModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveCamera()">Save Camera Stream</button>
-    </div>
+    </form>
   </div>
 </div>
 {% endblock %}
@@ -143,51 +125,50 @@
 {% block scripts %}
 <script>
 function openAddCameraModal() {
-  document.getElementById('cam-code').value = '';
-  document.getElementById('cam-name').value = '';
-  document.getElementById('cam-source').value = '0';
-  document.getElementById('camera-modal').style.display = 'flex';
+  document.getElementById('add-cam-modal').classList.add('open');
+}
+function closeAddCameraModal() {
+  document.getElementById('add-cam-modal').classList.remove('open');
 }
 
-function closeCameraModal() {
-  document.getElementById('camera-modal').style.display = 'none';
-}
+async function submitNewCamera(e) {
+  e.preventDefault();
+  const name = document.getElementById('new-cam-name').value.trim();
+  const siteId = document.getElementById('new-cam-site').value;
+  const streamType = document.getElementById('new-cam-type').value;
+  const source = document.getElementById('new-cam-source').value.trim();
 
-function saveCamera() {
-  const code = document.getElementById('cam-code').value.trim();
-  const name = document.getElementById('cam-name').value;
-  const siteId = document.getElementById('cam-site-id').value;
-  const source = document.getElementById('cam-source').value;
-  const streamType = document.getElementById('cam-type').value;
-
-  if (!name.trim()) {
-    alert('Camera name is required.');
-    return;
+  try {
+    const res = await fetch('/api/cameras', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        site_id: siteId,
+        stream_type: streamType,
+        stream_source: source
+      })
+    });
+    const json = await res.json();
+    if (json.success) {
+      window.location.reload();
+    } else {
+      alert('Error creating camera: ' + json.message);
+    }
+  } catch (err) {
+    alert('Camera error: ' + err);
   }
-
-  const payload = {
-    name: name,
-    site_id: siteId ? parseInt(siteId, 10) : null,
-    stream_source: source,
-    stream_type: streamType
-  };
-  if (code) payload.camera_code = code;
-
-  apiJSON('/api/cameras', 'POST', payload)
-    .then(() => window.location.reload())
-    .catch(err => alert('Error saving camera: ' + err.message));
 }
 
-function deleteCamera(id) {
-  if (!confirm('Are you sure you want to delete this camera configuration?')) return;
-  apiJSON(`/api/cameras/${encodeURIComponent(id)}`, 'DELETE')
-    .then(() => window.location.reload())
-    .catch(err => alert('Error deleting camera: ' + err.message));
+async function deleteCamera(camId) {
+  if (!confirm('Are you sure you want to remove this camera?')) return;
+  try {
+    const res = await fetch('/api/cameras/' + camId, { method: 'DELETE' });
+    const json = await res.json();
+    if (json.success) window.location.reload();
+  } catch (e) {
+    alert('Delete error: ' + e);
+  }
 }
-
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.js-delete-camera');
-  if (btn) deleteCamera(btn.dataset.id);
-});
 </script>
 {% endblock %}

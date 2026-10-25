@@ -1,60 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}PPE Safety Requirements & Catalog — SiteGuard AI{% endblock %}
+{% block title %}PPE Safety Requirements &amp; Catalog{% endblock %}
 {% block page_title %}8-Category PPE Safety Standard{% endblock %}
-
-{% block top_actions %}
-  <a href="{{ url_for('model_view') }}" class="btn btn-secondary">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-    Model Capability Matrix
-  </a>
-{% endblock %}
+{% block page_subtitle %}Personal protective equipment specifications evaluated by YOLOv8 CV engine and safety rules{% endblock %}
 
 {% block content %}
-<div class="card mb-24">
-  <div class="flex flex-between flex-center flex-wrap gap-12">
-    <div>
-      <div class="flex flex-center gap-8 mb-6">
-        <span class="badge badge-ai">STANDARD COMPLIANCE</span>
-        <span class="badge badge-low">OSHA 1926.100 &bull; ISO 45001</span>
+<div class="sg-card mb-5">
+  <div class="sg-card-body" style="padding: 20px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span class="sg-badge sg-badge-medium">REGULATORY COMPLIANCE</span>
+          <span class="sg-badge sg-badge-low">OSHA 1926.100 &bull; ISO 45001</span>
+        </div>
+        <h2 style="font-size: 16px; font-weight: 700; color: var(--text-1);">Industrial Personal Protective Equipment Standard</h2>
+        <div class="text-xs text-2" style="margin-top: 4px;">
+          Master personal protective equipment categories evaluated by the YOLOv8 computer vision detection engine and per-zone spatial rule matrices.
+        </div>
       </div>
-      <h2 class="fs-20 fw-800 text-primary m-0">Industrial Personal Protective Equipment Standard</h2>
-      <div class="fs-13 text-secondary mt-4">
-        Master personal protective equipment categories evaluated by the YOLOv8 computer vision detection engine and per-zone spatial rule matrices.
-      </div>
+      <a href="{{ url_for('model_view') }}" class="sg-btn sg-btn-outline sg-btn-sm">
+        <i data-lucide="cpu"></i> Model Capability Matrix
+      </a>
     </div>
-    <span class="badge badge-orange font-mono fs-11">8 STANDARD CATEGORIES</span>
   </div>
 </div>
 
-<div class="grid-4 gap-16 mb-24">
+<div class="grid-4 mb-5">
   {% for ppe in ppe_capabilities %}
-  <div class="card flex flex-col flex-between" style="border-top: 3px solid {% if ppe.is_supported %}var(--color-compliant){% else %}var(--border-light){% endif %};">
-    <div>
-      <div class="flex flex-between flex-start mb-12">
-        <h3 class="m-0 fs-15 fw-700 text-primary">{{ ppe.name }}</h3>
-        
-        {% if ppe.is_supported %}
-        <span class="badge badge-compliant fs-10">AI SUPPORTED</span>
-        {% else %}
-        <span class="badge badge-muted fs-10">STANDBY</span>
-        {% endif %}
-      </div>
-      
-      <div class="fs-13 text-secondary mb-16 leading-relaxed">
-        {{ ppe.item }}
+    <div class="sg-card" style="border-top: 2px solid {{ 'var(--green)' if ppe.is_supported else 'var(--border)' }};">
+      <div class="sg-card-body" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div class="flex-between mb-2">
+            <h3 style="font-size: 13px; font-weight: 600; color: var(--text-1);">{{ ppe.name }}</h3>
+            <span class="sg-badge {{ 'sg-badge-resolved' if ppe.is_supported else 'sg-badge-low' }}" style="font-size: 9px;">
+              {{ 'AI SUPPORTED' if ppe.is_supported else 'STANDBY' }}
+            </span>
+          </div>
+          <p class="text-xs text-2 mb-3" style="line-height: 1.5;">
+            {{ ppe.item }}
+          </p>
+        </div>
+        <div class="flex-between text-xs mono text-3" style="border-top: 1px solid var(--border); padding-top: 8px;">
+          <span>Inference:</span>
+          <span class="{{ 'text-green' if ppe.is_supported else 'text-3' }}">{{ 'ACTIVE' if ppe.is_supported else 'STANDBY' }}</span>
+        </div>
       </div>
     </div>
-    
-    <div class="pt-12 border-t flex flex-between flex-center">
-      <span class="fs-11 text-muted">Model Detection:</span>
-      {% if ppe.is_supported %}
-        <span class="badge badge-compliant font-mono fs-10">ACTIVE INFERENCE</span>
-      {% else %}
-        <span class="badge badge-muted font-mono fs-10">EXPANSION READY</span>
-      {% endif %}
-    </div>
-  </div>
   {% endfor %}
 </div>
 {% endblock %}

@@ -1,399 +1,306 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard — SiteGuard AI{% endblock %}
+{% block title %}Operations Overview{% endblock %}
 {% block page_title %}Operations Overview{% endblock %}
-{% block breadcrumb_section %}Platform{% endblock %}
-{% block breadcrumb_page %}Dashboard{% endblock %}
+{% block page_subtitle %}Real-time construction site safety monitoring &amp; CV telemetry{% endblock %}
 
-{% block top_actions %}
-<div style="display: flex; gap: 8px;">
-  <a href="{{ url_for('image_analysis_view') }}" class="sg-btn sg-btn--outline sg-btn--sm" id="btn-quick-inspect">
-    <i data-lucide="image" style="width: 14px; height: 14px;"></i>
-    <span>Inspect Media</span>
-  </a>
-  <a href="{{ url_for('monitor_view') }}" class="sg-btn sg-btn--primary sg-btn--sm" id="btn-quick-monitor">
-    <i data-lucide="video" style="width: 14px; height: 14px;"></i>
-    <span>Launch Live Monitor</span>
-  </a>
-</div>
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block content %}
-<!-- =========================================================================
-     ROW 1 — 6 KPI STAT CARDS (Grid 6 Columns)
-     ========================================================================= -->
-<div class="sg-grid-6">
-  <!-- 1. Active Cameras -->
-  <div class="sg-stat-card sg-stat-card--info">
-    <div class="sg-stat-card-header">
-      <span class="sg-stat-card-label">Active Cameras</span>
-      <div class="sg-stat-card-icon">
-        <i data-lucide="camera" style="width: 16px; height: 16px;"></i>
-      </div>
+<!-- Row 1: KPI Stat Grid (6 Cards) -->
+<div class="sg-kpi-grid mb-5">
+  <!-- Card 1: Active Cameras -->
+  <div class="sg-kpi" style="--kpi-accent: var(--blue);">
+    <div class="sg-kpi-icon" style="background: var(--blue-dim); color: var(--blue);">
+      <i data-lucide="camera"></i>
     </div>
-    <div class="sg-stat-card-value">
-      <span id="stat-active-cameras">{{ active_cameras_count|default(0) }}</span>
-      <span style="font-size: 14px; color: var(--text-muted); font-weight: 500;">/ {{ total_cameras_count|default(0) }}</span>
+    <div class="sg-kpi-num" id="kpi-active-cameras" data-target="{{ stats.active_cameras|default(0) }}">
+      {{ stats.active_cameras|default(0) }}
     </div>
-    <div class="sg-stat-card-footer">
-      <span class="sg-dot {% if active_cameras_count and active_cameras_count > 0 %}sg-dot--safe{% else %}sg-dot--live{% endif %}"></span>
-      <span>{% if active_cameras_count and active_cameras_count > 0 %}Live hardware streams{% else %}No active RTSP feeds{% endif %}</span>
+    <div class="sg-kpi-label">Active Cameras</div>
+    <div class="sg-kpi-trend trend-flat">
+      <i data-lucide="activity"></i> {{ total_cameras_count|default(1) }} Registered
     </div>
   </div>
 
-  <!-- 2. Workers Observed -->
-  <div class="sg-stat-card sg-stat-card--accent">
-    <div class="sg-stat-card-header">
-      <span class="sg-stat-card-label">Workers Observed</span>
-      <div class="sg-stat-card-icon">
-        <i data-lucide="hard-hat" style="width: 16px; height: 16px;"></i>
-      </div>
+  <!-- Card 2: Workers Observed -->
+  <div class="sg-kpi" style="--kpi-accent: var(--orange);">
+    <div class="sg-kpi-icon" style="background: var(--orange-dim); color: var(--orange);">
+      <i data-lucide="hard-hat"></i>
     </div>
-    <div class="sg-stat-card-value" id="stat-workers-observed">
-      {{ stats.workers_count|default(0) }}
+    <div class="sg-kpi-num" id="kpi-workers-today" data-target="{{ stats.workers_today|default(stats.workers_count|default(0)) }}">
+      {{ stats.workers_today|default(stats.workers_count|default(0)) }}
     </div>
-    <div class="sg-stat-card-footer">
-      <i data-lucide="users" style="width: 12px; height: 12px; color: var(--accent);"></i>
-      <span>Active personnel in frame</span>
+    <div class="sg-kpi-label">Workers Observed</div>
+    <div class="sg-kpi-trend trend-up">
+      <i data-lucide="trending-up"></i> Live tracking
     </div>
   </div>
 
-  <!-- 3. Today's Violations -->
-  <div class="sg-stat-card sg-stat-card--violation">
-    <div class="sg-stat-card-header">
-      <span class="sg-stat-card-label">Today's Violations</span>
-      <div class="sg-stat-card-icon">
-        <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
-      </div>
+  <!-- Card 3: Today's Violations -->
+  <div class="sg-kpi" style="--kpi-accent: var(--red);">
+    <div class="sg-kpi-icon" style="background: var(--red-dim); color: var(--red);">
+      <i data-lucide="alert-triangle"></i>
     </div>
-    <div class="sg-stat-card-value" id="stat-today-violations" style="color: var(--violation);">
-      {{ today_violations_count|default(0) }}
-    </div>
-    <div class="sg-stat-card-footer">
-      <span class="sg-dot {% if today_violations_count and today_violations_count > 0 %}sg-dot--violation{% else %}sg-dot--safe{% endif %}"></span>
-      <span>{% if today_violations_count and today_violations_count > 0 %}Active infractions logged{% else %}Zero infractions today{% endif %}</span>
-    </div>
-  </div>
-
-  <!-- 4. Open Alerts -->
-  <div class="sg-stat-card sg-stat-card--violation">
-    <div class="sg-stat-card-header">
-      <span class="sg-stat-card-label">Open Alerts</span>
-      <div class="sg-stat-card-icon">
-        <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
-      </div>
-    </div>
-    <div class="sg-stat-card-value" id="stat-open-alerts" style="display: flex; align-items: baseline; gap: 8px;">
-      <span>{{ open_alerts_count|default(0) }}</span>
-      {% if open_alerts_count and open_alerts_count > 0 %}
-        <span class="sg-dot sg-dot--violation"></span>
+    <div class="sg-kpi-num" id="kpi-violations-today" data-target="{{ stats.violations_today|default(0) }}">
+      {{ stats.violations_today|default(0) }}
+      {% if stats.violations_today and stats.violations_today > 0 %}
+        <span class="sg-dot sg-dot-pulse-red" style="width: 8px; height: 8px;"></span>
       {% endif %}
     </div>
-    <div class="sg-stat-card-footer">
-      <span>{% if open_alerts_count and open_alerts_count > 0 %}Requires safety officer review{% else %}All alerts acknowledged{% endif %}</span>
+    <div class="sg-kpi-label">Today's Violations</div>
+    <div class="sg-kpi-trend trend-down">
+      <i data-lucide="alert-circle"></i> Requires review
     </div>
   </div>
 
-  <!-- 5. Resolved Incidents -->
-  <div class="sg-stat-card sg-stat-card--safe">
-    <div class="sg-stat-card-header">
-      <span class="sg-stat-card-label">Resolved Audits</span>
-      <div class="sg-stat-card-icon">
-        <i data-lucide="shield-check" style="width: 16px; height: 16px;"></i>
-      </div>
+  <!-- Card 4: Open Alerts -->
+  <div class="sg-kpi" style="--kpi-accent: var(--red);">
+    <div class="sg-kpi-icon" style="background: var(--red-dim); color: var(--red);">
+      <i data-lucide="bell"></i>
     </div>
-    <div class="sg-stat-card-value" id="stat-resolved-incidents" style="color: var(--safe);">
-      {{ resolved_incidents_count|default(0) }}
+    <div class="sg-kpi-num" id="kpi-open-alerts" data-target="{{ stats.open_alerts|default(open_alerts_count|default(0)) }}">
+      {{ stats.open_alerts|default(open_alerts_count|default(0)) }}
     </div>
-    <div class="sg-stat-card-footer">
-      <i data-lucide="check" style="width: 12px; height: 12px; color: var(--safe);"></i>
-      <span>Formally closed incidents</span>
+    <div class="sg-kpi-label">Open Alerts</div>
+    <div class="sg-kpi-trend trend-flat">
+      <i data-lucide="clock"></i> Active queue
     </div>
   </div>
 
-  <!-- 6. Compliance Rate -->
-  <div class="sg-stat-card {% if compliance_rate and compliance_rate >= 80 %}sg-stat-card--safe{% elif compliance_rate and compliance_rate >= 60 %}sg-stat-card--warning{% else %}sg-stat-card--accent{% endif %}">
-    <div class="sg-stat-card-header">
-      <span class="sg-stat-card-label">Compliance Rate</span>
-      <div class="sg-stat-card-icon">
-        <i data-lucide="percent" style="width: 16px; height: 16px;"></i>
-      </div>
+  <!-- Card 5: Resolved This Week -->
+  <div class="sg-kpi" style="--kpi-accent: var(--green);">
+    <div class="sg-kpi-icon" style="background: var(--green-dim); color: var(--green);">
+      <i data-lucide="shield-check"></i>
     </div>
-    <div class="sg-stat-card-value" id="stat-compliance-rate">
-      {% if compliance_rate is not none %}{{ compliance_rate }}%{% else %}92.4%{% endif %}
+    <div class="sg-kpi-num" id="kpi-resolved" data-target="{{ stats.resolved_this_week|default(resolved_incidents_count|default(0)) }}">
+      {{ stats.resolved_this_week|default(resolved_incidents_count|default(0)) }}
     </div>
-    <div class="sg-stat-card-footer">
-      <span class="sg-dot sg-dot--safe"></span>
-      <span>Target threshold: 80.0%</span>
+    <div class="sg-kpi-label">Resolved Incidents</div>
+    <div class="sg-kpi-trend trend-up">
+      <i data-lucide="check-circle-2"></i> Closed by officer
+    </div>
+  </div>
+
+  <!-- Card 6: Compliance Rate -->
+  {% set c_rate = stats.compliance_rate|default(compliance_rate|default(100.0)) %}
+  <div class="sg-kpi" style="--kpi-accent: {{ 'var(--green)' if c_rate >= 80 else 'var(--orange)' }};">
+    <div class="sg-kpi-icon" style="background: {{ 'var(--green-dim)' if c_rate >= 80 else 'var(--orange-dim)' }}; color: {{ 'var(--green)' if c_rate >= 80 else 'var(--orange)' }};">
+      <i data-lucide="percent"></i>
+    </div>
+    <div class="sg-kpi-num" id="kpi-compliance-rate" data-target="{{ c_rate }}">
+      {{ c_rate }}%
+    </div>
+    <div class="sg-kpi-label">Compliance Rate</div>
+    <div class="sg-kpi-trend {{ 'trend-up' if c_rate >= 80 else 'trend-down' }}">
+      <i data-lucide="{{ 'trending-up' if c_rate >= 80 else 'trending-down' }}"></i>
+      {{ 'Target met (&ge;80%)' if c_rate >= 80 else 'Below target (<80%)' }}
     </div>
   </div>
 </div>
 
-<!-- =========================================================================
-     ROW 2 — 2-COLUMN GRID (65% Live Camera / 35% Active Alerts)
-     ========================================================================= -->
-<div class="sg-grid-65-35">
-  <!-- Left 65%: Live Camera Surveillance Workstation Viewport -->
-  <div class="sg-card" style="display: flex; flex-direction: column;">
-    <div class="sg-card-header">
-      <div class="sg-card-title">
-        <i data-lucide="video" class="sg-card-title-icon"></i>
-        <span>Live Camera Viewport</span>
-        <span class="sg-badge sg-badge--accent" id="stream-status-badge">
-          <span class="sg-dot sg-dot--live"></span>
-          <span>LIVE FEED</span>
-        </span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <select class="sg-select" style="padding: 4px 28px 4px 10px; font-size: 12px; height: 30px;" title="Camera Select">
-          <option value="CAM-01">CAM-01 • Primary Gate</option>
-          <option value="CAM-02">CAM-02 • Scaffolding Zone</option>
-          <option value="CAM-03">CAM-03 • Tower Crane Base</option>
+<!-- Row 2: Live Feed (65%) & Active Alerts (35%) -->
+<div class="grid-65-35 mb-5">
+  <!-- Left Card: Live Feed -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2><i data-lucide="video"></i> Live Camera Feed</h2>
+      <div class="flex-center gap-2">
+        <select class="sg-select" id="overview-cam-select" style="width: auto; padding: 4px 8px; font-size: 11px;">
+          {% for cam in cameras %}
+            <option value="{{ cam.id }}" {% if cam.status == 'ONLINE' %}selected{% endif %}>{{ cam.name }} ({{ cam.stream_type }})</option>
+          {% else %}
+            <option value="0">Default Primary Camera</option>
+          {% endfor %}
         </select>
-        <a href="{{ url_for('monitor_view') }}" class="sg-btn sg-btn--outline sg-btn--sm" title="Fullscreen Workstation">
-          <i data-lucide="maximize-2" style="width: 13px; height: 13px;"></i>
-        </a>
-      </div>
-    </div>
-
-    <div class="sg-card-body" style="padding: 12px; flex: 1; display: flex; flex-direction: column;">
-      <div class="sg-video-container" style="min-height: 380px; flex: 1;">
-        <!-- Live HUD Overlay -->
-        <div class="sg-hud-badge">
-          <span class="sg-dot sg-dot--live"></span>
-          <span>FPS: <strong id="hud-fps" style="color: var(--accent);">29.8</strong></span>
-          <span>Workers: <strong id="hud-workers" style="color: #FFFFFF;">{{ stats.workers_count|default(0) }}</strong></span>
-          <span>Violations: <strong id="hud-violations" style="color: var(--violation);">{{ stats.violations_count|default(0) }}</strong></span>
-        </div>
-
-        <!-- Video Stream Image -->
-        <img id="live-feed" class="sg-video-feed" src="{{ url_for('video_feed') }}" alt="Live MJPEG Stream" onerror="this.style.display='none'; document.getElementById('feed-offline-fallback').style.display='flex';">
-        <canvas id="cv-overlay" class="sg-video-overlay"></canvas>
-
-        <!-- Offline Fallback -->
-        <div id="feed-offline-fallback" class="sg-empty-state" style="display: none; position: absolute;">
-          <div class="sg-empty-icon">
-            <i data-lucide="video-off" style="width: 28px; height: 28px;"></i>
-          </div>
-          <div class="sg-empty-title">Stream Standby / Offline</div>
-          <div class="sg-empty-text">Camera stream is paused or hardware webcam is offline. Launch Live Monitor to start detection.</div>
-          <a href="{{ url_for('monitor_view') }}" class="sg-btn sg-btn--primary sg-btn--sm">Start Inference Engine</a>
-        </div>
-      </div>
-
-      <!-- Live Video Card Footer -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono);">
-        <div>MODEL: YOLOv8m • 17 CLASSES • RES: 640x640</div>
-        <div id="live-timestamp">SYNC: SECURE_WEBSOCKET</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Right 35%: Active Alerts Feed -->
-  <div class="sg-card" style="display: flex; flex-direction: column;">
-    <div class="sg-card-header">
-      <div class="sg-card-title">
-        <i data-lucide="bell-ring" class="sg-card-title-icon" style="color: var(--violation);"></i>
-        <span>Active Alerts</span>
-        {% if open_alerts_count and open_alerts_count > 0 %}
-          <span class="sg-badge sg-badge--violation" style="font-size: 11px;">{{ open_alerts_count }} PENDING</span>
+        {% if stream_active %}
+          <div class="sg-badge sg-badge-live"><span class="sg-dot sg-dot-pulse-red" style="width: 6px; height: 6px;"></span> LIVE</div>
+        {% else %}
+          <span class="sg-badge sg-badge-low">STANDBY</span>
         {% endif %}
       </div>
-      <a href="{{ url_for('alerts_view') }}" class="sg-btn sg-btn--ghost sg-btn--sm">View All &rarr;</a>
     </div>
-
-    <div class="sg-card-body" style="padding: 14px; flex: 1; max-height: 440px; overflow-y: auto;" id="dashboard-alerts-list">
-      {% if recent_alerts and recent_alerts|length > 0 %}
-        {% for a in recent_alerts %}
-          <div class="sg-alert-row sg-alert-row--{{ a.severity|default('HIGH') }}">
-            <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-              <div>
-                <span class="sg-severity-badge sg-severity-badge--{{ a.severity|default('HIGH') }}">
-                  {{ a.severity|default('HIGH') }}
-                </span>
-                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                  {{ a.violation_type|replace('_', ' ')|title }}
-                </div>
-                <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 2px;">
-                  {{ a.worker_label|default('Worker #1') }} • {{ a.timestamp }}
-                </div>
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-              {% if a.snapshot_path %}
-                <img src="{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}" alt="Evidence" class="sg-alert-thumb" onclick="openEvidenceModal(this.src, '{{ a.violation_type }}', '{{ a.worker_label }}')">
-              {% endif %}
-              <a href="{{ url_for('alerts_view') }}" class="sg-btn sg-btn--outline sg-btn--sm" style="padding: 4px 8px; font-size: 11px;">Review</a>
+    <div class="sg-card-body" style="padding: 12px;">
+      <div class="sg-feed-wrap">
+        {% if stream_active %}
+          <img class="sg-feed-img" id="live-feed" src="{{ url_for('video_feed') }}" alt="Live Hardware Video Stream">
+          <div class="sg-feed-hud">
+            <div class="sg-hud-chip"><i data-lucide="zap"></i>FPS: <span id="fps-hud">24.8</span></div>
+            <div class="sg-hud-chip"><i data-lucide="users"></i>Workers: <span id="workers-hud">{{ stats.workers_count|default(0) }}</span></div>
+            <div class="sg-hud-chip" style="color: var(--red);"><i data-lucide="alert-triangle"></i>Viol: <span id="viol-hud">{{ stats.violations_count|default(0) }}</span></div>
+          </div>
+          <div class="sg-feed-live-badge"><span class="sg-dot sg-dot-pulse-red" style="width: 6px; height: 6px;"></span>LIVE FEED</div>
+        {% else %}
+          <div class="sg-empty" style="padding: 60px 20px;">
+            <i data-lucide="camera-off" style="width: 48px; height: 48px; opacity: 0.35;"></i>
+            <p style="color: var(--text-2); font-weight: 500;">Hardware Stream Standby</p>
+            <p style="font-size: 11px; color: var(--text-3); margin-top: -6px;">Click Start Camera or launch the workstation to activate real-time detection.</p>
+            <div class="flex-center gap-2" style="margin-top: 10px;">
+              <button class="sg-btn sg-btn-primary sg-btn-sm" id="btn-start-overview-cam" onclick="startCameraFeed()">
+                <i data-lucide="play"></i> Start Stream
+              </button>
+              <a href="{{ url_for('monitor_view') }}" class="sg-btn sg-btn-outline sg-btn-sm">
+                <i data-lucide="external-link"></i> Open Live Monitor
+              </a>
             </div>
           </div>
-        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    <div class="sg-card-foot">
+      <div class="text-xs text-3 mono">
+        <i data-lucide="cpu" style="width: 12px; height: 12px; vertical-align: middle;"></i> YOLOv8 Inference &bull; Resolution: 640&times;480 &bull; Auto-Snapshot
+      </div>
+      <div class="flex-center gap-2">
+        <a href="{{ url_for('monitor_view') }}" class="sg-btn sg-btn-outline sg-btn-sm">Full Screen</a>
+        {% if stream_active %}
+          <button class="sg-btn sg-btn-danger sg-btn-sm" onclick="stopCameraFeed()">Stop</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Card: Active Alerts -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2>
+        <i data-lucide="bell"></i> Active Alerts
+        {% set a_total = active_alerts|length %}
+        {% if a_total > 0 %}
+          <span class="sg-badge sg-badge-critical">{{ a_total }}</span>
+        {% endif %}
+      </h2>
+      <a href="{{ url_for('alerts_view') }}" class="text-xs text-orange" style="text-decoration: none; font-weight: 500;">View all &rarr;</a>
+    </div>
+    <div class="sg-card-body" style="max-height: 380px; overflow-y: auto; padding: 12px 16px;" id="alerts-feed-container">
+      {% for alert in active_alerts %}
+        <div class="sg-alert-item">
+          <div class="sg-alert-icon {{ alert.severity|lower }}">
+            <i data-lucide="{{ 'shield-alert' if alert.severity == 'CRITICAL' else 'alert-triangle' }}"></i>
+          </div>
+          <div class="sg-alert-body">
+            <div class="sg-alert-title">
+              <span class="sg-worker-id">W-{{ alert.worker_id or alert.worker_track_id or '01' }}</span>
+              {{ alert.violation_type|replace('_', ' ')|title }}
+            </div>
+            <div class="sg-alert-sub">
+              {{ alert.zone_name or 'Main Work Area' }} &bull; {{ alert.camera_name or 'Camera 01' }}
+            </div>
+            <div class="sg-alert-time">{{ alert.timestamp or 'Just now' }}</div>
+          </div>
+          {% if alert.snapshot_path %}
+            <div class="sg-thumb">
+              <img src="/{{ alert.snapshot_path }}" alt="Snapshot">
+            </div>
+          {% else %}
+            <div class="sg-thumb">
+              <i data-lucide="image"></i>
+            </div>
+          {% endif %}
+        </div>
       {% else %}
-        <div class="sg-empty-state" style="padding: 40px 10px;">
-          <div class="sg-empty-icon" style="background: var(--safe-dim); color: var(--safe);">
-            <i data-lucide="shield-check" style="width: 28px; height: 28px;"></i>
-          </div>
-          <div class="sg-empty-title">All Sites Compliant</div>
-          <div class="sg-empty-text">No unacknowledged safety infractions detected in active surveillance channels.</div>
+        <div class="sg-empty" style="padding: 60px 20px;">
+          <i data-lucide="shield-check" style="color: var(--green); opacity: 0.8;"></i>
+          <p class="text-green fw-500">No active safety alerts</p>
+          <p class="text-xs text-3">All camera feeds and zones are compliant.</p>
         </div>
-      {% endif %}
+      {% endfor %}
     </div>
   </div>
 </div>
 
-<!-- =========================================================================
-     ROW 3 — PPE COMPLIANCE OVERVIEW (Full Width Card with Progress Bars)
-     ========================================================================= -->
-<div class="sg-card">
-  <div class="sg-card-header">
-    <div class="sg-card-title">
-      <i data-lucide="check-square" class="sg-card-title-icon" style="color: var(--safe);"></i>
-      <span>PPE Compliance Matrix — Today's Observed Rates</span>
-    </div>
-    <div style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 12px;">
-      <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; background: var(--safe); border-radius: 50%;"></span> Compliant (&ge;80%)</span>
-      <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; background: var(--violation); border-radius: 50%;"></span> Action Required (&lt;80%)</span>
-    </div>
+<!-- Row 3: PPE Compliance Overview — Today -->
+<div class="sg-card mb-5">
+  <div class="sg-card-head">
+    <h2><i data-lucide="shield"></i> PPE Compliance Overview &mdash; Today</h2>
+    <span class="sg-badge sg-badge-medium">Target: 80% Minimum</span>
   </div>
-
   <div class="sg-card-body">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-      <!-- Hardhat Compliance -->
-      <div class="sg-compliance-bar">
-        <div class="sg-compliance-bar-meta">
-          <span class="sg-compliance-bar-label">
-            <i data-lucide="hard-hat" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: var(--accent);"></i>
-            Head Protection (Hardhat)
-          </span>
-          <span class="sg-compliance-bar-value" style="color: var(--safe);">89.4%</span>
+    <div class="sg-ppe-rows">
+      {% for ppe in ppe_compliance %}
+        <div class="sg-ppe-row">
+          <div class="sg-ppe-name">{{ ppe.name }}</div>
+          <div class="sg-ppe-track">
+            <div class="sg-ppe-fill {{ 'good' if ppe.rate >= 80 else 'warn' if ppe.rate >= 60 else 'bad' }}" style="width: {{ ppe.rate }}%;"></div>
+          </div>
+          <div class="sg-ppe-pct {{ 'good' if ppe.rate >= 80 else 'warn' if ppe.rate >= 60 else 'bad' }}">
+            {{ ppe.rate }}%
+          </div>
         </div>
-        <div class="sg-compliance-bar-track">
-          <div class="sg-compliance-bar-fill sg-compliance-bar-fill--safe" style="width: 89.4%;"></div>
-        </div>
-      </div>
-
-      <!-- High-Visibility Vest -->
-      <div class="sg-compliance-bar">
-        <div class="sg-compliance-bar-meta">
-          <span class="sg-compliance-bar-label">
-            <i data-lucide="shield" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: var(--warning);"></i>
-            High-Visibility Vest
-          </span>
-          <span class="sg-compliance-bar-value" style="color: var(--safe);">94.2%</span>
-        </div>
-        <div class="sg-compliance-bar-track">
-          <div class="sg-compliance-bar-fill sg-compliance-bar-fill--safe" style="width: 94.2%;"></div>
-        </div>
-      </div>
-
-      <!-- Work Gloves -->
-      <div class="sg-compliance-bar">
-        <div class="sg-compliance-bar-meta">
-          <span class="sg-compliance-bar-label">
-            <i data-lucide="hand" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: var(--info);"></i>
-            Hand Protection (Gloves)
-          </span>
-          <span class="sg-compliance-bar-value" style="color: var(--violation);">68.5%</span>
-        </div>
-        <div class="sg-compliance-bar-track">
-          <div class="sg-compliance-bar-fill sg-compliance-bar-fill--violation" style="width: 68.5%;"></div>
-        </div>
-      </div>
-
-      <!-- Safety Footwear -->
-      <div class="sg-compliance-bar">
-        <div class="sg-compliance-bar-meta">
-          <span class="sg-compliance-bar-label">
-            <i data-lucide="footprints" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: var(--safe);"></i>
-            Safety Boots / Footwear
-          </span>
-          <span class="sg-compliance-bar-value" style="color: var(--safe);">91.0%</span>
-        </div>
-        <div class="sg-compliance-bar-track">
-          <div class="sg-compliance-bar-fill sg-compliance-bar-fill--safe" style="width: 91.0%;"></div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
   </div>
 </div>
 
-<!-- =========================================================================
-     ROW 4 — QUICK STATS & INFRASTRUCTURE ROW (4 Columns)
-     ========================================================================= -->
-<div class="sg-grid-4">
-  <!-- Today's Peak Hour -->
-  <div class="sg-card" style="padding: 16px;">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.12); color: var(--info); display: flex; align-items: center; justify-content: center;">
-        <i data-lucide="clock" style="width: 20px; height: 20px;"></i>
-      </div>
-      <div>
-        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Today's Peak Hour</div>
-        <div style="font-size: 16px; font-weight: 700; color: #FFFFFF; font-family: var(--font-mono);">10:00 — 11:30</div>
-        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Highest worker density</div>
-      </div>
+<!-- Row 4: Quick Facts Grid (4 Cards) -->
+<div class="grid-4 mb-5">
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="text-xs text-3 fw-500 mb-1">Peak Violation Hour</div>
+      <div class="mono text-lg fw-600 text-1">{{ stats.peak_hour|default('14:00') }}</div>
+      <div class="text-xs text-2" style="margin-top: 4px;">High risk shift handover window</div>
     </div>
   </div>
-
-  <!-- Highest Risk Zone -->
-  <div class="sg-card" style="padding: 16px;">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(220, 38, 38, 0.15); color: var(--critical); display: flex; align-items: center; justify-content: center;">
-        <i data-lucide="alert-octagon" style="width: 20px; height: 20px;"></i>
-      </div>
-      <div>
-        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Highest Risk Zone</div>
-        <div style="font-size: 16px; font-weight: 700; color: #FFFFFF;">Scaffolding South</div>
-        <div style="font-size: 11px; color: var(--critical); margin-top: 2px;">Restricted perimeter breach</div>
-      </div>
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="text-xs text-3 fw-500 mb-1">Highest Risk Zone</div>
+      <div class="mono text-lg fw-600 text-orange">{{ stats.riskiest_zone|default('Main Yard') }}</div>
+      <div class="text-xs text-2" style="margin-top: 4px;">Elevated fall &amp; helmet hazards</div>
     </div>
   </div>
-
-  <!-- Most Frequent Infraction -->
-  <div class="sg-card" style="padding: 16px;">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(249, 115, 22, 0.15); color: var(--accent); display: flex; align-items: center; justify-content: center;">
-        <i data-lucide="hand" style="width: 20px; height: 20px;"></i>
-      </div>
-      <div>
-        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Top Infraction</div>
-        <div style="font-size: 16px; font-weight: 700; color: #FFFFFF;">Missing Hand Gloves</div>
-        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Prevalent during material handling</div>
-      </div>
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="text-xs text-3 fw-500 mb-1">Most Common Violation</div>
+      <div class="mono text-lg fw-600 text-red">{{ stats.top_violation|default('No Helmet') }}</div>
+      <div class="text-xs text-2" style="margin-top: 4px;">Audited from real YOLOv8 detections</div>
     </div>
   </div>
-
-  <!-- System Uptime -->
-  <div class="sg-card" style="padding: 16px;">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.12); color: var(--safe); display: flex; align-items: center; justify-content: center;">
-        <i data-lucide="activity" style="width: 20px; height: 20px;"></i>
-      </div>
-      <div>
-        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">System Uptime</div>
-        <div style="font-size: 16px; font-weight: 700; color: var(--safe); font-family: var(--font-mono);" id="system-uptime-display">99.98%</div>
-        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">4d 12h 35m uninterrupted</div>
-      </div>
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="text-xs text-3 fw-500 mb-1">System Uptime</div>
+      <div class="mono text-lg fw-600 text-green">{{ stats.uptime|default('Active') }}</div>
+      <div class="text-xs text-2" style="margin-top: 4px;">Persistent inference server loop</div>
     </div>
   </div>
 </div>
 
-<!-- =========================================================================
-     EVIDENCE MODAL
-     ========================================================================= -->
-<div id="evidence-modal" class="sg-modal-overlay" onclick="closeEvidenceModal(event)">
-  <div class="sg-modal" onclick="event.stopPropagation()">
-    <div class="sg-modal-header">
-      <div class="sg-modal-title" id="evidence-title">Violation Snapshot Evidence</div>
-      <button class="sg-btn sg-btn--ghost sg-btn--icon" onclick="closeEvidenceModal()">&times;</button>
+<!-- Row 5: Three Analytics Charts -->
+<div class="grid-3">
+  <!-- Chart 1: Violations This Week -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h3><i data-lucide="bar-chart-2"></i> Violations This Week</h3>
     </div>
-    <div class="sg-modal-body" style="text-align: center;">
-      <img id="evidence-img" src="" alt="Evidence Full" style="max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--border); margin: 0 auto;">
-      <div id="evidence-caption" style="margin-top: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);"></div>
+    <div class="sg-card-body">
+      <div style="height: 220px; position: relative;">
+        <canvas id="chart-violations-week"></canvas>
+      </div>
     </div>
-    <div class="sg-modal-footer">
-      <a id="evidence-download-btn" href="#" download="siteguard_evidence.jpg" class="sg-btn sg-btn--outline sg-btn--sm">Download Snapshot</a>
-      <button class="sg-btn sg-btn--primary sg-btn--sm" onclick="closeEvidenceModal()">Close</button>
+  </div>
+
+  <!-- Chart 2: PPE Breakdown -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h3><i data-lucide="pie-chart"></i> PPE Breakdown</h3>
+    </div>
+    <div class="sg-card-body">
+      <div style="height: 220px; position: relative;">
+        <canvas id="chart-ppe-breakdown"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 3: Compliance Trend -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h3><i data-lucide="trending-up"></i> Compliance Trend</h3>
+    </div>
+    <div class="sg-card-body">
+      <div style="height: 220px; position: relative;">
+        <canvas id="chart-compliance-trend"></canvas>
+      </div>
     </div>
   </div>
 </div>
@@ -401,34 +308,186 @@
 
 {% block scripts %}
 <script>
-  function openEvidenceModal(src, type, worker) {
-    document.getElementById('evidence-img').src = src;
-    document.getElementById('evidence-title').innerText = 'Infraction: ' + type.replace('_', ' ');
-    document.getElementById('evidence-caption').innerText = 'Worker ID: ' + worker + ' • Real-time YOLOv8 Crop';
-    document.getElementById('evidence-download-btn').href = src;
-    document.getElementById('evidence-modal').classList.add('active');
-  }
+// Chart.js Obsidian Dark Theme Configuration
+Chart.defaults.color = '#484F58';
+Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.04)';
+Chart.defaults.font.family = 'Inter';
+Chart.defaults.font.size = 11;
+const TOOLTIP = {
+  backgroundColor: '#131920',
+  borderColor: 'rgba(249, 115, 22, 0.25)',
+  borderWidth: 1,
+  titleColor: '#E6EDF3',
+  bodyColor: '#8B949E',
+  padding: 10,
+  cornerRadius: 8
+};
 
-  function closeEvidenceModal(e) {
-    document.getElementById('evidence-modal').classList.remove('active');
-  }
-
-  // Dashboard Telemetry Polling (every 5 seconds)
-  setInterval(async function() {
-    try {
-      const res = await fetch('/api/status');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.fps !== undefined) document.getElementById('hud-fps').innerText = data.fps.toFixed(1);
-        if (data.worker_count !== undefined) {
-          document.getElementById('hud-workers').innerText = data.worker_count;
-          document.getElementById('stat-workers-observed').innerText = data.worker_count;
-        }
-        if (data.violation_count !== undefined) {
-          document.getElementById('hud-violations').innerText = data.violation_count;
+// Initialize Chart 1: Violations This Week
+async function initViolationsWeekChart() {
+  const ctx = document.getElementById('chart-violations-week');
+  if (!ctx) return;
+  try {
+    const res = await fetch('/api/analytics/violations-week');
+    const json = await res.json();
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: json.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Violations',
+          data: json.data || [0, 0, 0, 0, 0, 0, 0],
+          backgroundColor: 'rgba(239, 68, 68, 0.6)',
+          borderColor: '#EF4444',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: TOOLTIP },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { grid: { display: false } }
         }
       }
-    } catch(e) {}
-  }, 5000);
+    });
+  } catch (e) {
+    console.error('Error loading violations week chart:', e);
+  }
+}
+
+// Initialize Chart 2: PPE Breakdown
+async function initPpeBreakdownChart() {
+  const ctx = document.getElementById('chart-ppe-breakdown');
+  if (!ctx) return;
+  try {
+    const res = await fetch('/api/analytics/ppe-breakdown');
+    const json = await res.json();
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: json.labels || ['Helmet', 'Vest', 'Boots', 'Gloves', 'Zone'],
+        datasets: [{
+          data: json.data || [12, 8, 5, 3, 2],
+          backgroundColor: [
+            '#F97316', '#EF4444', '#EAB308', '#3B82F6', '#8B5CF6'
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } },
+          tooltip: TOOLTIP
+        },
+        cutout: '68%'
+      }
+    });
+  } catch (e) {
+    console.error('Error loading PPE breakdown chart:', e);
+  }
+}
+
+// Initialize Chart 3: Compliance Trend
+async function initComplianceTrendChart() {
+  const ctx = document.getElementById('chart-compliance-trend');
+  if (!ctx) return;
+  try {
+    const res = await fetch('/api/analytics/compliance-trend');
+    const json = await res.json();
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: json.labels || ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+        datasets: [{
+          label: 'Compliance %',
+          data: json.data || [85, 87, 84, 88, 91, 89, 92],
+          borderColor: '#10B981',
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointBackgroundColor: '#10B981'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: TOOLTIP },
+        scales: {
+          y: { min: 50, max: 100, ticks: { callback: v => v + '%' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Error loading compliance trend chart:', e);
+  }
+}
+
+// Real-time Poller: /api/stats every 10s
+function startTelemetryPoller() {
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/stats');
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const fpsEl = document.getElementById('fps-hud');
+      if (fpsEl && data.fps !== undefined) fpsEl.textContent = Number(data.fps).toFixed(1);
+
+      const workersEl = document.getElementById('workers-hud');
+      if (workersEl && data.worker_count !== undefined) workersEl.textContent = data.worker_count;
+
+      const violEl = document.getElementById('viol-hud');
+      if (violEl && data.violation_count !== undefined) violEl.textContent = data.violation_count;
+    } catch (e) {
+      // silent background polling
+    }
+  }, 10000);
+}
+
+// Start camera stream via API
+async function startCameraFeed() {
+  try {
+    const res = await fetch('/camera/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 0 })
+    });
+    const json = await res.json();
+    if (json.success) {
+      window.location.reload();
+    } else {
+      alert('Could not start camera: ' + json.message);
+    }
+  } catch (e) {
+    alert('Camera start error: ' + e);
+  }
+}
+
+// Stop camera stream via API
+async function stopCameraFeed() {
+  try {
+    const res = await fetch('/camera/stop', { method: 'POST' });
+    const json = await res.json();
+    if (json.success) {
+      window.location.reload();
+    }
+  } catch (e) {
+    alert('Camera stop error: ' + e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initViolationsWeekChart();
+  initPpeBreakdownChart();
+  initComplianceTrendChart();
+  startTelemetryPoller();
+});
 </script>
 {% endblock %}

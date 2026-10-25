@@ -1,87 +1,88 @@
 {% extends "base.html" %}
 
-{% block title %}Notifications — SiteGuard AI{% endblock %}
-{% block page_title %}Notification Center{% endblock %}
-
-{% block top_actions %}
-  <button class="btn btn-secondary" onclick="markAllNotificationsRead()">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-    Mark All as Read
-  </button>
-{% endblock %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}System Notifications{% endblock %}
+{% block page_subtitle %}Real-time safety dispatch, hazard broadcasts &amp; officer action alerts{% endblock %}
 
 {% block content %}
-<div class="card p-0 overflow-hidden mb-24">
-  <div class="card-header p-16">
-    <div class="card-label">
-      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-      <span>High-Priority Safety Notifications</span>
+<div style="max-width: 900px; margin: 0 auto;">
+  <div class="sg-card mb-5">
+    <div class="sg-card-body" style="padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <div style="display: flex; gap: 6px;">
+        <button class="sg-btn sg-btn-sm sg-btn-primary" onclick="filterNotifs('all', this)">All</button>
+        <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="filterNotifs('unread', this)">Unread</button>
+        <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="filterNotifs('critical', this)">Critical</button>
+      </div>
+
+      <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="markAllNotificationsRead()">
+        <i data-lucide="check-check"></i> Mark All as Read
+      </button>
     </div>
-    <span class="badge badge-ai fs-11">{{ notifications|length }} Dispatches</span>
   </div>
 
-  <div class="table-container">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Severity</th>
-          <th>Notification Title</th>
-          <th>Message & Location</th>
-          <th>Triggered Timestamp</th>
-          <th>Read Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if notifications and notifications|length > 0 %}
-          {% for n in notifications %}
-            <tr style="{% if n.is_read == 0 %}background: rgba(249, 115, 22, 0.04);{% endif %}">
-              <td>
-                <span class="badge badge-{{ n.severity|lower }}">{{ n.severity }}</span>
-              </td>
-              <td><strong class="text-primary">{{ n.title }}</strong></td>
-              <td class="text-secondary" style="max-width: 380px;">{{ n.message }}</td>
-              <td class="font-mono fs-12 text-muted">{{ n.timestamp }}</td>
-              <td>
-                {% if n.is_read == 1 %}
-                  <span class="fs-12 text-muted">Read</span>
-                {% else %}
-                  <span class="badge badge-critical">NEW UNREAD</span>
-                {% endif %}
-              </td>
-              <td>
-                <a href="{{ url_for('alerts_view') }}" class="btn btn-sm btn-secondary">
-                  <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  Review Alert
-                </a>
-              </td>
-            </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="6">
-              <div class="empty-state-card p-24">
-                <div class="empty-state-icon">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-                </div>
-                <div class="empty-state-title">No notifications registered</div>
-                <div class="empty-state-text">Critical and high severity safety events will trigger high-priority alerts in this feed automatically.</div>
-              </div>
-            </td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2><i data-lucide="bell"></i> Safety Notifications Feed ({{ notifications|length }})</h2>
+    </div>
+    <div class="sg-card-body" style="padding: 8px 18px;" id="notifs-container">
+      {% for n in notifications %}
+        {% set sev = n.severity|default('MEDIUM')|upper %}
+        <div class="sg-alert-item notif-item {{ 'unread' if not n.is_read else '' }}" data-read="{{ 'read' if n.is_read else 'unread' }}" data-sev="{{ sev|lower }}">
+          <div class="sg-alert-icon {{ sev|lower }}">
+            <i data-lucide="{{ 'shield-alert' if sev == 'CRITICAL' else 'bell' }}"></i>
+          </div>
+          <div class="sg-alert-body">
+            <div class="sg-alert-title">
+              {{ n.title or 'Safety Event Detected' }}
+              {% if not n.is_read %}
+                <span class="sg-badge sg-badge-open" style="font-size: 9px;">NEW</span>
+              {% endif %}
+            </div>
+            <div class="sg-alert-sub" style="margin-top: 4px; font-size: 12px; color: var(--text-2);">
+              {{ n.message or 'Safety non-compliance event recorded by automated camera surveillance.' }}
+            </div>
+            <div class="sg-alert-time" style="margin-top: 6px;">{{ n.created_at or 'Today' }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="sg-empty" style="padding: 48px;">
+          <i data-lucide="bell-off" style="color: var(--text-3);"></i>
+          <p>No notifications available.</p>
+        </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function markAllNotificationsRead() {
-  apiJSON('/api/notifications/mark-read', 'POST')
-    .then(() => window.location.reload())
-    .catch(err => alert('Error marking notifications as read: ' + err.message));
+async function markAllNotificationsRead() {
+  try {
+    const res = await fetch('/api/notifications/mark-read', { method: 'POST' });
+    const json = await res.json();
+    if (json.success) {
+      window.location.reload();
+    }
+  } catch (e) {
+    alert('Error marking notifications: ' + e);
+  }
+}
+
+function filterNotifs(filter, btn) {
+  document.querySelectorAll('.sg-card-body button').forEach(b => b.className = 'sg-btn sg-btn-sm sg-btn-outline');
+  btn.className = 'sg-btn sg-btn-sm sg-btn-primary';
+
+  const items = document.querySelectorAll('.notif-item');
+  items.forEach(el => {
+    if (filter === 'all') {
+      el.style.display = 'flex';
+    } else if (filter === 'unread') {
+      el.style.display = (el.getAttribute('data-read') === 'unread') ? 'flex' : 'none';
+    } else if (filter === 'critical') {
+      el.style.display = (el.getAttribute('data-sev') === 'critical') ? 'flex' : 'none';
+    }
+  });
 }
 </script>
 {% endblock %}

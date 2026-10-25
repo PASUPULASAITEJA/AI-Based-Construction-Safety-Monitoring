@@ -6,45 +6,51 @@
   <title>Sign In — SiteGuard AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/siteguard.css') }}">
 </head>
-<body class="login-page">
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg);">
 
-<div style="width:100%;max-width:400px;padding:20px;">
-  <div class="login-card">
-    <div class="login-brand">
-      <div class="sidebar-brand-mark">
-        <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#fff;"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.83-3.13 9.37-7 10.5-3.87-1.13-7-5.67-7-10.5V6.3l7-3.12z"/></svg>
+<div style="width: 100%; max-width: 400px; padding: 24px;">
+  <div class="sg-card" style="box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6); padding: 24px;">
+    <!-- Brand Header -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+      <div class="sg-logo-icon">
+        <i data-lucide="hard-hat"></i>
       </div>
       <div>
-        <div style="font-size:18px;font-weight:700;color:var(--text-primary);">SiteGuard AI</div>
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Construction Safety Intelligence</div>
+        <div class="sg-brand-name">SiteGuard <span>AI</span></div>
+        <div class="sg-brand-sub">Safety Intelligence Platform</div>
       </div>
     </div>
 
     {% if error %}
-      <div class="login-error">{{ error }}</div>
+      <div style="background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius); padding: 10px; margin-bottom: 16px; font-size: 12px; color: var(--red);">
+        {{ error }}
+      </div>
     {% endif %}
 
     <form method="POST" action="{{ url_for('login_route') }}">
-      <div class="form-group">
-        <label class="form-label" for="username">Username</label>
-        <input type="text" id="username" name="username" class="form-input" placeholder="Enter username" required autofocus>
+      <div class="sg-form-group">
+        <label class="sg-form-label" for="username">Username</label>
+        <input type="text" id="username" name="username" class="sg-input" placeholder="Enter username" value="Operator" required autofocus>
       </div>
-      <div class="form-group" style="margin-bottom:20px;">
-        <label class="form-label" for="password">Password</label>
-        <input type="password" id="password" name="password" class="form-input" placeholder="Enter password" required>
+      <div class="sg-form-group" style="margin-bottom: 20px;">
+        <label class="sg-form-label" for="password">Password</label>
+        <input type="password" id="password" name="password" class="sg-input" placeholder="Enter password" value="password" required>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;">Sign In</button>
+      <button type="submit" class="sg-btn sg-btn-primary w-full">Sign In to Workstation</button>
     </form>
 
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--text-muted);">
-      Please contact your IT administrator if you need access credentials.
+    <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); text-align: center; font-size: 11px; color: var(--text-3);">
+      Authorized construction personnel &amp; safety officers only.
     </div>
   </div>
 </div>
+
 <script>
+  if (window.lucide) lucide.createIcons();
 </script>
 </body>
 </html>

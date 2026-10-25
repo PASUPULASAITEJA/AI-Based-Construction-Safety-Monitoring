@@ -1,180 +1,151 @@
 {% extends "base.html" %}
 
-{% block title %}Reports — SiteGuard AI{% endblock %}
-{% block page_title %}Safety Audit Reports{% endblock %}
-
-{% block top_actions %}
-  <button class="btn btn-primary" onclick="window.print()">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-    Print / Export PDF
-  </button>
-  <a href="{{ url_for('export_incidents_csv') }}" class="btn btn-secondary">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Export CSV
-  </a>
-{% endblock %}
+{% block title %}Report Center{% endblock %}
+{% block page_title %}Safety Report Center{% endblock %}
+{% block page_subtitle %}Automated compliance audit generation &amp; OSHA/HSE regulatory documentation{% endblock %}
 
 {% block content %}
-<!-- Report Configuration Bar -->
-<div class="card filter-card mb-24 no-print">
-  <form id="report-filter-form" method="GET" action="{{ url_for('reports_view') }}">
-    <div class="filter-row">
-      <div>
-        <label class="form-label">Report Period</label>
-        <select name="period" class="form-select w-180" onchange="document.getElementById('report-filter-form').submit()">
-          <option value="ALL" {% if period == 'ALL' %}selected{% endif %}>Lifetime Complete Log</option>
-          <option value="TODAY" {% if period == 'TODAY' %}selected{% endif %}>Today's Operations</option>
-          <option value="7DAYS" {% if period == '7DAYS' %}selected{% endif %}>Last 7 Days</option>
-          <option value="30DAYS" {% if period == '30DAYS' %}selected{% endif %}>Last 30 Days</option>
-        </select>
+<!-- 4 Report Generation Cards -->
+<div class="grid-4 mb-5">
+  <!-- Card 1: Today -->
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="sg-kpi-icon" style="background: var(--blue-dim); color: var(--blue);">
+        <i data-lucide="calendar"></i>
       </div>
-
-      <div>
-        <label class="form-label">Monitored Construction Site</label>
-        <select name="site_id" class="form-select w-200" onchange="document.getElementById('report-filter-form').submit()">
-          <option value="ALL">All Monitored Sites</option>
-          {% for s in sites %}
-            <option value="{{ s.id }}" {% if current_site == s.id|string %}selected{% endif %}>{{ s.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div style="align-self: flex-end;">
-        <button type="submit" class="btn btn-primary btn-sm h-38">
-          <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-          Generate Report
-        </button>
-      </div>
+      <div class="fw-600 text-1 text-base mb-1">Today's Shift Audit</div>
+      <p class="text-xs text-3 mb-4">Immediate snapshot of current 24-hour non-compliance, active workers, and alerts.</p>
+      <a href="{{ url_for('reports_view', period='TODAY') }}" class="sg-btn sg-btn-outline sg-btn-sm w-full">
+        <i data-lucide="file-text"></i> Generate Today
+      </a>
     </div>
-  </form>
+  </div>
+
+  <!-- Card 2: Last 7 Days -->
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="sg-kpi-icon" style="background: var(--orange-dim); color: var(--orange);">
+        <i data-lucide="calendar-range"></i>
+      </div>
+      <div class="fw-600 text-1 text-base mb-1">Weekly Safety Summary</div>
+      <p class="text-xs text-3 mb-4">7-day retrospective on PPE compliance, peak violation windows, and zone hot-spots.</p>
+      <a href="{{ url_for('reports_view', period='7DAYS') }}" class="sg-btn sg-btn-primary sg-btn-sm w-full">
+        <i data-lucide="file-text"></i> Generate 7 Days
+      </a>
+    </div>
+  </div>
+
+  <!-- Card 3: Last 30 Days -->
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="sg-kpi-icon" style="background: var(--purple-dim); color: var(--purple);">
+        <i data-lucide="bar-chart-2"></i>
+      </div>
+      <div class="fw-600 text-1 text-base mb-1">Monthly Audit Report</div>
+      <p class="text-xs text-3 mb-4">Complete 30-day compliance evaluation for site executive reviews and insurer audits.</p>
+      <a href="{{ url_for('reports_view', period='30DAYS') }}" class="sg-btn sg-btn-outline sg-btn-sm w-full">
+        <i data-lucide="file-text"></i> Generate 30 Days
+      </a>
+    </div>
+  </div>
+
+  <!-- Card 4: All Time -->
+  <div class="sg-card">
+    <div class="sg-card-body">
+      <div class="sg-kpi-icon" style="background: var(--green-dim); color: var(--green);">
+        <i data-lucide="archive"></i>
+      </div>
+      <div class="fw-600 text-1 text-base mb-1">Complete Master Record</div>
+      <p class="text-xs text-3 mb-4">Comprehensive archive of all recorded camera observations, reviews, and root causes.</p>
+      <a href="{{ url_for('reports_view', period='ALL') }}" class="sg-btn sg-btn-outline sg-btn-sm w-full">
+        <i data-lucide="file-text"></i> Generate All Time
+      </a>
+    </div>
+  </div>
 </div>
 
-<!-- Formal Printable Safety Compliance Report -->
-<div class="card p-24 report-print-container">
-  
-  <!-- Report Header -->
-  <div class="flex flex-between flex-start pb-20 border-b mb-20">
+<!-- Active Generated Audit Report Section -->
+<div class="sg-card">
+  <div class="sg-card-head">
     <div>
-      <div class="flex flex-center gap-8 mb-6">
-        <span class="badge badge-ai">OFFICIAL AUDIT REPORT</span>
-        <span class="badge badge-low">ISO 45001 / OSHA 1926</span>
-      </div>
-      <h2 class="fs-22 fw-800 text-primary m-0">SiteGuard AI &bull; Safety Compliance Audit Ledger</h2>
-      <div class="fs-12 text-secondary mt-4">
-        Computer vision automated infraction analysis & verifiable human review history.
-      </div>
+      <h2><i data-lucide="file-check"></i> Audit Report: {{ period|default('ALL') }}</h2>
+      <div class="text-xs text-3 mono" style="margin-top: 2px;">Generated at {{ generated_at }} &bull; SiteGuard AI Certified</div>
     </div>
-
-    <div class="text-right font-mono fs-12 text-muted">
-      <div>Timeframe: <strong class="text-orange">{{ period }}</strong></div>
-      <div>Generated: <span class="text-primary">{{ generated_at }}</span></div>
-      <div>Classification: <span class="text-info">Safety Audit Grade</span></div>
+    <div style="display: flex; gap: 8px;">
+      <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="window.print()">
+        <i data-lucide="printer"></i> Print / PDF
+      </button>
+      <a href="{{ url_for('export_incidents_csv') }}" class="sg-btn sg-btn-primary sg-btn-sm">
+        <i data-lucide="download"></i> Export Incident CSV
+      </a>
     </div>
   </div>
 
-  <!-- Executive Summary Metrics -->
-  <div class="grid-4 gap-12 mb-24">
-    <div class="stat-card" style="border-left: 3px solid var(--safety-orange);">
-      <div class="fs-11 text-secondary uppercase fw-600">Total Violations</div>
-      <div class="fs-24 fw-800 font-mono text-primary mt-4">
-        {{ report_incidents|length }}
+  <!-- Summary KPI Ribbon -->
+  <div class="sg-card-body" style="background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 14px 20px;">
+    <div class="grid-4">
+      <div>
+        <div class="text-xs text-3">Period Scope</div>
+        <div class="mono text-base fw-600 text-1">{{ period|default('ALL') }}</div>
       </div>
-      <div class="fs-11 text-muted mt-2">Recorded incidents</div>
-    </div>
-
-    <div class="stat-card" style="border-left: 3px solid var(--color-critical);">
-      <div class="fs-11 text-secondary uppercase fw-600">Critical Severity</div>
-      <div class="fs-24 fw-800 font-mono text-critical mt-4">
-        {{ crit_count|default(0) }}
+      <div>
+        <div class="text-xs text-3">Incidents Logged</div>
+        <div class="mono text-base fw-600 text-orange">{{ report_incidents|length }}</div>
       </div>
-      <div class="fs-11 text-muted mt-2">Zone & compound breaches</div>
-    </div>
-
-    <div class="stat-card" style="border-left: 3px solid var(--color-compliant);">
-      <div class="fs-11 text-secondary uppercase fw-600">Resolved Incidents</div>
-      <div class="fs-24 fw-800 font-mono text-compliant mt-4">
-        {{ resolved_count|default(0) }}
+      <div>
+        <div class="text-xs text-3">Critical Severities</div>
+        <div class="mono text-base fw-600 text-red">{{ crit_count|default(0) }}</div>
       </div>
-      <div class="fs-11 text-muted mt-2">Signed off by officer</div>
-    </div>
-
-    <div class="stat-card" style="border-left: 3px solid var(--color-info);">
-      <div class="fs-11 text-secondary uppercase fw-600">Compliance Rate</div>
-      <div class="fs-24 fw-800 font-mono text-info mt-4">
-        {% if report_compliance is not none %}{{ report_compliance }}%{% else %}N/A{% endif %}
+      <div>
+        <div class="text-xs text-3">Audit Compliance</div>
+        <div class="mono text-base fw-600 text-green">{{ report_compliance|default(100.0) }}%</div>
       </div>
-      <div class="fs-11 text-muted mt-2">Observation compliance</div>
     </div>
   </div>
 
-  <!-- Detailed Incident Table in Report -->
-  <div class="flex flex-between flex-center mb-12">
-    <h4 class="fs-15 fw-700 text-primary m-0">
-      Evaluated Safety Incidents Audit Log ({{ report_incidents|length }} Records)
-    </h4>
-  </div>
-
-  <div class="table-container mb-24">
-    <table class="data-table">
+  <!-- Report Incidents Table -->
+  <div class="sg-table-wrap">
+    <table class="sg-table">
       <thead>
         <tr>
-          <th>Incident Code</th>
-          <th>Worker Track</th>
-          <th>Violation Category</th>
-          <th>Severity</th>
-          <th>Confidence</th>
-          <th>Status</th>
+          <th>Code</th>
           <th>Timestamp</th>
+          <th>Severity</th>
+          <th>Type</th>
+          <th>Worker ID</th>
+          <th>Location / Zone</th>
+          <th>Root Cause</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
-        {% if report_incidents and report_incidents|length > 0 %}
-          {% for r in report_incidents %}
-            <tr>
-              <td class="font-mono fw-700 text-orange">
-                {{ r.incident_code }}
-              </td>
-              <td><strong class="text-primary">{{ r.worker_label }}</strong></td>
-              <td><strong>{{ r.violation_type }}</strong></td>
-              <td>
-                <span class="badge badge-{{ r.severity|lower }}">{{ r.severity }}</span>
-              </td>
-              <td class="font-mono">{{ (r.confidence * 100)|round(1) }}%</td>
-              <td>
-                <span class="badge {% if r.status == 'RESOLVED' %}badge-compliant{% else %}badge-critical{% endif %}">
-                  {{ r.status }}
-                </span>
-              </td>
-              <td class="font-mono fs-12 text-muted">{{ r.timestamp }}</td>
-            </tr>
-          {% endfor %}
+        {% for inc in report_incidents %}
+          <tr>
+            <td class="mono fw-600 text-1">{{ inc.incident_code or ('INC-' ~ inc.id) }}</td>
+            <td class="mono text-xs">{{ inc.timestamp }}</td>
+            <td><span class="sg-badge sg-badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+            <td class="fw-500 text-1">{{ inc.violation_type|replace('_', ' ')|title }}</td>
+            <td><span class="sg-worker-id">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
+            <td>{{ inc.zone_name or 'General Site Perimeter' }}</td>
+            <td class="text-xs text-2">{{ inc.root_cause or 'Under human review' }}</td>
+            <td>
+              <span class="sg-badge {{ 'sg-badge-resolved' if inc.status == 'RESOLVED' else 'sg-badge-open' }}">
+                {{ inc.status or 'OPEN' }}
+              </span>
+            </td>
+          </tr>
         {% else %}
           <tr>
-            <td colspan="7">
-              <div class="empty-state-card p-24">
-                <div class="empty-state-title">No report data found for this period</div>
-                <div class="empty-state-text">No safety infractions were registered matching the selected timeframe and site criteria.</div>
+            <td colspan="8">
+              <div class="sg-empty" style="padding: 48px;">
+                <i data-lucide="check-circle" style="color: var(--green);"></i>
+                <p>No safety incidents flagged during this audit period.</p>
               </div>
             </td>
           </tr>
-        {% endif %}
+        {% endfor %}
       </tbody>
     </table>
   </div>
-
-  <!-- Auditor Sign-Off Area -->
-  <div class="grid-2 gap-20 pt-20 border-t fs-12 text-secondary">
-    <div class="p-16 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-      <div class="fw-700 text-primary mb-12 uppercase fs-11">Safety Officer Sign-Off:</div>
-      <div class="font-mono fs-12 mb-6" style="border-bottom: 1px dashed var(--border-light); padding-bottom: 8px;">Signature: _____________________________________</div>
-      <div class="text-muted fs-11">Authorized Inspection Authority &bull; Site Operations</div>
-    </div>
-    <div class="p-16 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-      <div class="fw-700 text-primary mb-12 uppercase fs-11">Project Management Approval:</div>
-      <div class="font-mono fs-12 mb-6" style="border-bottom: 1px dashed var(--border-light); padding-bottom: 8px;">Signature: _____________________________________</div>
-      <div class="text-muted fs-11">Date: {{ generated_at.split(' ')[0] if ' ' in generated_at else generated_at }}</div>
-    </div>
-  </div>
-
 </div>
 {% endblock %}

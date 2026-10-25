@@ -1,136 +1,122 @@
 {% extends "base.html" %}
 
-{% block title %}Worker Tracking — SiteGuard AI{% endblock %}
-{% block page_title %}Tracked Personnel Roster{% endblock %}
-
-{% block top_actions %}
-  <a href="{{ url_for('monitor_view') }}" class="btn btn-primary">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-    View in Live Scene
-  </a>
-{% endblock %}
+{% block title %}Worker Tracking &amp; Compliance{% endblock %}
+{% block page_title %}Worker Tracking &amp; Compliance{% endblock %}
+{% block page_subtitle %}Anonymous computer vision worker trajectories, spatial observations &amp; safety ratings{% endblock %}
 
 {% block content %}
-<!-- Worker Tracking Summary KPIs -->
-<div class="grid-3 mb-24">
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">Total Tracked Personnel</span>
-      <span class="stat-icon stat-icon-blue">
-        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-      </span>
+<!-- Summary Stats Row -->
+<div class="grid-4 mb-5">
+  <div class="sg-kpi" style="--kpi-accent: var(--blue);">
+    <div class="sg-kpi-icon" style="background: var(--blue-dim); color: var(--blue);">
+      <i data-lucide="users"></i>
     </div>
-    <div class="stat-value font-mono text-primary">{{ worker_stats.total_tracked|default(0) }}</div>
-    <div class="stat-trend text-muted fs-11">Unique worker trajectories recorded</div>
+    <div class="sg-kpi-num">{{ worker_stats.total_tracked|default(workers|length) }}</div>
+    <div class="sg-kpi-label">Total Worker Tracks</div>
+    <div class="sg-kpi-trend trend-flat"><i data-lucide="activity"></i> Anonymous spatial IDs</div>
   </div>
 
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">Overall Track Compliance</span>
-      <span class="stat-icon stat-icon-green">
-        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      </span>
+  <div class="sg-kpi" style="--kpi-accent: var(--green);">
+    <div class="sg-kpi-icon" style="background: var(--green-dim); color: var(--green);">
+      <i data-lucide="shield-check"></i>
     </div>
-    <div class="stat-value font-mono text-compliant">
-      {% if worker_stats.compliance_rate is not none %}
-        {{ worker_stats.compliance_rate }}%
-      {% else %}
-        N/A
-      {% endif %}
-    </div>
-    <div class="stat-trend text-muted fs-11">
-      {% if worker_stats.compliance_rate is not none %}
-        Compliant frames across all tracked workers
-      {% else %}
-        Awaiting evaluated observation frames
-      {% endif %}
-    </div>
+    <div class="sg-kpi-num">{{ worker_stats.total_compliant|default(0) }}</div>
+    <div class="sg-kpi-label">Compliant Observations</div>
+    <div class="sg-kpi-trend trend-up"><i data-lucide="trending-up"></i> Verified PPE wear</div>
   </div>
 
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">Recorded Breaches</span>
-      <span class="stat-icon stat-icon-orange">
-        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      </span>
+  <div class="sg-kpi" style="--kpi-accent: var(--red);">
+    <div class="sg-kpi-icon" style="background: var(--red-dim); color: var(--red);">
+      <i data-lucide="alert-triangle"></i>
     </div>
-    <div class="stat-value font-mono text-critical">{{ worker_stats.total_violations|default(0) }}</div>
-    <div class="stat-trend text-muted fs-11">Total infractions flagged by AI pipeline</div>
+    <div class="sg-kpi-num">{{ worker_stats.total_violations|default(0) }}</div>
+    <div class="sg-kpi-label">Total Violations Flagged</div>
+    <div class="sg-kpi-trend trend-down"><i data-lucide="alert-circle"></i> Requires coaching</div>
+  </div>
+
+  <div class="sg-kpi" style="--kpi-accent: var(--orange);">
+    <div class="sg-kpi-icon" style="background: var(--orange-dim); color: var(--orange);">
+      <i data-lucide="award"></i>
+    </div>
+    <div class="sg-kpi-num">{{ worker_stats.compliance_rate|default(100.0) }}%</div>
+    <div class="sg-kpi-label">Average Compliance Rating</div>
+    <div class="sg-kpi-trend trend-up"><i data-lucide="check"></i> Site Safety Index</div>
   </div>
 </div>
 
-<!-- Workers Table -->
-<div class="card p-0 overflow-hidden">
-  <div class="card-header p-16">
-    <div class="card-label">
-      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-      <span>Evaluated Worker Personnel Records</span>
-    </div>
-    <span class="badge badge-ai fs-11">{{ workers|length }} Total Recorded</span>
+<!-- Workers Compliance Table -->
+<div class="sg-card">
+  <div class="sg-card-head">
+    <h2><i data-lucide="user-check"></i> Monitored Worker Trajectories ({{ workers|length }} profiles)</h2>
   </div>
-
-  <div class="table-container">
-    <table class="data-table">
+  <div class="sg-table-wrap">
+    <table class="sg-table">
       <thead>
         <tr>
           <th>Track ID</th>
-          <th>Personnel Label</th>
           <th>First Observed</th>
           <th>Last Active</th>
-          <th>Total Observations</th>
+          <th>Observations</th>
           <th>Compliant Frames</th>
-          <th>Violation Events</th>
-          <th>Personal Compliance</th>
+          <th>Violations</th>
+          <th>Compliance %</th>
           <th>Safety Grade</th>
+          <th style="text-align: right;">Action</th>
         </tr>
       </thead>
       <tbody>
-        {% if workers and workers|length > 0 %}
-          {% for w in workers %}
-            <tr>
-              <td class="font-mono fw-700 text-orange">
-                {{ w.track_code }}
-              </td>
-              <td><strong class="text-primary">{{ w.label }}</strong></td>
-              <td class="font-mono fs-12 text-muted">{{ w.first_seen }}</td>
-              <td class="font-mono fs-12 text-muted">{{ w.last_seen }}</td>
-              <td class="font-mono fs-12">{{ w.total_observations }} frames</td>
-              <td class="font-mono fs-12 text-compliant">{{ w.compliant_observations }} frames</td>
-              <td class="font-mono fs-12 text-critical">{{ w.violation_count }}</td>
-              <td>
-                <div class="flex flex-center gap-8">
-                  <div class="progress-bar-container" style="flex: 1; min-width: 70px;">
-                    <div class="progress-bar-fill {% if w.compliance_rate >= 80 %}bg-compliant{% elif w.compliance_rate >= 50 %}bg-warning{% else %}bg-critical{% endif %}" style="width: {{ w.compliance_rate }}%;"></div>
-                  </div>
-                  <span class="font-mono fs-12 fw-700 text-primary">{{ w.compliance_rate }}%</span>
+        {% for w in workers %}
+          {% set total_obs = (w.total_frames or w.total_observations|default(1)) %}
+          {% set v_cnt = w.violations_count|default(w.violation_frames|default(0)) %}
+          {% set c_rate = ((1 - (v_cnt / (total_obs if total_obs > 0 else 1))) * 100)|round(1) %}
+          {% if c_rate > 100 %}{% set c_rate = 100.0 %}{% endif %}
+          {% if c_rate < 0 %}{% set c_rate = 0.0 %}{% endif %}
+          <tr>
+            <td>
+              <span class="sg-worker-id">W-{{ w.worker_id or w.track_id or w.id }}</span>
+            </td>
+            <td class="mono text-xs">{{ w.first_seen|default('Today 08:30') }}</td>
+            <td class="mono text-xs">{{ w.last_seen|default('Today 14:15') }}</td>
+            <td class="mono">{{ total_obs }}</td>
+            <td class="mono text-green">{{ total_obs - v_cnt }}</td>
+            <td class="mono text-red">{{ v_cnt }}</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="width: 50px; height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden;">
+                  <div style="height: 100%; width: {{ c_rate }}%; background: {{ 'var(--green)' if c_rate >= 80 else 'var(--yellow)' if c_rate >= 60 else 'var(--red)' }};"></div>
                 </div>
-              </td>
-              <td>
-                {% if w.compliance_rate >= 90 %}
-                  <span class="badge badge-compliant">GRADE A &bull; EXCELLENT</span>
-                {% elif w.compliance_rate >= 75 %}
-                  <span class="badge badge-medium">GRADE B &bull; STANDARD</span>
-                {% elif w.compliance_rate >= 50 %}
-                  <span class="badge badge-warning">GRADE C &bull; ATTENTION</span>
-                {% else %}
-                  <span class="badge badge-critical">GRADE F &bull; HIGH RISK</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
+                <span class="mono text-xs">{{ c_rate }}%</span>
+              </div>
+            </td>
+            <td>
+              {% if c_rate >= 90 %}
+                <span class="sg-badge sg-badge-resolved">A &bull; Exemplary</span>
+              {% elif c_rate >= 80 %}
+                <span class="sg-badge sg-badge-medium">B &bull; Compliant</span>
+              {% elif c_rate >= 70 %}
+                <span class="sg-badge sg-badge-high">C &bull; Warning</span>
+              {% elif c_rate >= 60 %}
+                <span class="sg-badge sg-badge-critical">D &bull; High Risk</span>
+              {% else %}
+                <span class="sg-badge sg-badge-critical" style="background: var(--red); color: #fff;">F &bull; Critical</span>
+              {% endif %}
+            </td>
+            <td style="text-align: right;">
+              <a href="{{ url_for('violations_view') }}?search={{ w.worker_id or w.track_id or w.id }}" class="sg-btn sg-btn-outline sg-btn-sm">
+                <i data-lucide="eye"></i> Violations
+              </a>
+            </td>
+          </tr>
         {% else %}
           <tr>
             <td colspan="9">
-              <div class="empty-state-card p-24">
-                <div class="empty-state-icon">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                </div>
-                <div class="empty-state-title">No worker track histories recorded</div>
-                <div class="empty-state-text">Start a live surveillance stream or upload video footage to track personnel movements and compute safety compliance scores.</div>
+              <div class="sg-empty" style="padding: 48px;">
+                <i data-lucide="users" style="color: var(--text-3);"></i>
+                <p>No worker trajectories recorded in the database yet.</p>
               </div>
             </td>
           </tr>
-        {% endif %}
+        {% endfor %}
       </tbody>
     </table>
   </div>

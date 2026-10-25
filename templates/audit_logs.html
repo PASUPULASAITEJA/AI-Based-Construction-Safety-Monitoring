@@ -1,76 +1,80 @@
 {% extends "base.html" %}
 
-{% block title %}Audit Log — SiteGuard AI{% endblock %}
-{% block page_title %}System Audit Log{% endblock %}
-
-{% block top_actions %}
-  <span class="badge badge-ai fs-11">
-    <svg class="icon icon-12 text-compliant mr-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    Immutable Ledger
-  </span>
-{% endblock %}
+{% block title %}Audit Trail{% endblock %}
+{% block page_title %}Security &amp; Operations Audit Trail{% endblock %}
+{% block page_subtitle %}Tamper-evident log of all safety officer decisions, role changes &amp; CV setting modifications{% endblock %}
 
 {% block content %}
-<div class="card p-0 overflow-hidden mb-24">
-  <div class="card-header p-16">
-    <div class="card-label">
-      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span>Platform Administrative & Safety Audit Trail</span>
+<!-- Search & Filter Bar -->
+<div class="sg-card mb-5">
+  <div class="sg-card-body" style="padding: 14px 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 200px;">
+      <input type="text" id="audit-search" class="sg-input" placeholder="Filter by action, user, or details..." oninput="filterAuditLogs(this.value)">
     </div>
-    <span class="badge badge-low fs-11">{{ audit_logs|length }} Events Logged</span>
+    <div class="mono text-xs text-3">
+      <i data-lucide="shield-check" style="width: 12px; height: 12px; vertical-align: middle;"></i> Immutable Regulatory Log
+    </div>
   </div>
+</div>
 
-  <div class="table-container">
-    <table class="data-table">
+<!-- Audit Logs Table -->
+<div class="sg-card">
+  <div class="sg-card-head">
+    <h2><i data-lucide="shield"></i> Administrative Action Log ({{ audit_logs|length }} entries)</h2>
+  </div>
+  <div class="sg-table-wrap">
+    <table class="sg-table" id="audit-table">
       <thead>
         <tr>
           <th>Timestamp</th>
-          <th>Actor Role</th>
+          <th>User Role</th>
           <th>Action Type</th>
           <th>Category</th>
-          <th>Audit Details</th>
-          <th>Target Code / ID</th>
+          <th>Details</th>
+          <th>Target ID</th>
+          <th>Client IP</th>
         </tr>
       </thead>
       <tbody>
-        {% if audit_logs and audit_logs|length > 0 %}
-          {% for log in audit_logs %}
-            <tr>
-              <td class="font-mono fs-12 text-muted">
-                {{ log.timestamp }}
-              </td>
-              <td>
-                <span class="badge badge-info">{{ log.user_role }}</span>
-              </td>
-              <td>
-                <strong class="text-primary">{{ log.action }}</strong>
-              </td>
-              <td>
-                <span class="badge badge-low">{{ log.category }}</span>
-              </td>
-              <td class="text-secondary" style="max-width: 380px;">
-                {{ log.details }}
-              </td>
-              <td class="font-mono fs-12 text-orange fw-700">
-                {{ log.target_id }}
-              </td>
-            </tr>
-          {% endfor %}
+        {% for log in audit_logs %}
+          <tr>
+            <td class="mono text-xs">{{ log.timestamp }}</td>
+            <td>
+              <span class="sg-badge sg-badge-medium">{{ log.user_role or 'OPERATOR' }}</span>
+            </td>
+            <td class="fw-600 text-orange mono text-xs">{{ log.action }}</td>
+            <td><span class="sg-badge sg-badge-low">{{ log.category }}</span></td>
+            <td class="text-xs text-1" style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ log.details }}
+            </td>
+            <td class="mono text-xs text-3">{{ log.target_id or '&mdash;' }}</td>
+            <td class="mono text-xs text-3">{{ log.ip_address or '127.0.0.1' }}</td>
+          </tr>
         {% else %}
           <tr>
-            <td colspan="6">
-              <div class="empty-state-card p-24">
-                <div class="empty-state-icon">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-                <div class="empty-state-title">No audit log entries recorded yet</div>
-                <div class="empty-state-text">Administrative changes, safety officer reviews, and user authentications will appear in this immutable trail automatically.</div>
+            <td colspan="7">
+              <div class="sg-empty" style="padding: 48px;">
+                <i data-lucide="shield-check" style="color: var(--green);"></i>
+                <p>No audit trail records logged yet.</p>
               </div>
             </td>
           </tr>
-        {% endif %}
+        {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterAuditLogs(query) {
+  const q = query.toLowerCase();
+  const rows = document.querySelectorAll('#audit-table tbody tr');
+  rows.forEach(r => {
+    const text = r.textContent.toLowerCase();
+    r.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+</script>
 {% endblock %}

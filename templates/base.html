@@ -3,288 +3,220 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}SiteGuard AI — Safety Intelligence Platform{% endblock %}</title>
-
-  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <title>{% block title %}Operations Overview{% endblock %} — SiteGuard AI</title>
+  
+  <!-- Typography: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- Lucide Icon Set -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-
-  <!-- Chart.js 4 -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <!-- SiteGuard Industrial Design System -->
+  
+  <!-- Page-specific Head Scripts (e.g. Chart.js) -->
+  {% block head_scripts %}{% endblock %}
+  
+  <!-- SiteGuard Industrial Design System CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/siteguard.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
-  <meta name="csrf-token" content="{{ csrf_token|default('') }}">
-  <script>
-    // CSRF and JSON Request Handler
-    function escapeHtml(v){
-      if(v===null||v===undefined)return '';
-      return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    }
-    async function apiJSON(url, method, body){
-      const opts = { method: method || 'POST', headers: { 'Content-Type': 'application/json' } };
-      if(body !== undefined) opts.body = JSON.stringify(body);
-      const res = await fetch(url, opts);
-      let data = null;
-      try { data = await res.json(); } catch(e){}
-      if(!res.ok || !data || data.success === false){
-        throw new Error((data && (data.message || data.error)) || ('Request failed (HTTP ' + res.status + ')'));
-      }
-      return data;
-    }
-    (function(){
-      const meta = document.querySelector('meta[name="csrf-token"]');
-      const token = meta ? meta.getAttribute('content') : '';
-      const origFetch = window.fetch.bind(window);
-      window.fetch = function(input, init){
-        init = init || {};
-        const method = ((init.method) || (input && input.method) || 'GET').toUpperCase();
-        const url = (typeof input === 'string' || input instanceof URL) ? String(input) : (input && input.url) || '';
-        let sameOrigin = true;
-        try { sameOrigin = new URL(url, window.location.href).origin === window.location.origin; } catch(e){}
-        if(token && sameOrigin && method !== 'GET' && method !== 'HEAD'){
-          const headers = new Headers(init.headers || (input && input.headers) || {});
-          if(!headers.has('X-CSRFToken')) headers.set('X-CSRFToken', token);
-          init = Object.assign({}, init, { headers: headers });
-        }
-        return origFetch(input, init);
-      };
-    })();
-  </script>
 </head>
-<body class="sg-app">
-
-  <!-- =========================================================================
-       SIDEBAR (256px, Fixed Left, Industrial Deep Night)
-       ========================================================================= -->
-  <aside class="sg-sidebar">
-    <!-- Brand Logo Section -->
-    <div class="sg-sidebar-header">
-      <div class="sg-logo-icon">
-        <i data-lucide="shield-alert" style="width: 20px; height: 20px;"></i>
-      </div>
-      <div>
-        <div class="sg-brand-title">
-          SiteGuard<span>AI</span>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <a href="{{ url_for('dashboard_view') }}" class="sg-logo">
+        <div class="sg-logo-icon">
+          <i data-lucide="hard-hat"></i>
         </div>
-        <div class="sg-brand-subtitle">Safety Intelligence Platform</div>
-      </div>
-    </div>
+        <div class="sg-logo-text">
+          <div class="sg-brand-name">SiteGuard <span>AI</span></div>
+          <div class="sg-brand-sub">Safety Intelligence Platform</div>
+        </div>
+      </a>
 
-    <!-- Navigation Groups -->
-    <nav class="sg-sidebar-nav">
-      <!-- 1. MONITORING -->
-      <div class="sg-nav-section">
-        <div class="sg-nav-section-title">Monitoring</div>
-        <a href="{{ url_for('dashboard_view') }}" class="sg-nav-item {% if active_page == 'dashboard' or request.path == '/' %}active{% endif %}" id="nav-dashboard">
-          <i data-lucide="layout-dashboard" class="sg-nav-icon"></i>
-          <span>Overview</span>
-        </a>
-        <a href="{{ url_for('monitor_view') }}" class="sg-nav-item {% if active_page == 'monitor' %}active{% endif %}" id="nav-monitor">
-          <i data-lucide="video" class="sg-nav-icon"></i>
-          <span>Live Monitor</span>
-          <span class="sg-dot sg-dot--live" style="margin-left: auto;"></span>
-        </a>
-        <a href="{{ url_for('video_analysis_view') }}" class="sg-nav-item {% if active_page == 'video_analysis' %}active{% endif %}" id="nav-video-analysis">
-          <i data-lucide="film" class="sg-nav-icon"></i>
-          <span>Video Analysis</span>
-        </a>
-        <a href="{{ url_for('image_analysis_view') }}" class="sg-nav-item {% if active_page == 'image_analysis' %}active{% endif %}" id="nav-image-analysis">
-          <i data-lucide="image" class="sg-nav-icon"></i>
-          <span>Image Inspection</span>
-        </a>
-      </div>
+      <nav class="sg-nav">
+        <!-- MONITORING -->
+        <div class="sg-nav-section">
+          <div class="sg-nav-label">Monitoring</div>
+          <a href="{{ url_for('dashboard_view') }}" class="sg-nav-item {% if request.path == '/' %}active{% endif %}">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Overview</span>
+          </a>
+          <a href="{{ url_for('monitor_view') }}" class="sg-nav-item {% if '/monitor' in request.path %}active{% endif %}">
+            <i data-lucide="video"></i>
+            <span>Live Monitor</span>
+          </a>
+          <a href="{{ url_for('video_analysis_view') }}" class="sg-nav-item {% if '/video-analysis' in request.path %}active{% endif %}">
+            <i data-lucide="film"></i>
+            <span>Video Analysis</span>
+          </a>
+          <a href="{{ url_for('image_analysis_view') }}" class="sg-nav-item {% if '/image-analysis' in request.path %}active{% endif %}">
+            <i data-lucide="image"></i>
+            <span>Image Inspect</span>
+          </a>
+        </div>
 
-      <!-- 2. SAFETY -->
-      <div class="sg-nav-section">
-        <div class="sg-nav-section-title">Safety</div>
-        <a href="{{ url_for('violations_view') }}" class="sg-nav-item {% if active_page == 'violations' %}active{% endif %}" id="nav-violations">
-          <i data-lucide="alert-triangle" class="sg-nav-icon"></i>
-          <span>Violations</span>
-          {% if open_violations_count|default(0) > 0 %}
-            <span class="sg-nav-badge sg-nav-badge--red">{{ open_violations_count }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('alerts_view') }}" class="sg-nav-item {% if active_page == 'alerts' %}active{% endif %}" id="nav-alerts">
-          <i data-lucide="bell" class="sg-nav-icon"></i>
-          <span>Alerts</span>
-          {% if active_alerts_count|default(0) > 0 %}
-            <span class="sg-nav-badge sg-nav-badge--orange">{{ active_alerts_count }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('incidents_view') }}" class="sg-nav-item {% if active_page == 'incidents' %}active{% endif %}" id="nav-incidents">
-          <i data-lucide="clipboard-list" class="sg-nav-icon"></i>
-          <span>Incidents</span>
-        </a>
-        <a href="{{ url_for('workers_view') }}" class="sg-nav-item {% if active_page == 'workers' %}active{% endif %}" id="nav-workers">
-          <i data-lucide="hard-hat" class="sg-nav-icon"></i>
-          <span>Workers</span>
-        </a>
-      </div>
+        <!-- SAFETY -->
+        <div class="sg-nav-section">
+          <div class="sg-nav-label">Safety</div>
+          <a href="{{ url_for('violations_view') }}" class="sg-nav-item {% if '/violations' in request.path %}active{% endif %}">
+            <i data-lucide="alert-triangle"></i>
+            <span>Violations</span>
+            {% set v_cnt = violation_count if violation_count is defined else (today_violations_count if today_violations_count is defined else (stats.violations_today if stats is defined and stats.violations_today is defined else 0)) %}
+            {% if v_cnt and v_cnt > 0 %}
+              <span class="sg-nav-badge danger">{{ v_cnt }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('alerts_view') }}" class="sg-nav-item {% if '/alerts' in request.path %}active{% endif %}">
+            <i data-lucide="bell"></i>
+            <span>Alerts</span>
+            {% set a_cnt = alert_count if alert_count is defined else (open_alerts_count if open_alerts_count is defined else (stats.open_alerts if stats is defined and stats.open_alerts is defined else 0)) %}
+            {% if a_cnt and a_cnt > 0 %}
+              <span class="sg-nav-badge warning">{{ a_cnt }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('incidents_view') }}" class="sg-nav-item {% if '/incidents' in request.path %}active{% endif %}">
+            <i data-lucide="clipboard-list"></i>
+            <span>Incidents</span>
+          </a>
+          <a href="{{ url_for('workers_view') }}" class="sg-nav-item {% if '/workers' in request.path %}active{% endif %}">
+            <i data-lucide="users"></i>
+            <span>Workers</span>
+          </a>
+        </div>
 
-      <!-- 3. INFRASTRUCTURE -->
-      <div class="sg-nav-section">
-        <div class="sg-nav-section-title">Infrastructure</div>
-        <a href="{{ url_for('sites_view') }}" class="sg-nav-item {% if active_page == 'sites' %}active{% endif %}" id="nav-sites">
-          <i data-lucide="map-pin" class="sg-nav-icon"></i>
-          <span>Sites & Zones</span>
-        </a>
-        <a href="{{ url_for('cameras_view') }}" class="sg-nav-item {% if active_page == 'cameras' %}active{% endif %}" id="nav-cameras">
-          <i data-lucide="camera" class="sg-nav-icon"></i>
-          <span>Camera Network</span>
-        </a>
-        <a href="{{ url_for('analytics_view') }}" class="sg-nav-item {% if active_page == 'analytics' %}active{% endif %}" id="nav-analytics">
-          <i data-lucide="bar-chart-2" class="sg-nav-icon"></i>
-          <span>Analytics</span>
-        </a>
-        <a href="{{ url_for('reports_view') }}" class="sg-nav-item {% if active_page == 'reports' %}active{% endif %}" id="nav-reports">
-          <i data-lucide="file-text" class="sg-nav-icon"></i>
-          <span>Reports</span>
-        </a>
-      </div>
+        <!-- INFRASTRUCTURE -->
+        <div class="sg-nav-section">
+          <div class="sg-nav-label">Infrastructure</div>
+          <a href="{{ url_for('sites_view') }}" class="sg-nav-item {% if '/sites' in request.path %}active{% endif %}">
+            <i data-lucide="map-pin"></i>
+            <span>Sites &amp; Zones</span>
+          </a>
+          <a href="{{ url_for('cameras_view') }}" class="sg-nav-item {% if '/cameras' in request.path %}active{% endif %}">
+            <i data-lucide="camera"></i>
+            <span>Cameras</span>
+          </a>
+          <a href="{{ url_for('analytics_view') }}" class="sg-nav-item {% if '/analytics' in request.path %}active{% endif %}">
+            <i data-lucide="bar-chart-2"></i>
+            <span>Analytics</span>
+          </a>
+          <a href="{{ url_for('reports_view') }}" class="sg-nav-item {% if '/reports' in request.path %}active{% endif %}">
+            <i data-lucide="file-text"></i>
+            <span>Reports</span>
+          </a>
+        </div>
 
-      <!-- 4. SYSTEM -->
-      <div class="sg-nav-section">
-        <div class="sg-nav-section-title">System</div>
-        <a href="{{ url_for('model_view') }}" class="sg-nav-item {% if active_page == 'model' %}active{% endif %}" id="nav-model">
-          <i data-lucide="cpu" class="sg-nav-icon"></i>
-          <span>AI Model</span>
-        </a>
-        <a href="{{ url_for('insights_view') }}" class="sg-nav-item {% if active_page == 'insights' %}active{% endif %}" id="nav-insights">
-          <i data-lucide="lightbulb" class="sg-nav-icon"></i>
-          <span>AI Insights</span>
-        </a>
-        <a href="{{ url_for('notifications_view') }}" class="sg-nav-item {% if active_page == 'notifications' %}active{% endif %}" id="nav-notifications">
-          <i data-lucide="bell-ring" class="sg-nav-icon"></i>
-          <span>Notifications</span>
-          {% if unread_notifs_count|default(0) > 0 %}
-            <span class="sg-nav-badge sg-nav-badge--orange">{{ unread_notifs_count }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('audit_logs_view') }}" class="sg-nav-item {% if active_page == 'audit_logs' %}active{% endif %}" id="nav-audit-logs">
-          <i data-lucide="shield-check" class="sg-nav-icon"></i>
-          <span>Audit Trail</span>
-        </a>
-        <a href="{{ url_for('system_health_view') }}" class="sg-nav-item {% if active_page == 'system_health' %}active{% endif %}" id="nav-system-health">
-          <i data-lucide="activity" class="sg-nav-icon"></i>
-          <span>System Health</span>
-        </a>
-        <a href="{{ url_for('settings_view') }}" class="sg-nav-item {% if active_page == 'settings' %}active{% endif %}" id="nav-settings">
-          <i data-lucide="settings" class="sg-nav-icon"></i>
-          <span>Settings</span>
-        </a>
-      </div>
-    </nav>
+        <!-- SYSTEM -->
+        <div class="sg-nav-section">
+          <div class="sg-nav-label">System</div>
+          <a href="{{ url_for('model_view') }}" class="sg-nav-item {% if '/model' in request.path %}active{% endif %}">
+            <i data-lucide="cpu"></i>
+            <span>AI Model</span>
+          </a>
+          <a href="{{ url_for('insights_view') }}" class="sg-nav-item {% if '/insights' in request.path %}active{% endif %}">
+            <i data-lucide="lightbulb"></i>
+            <span>AI Insights</span>
+          </a>
+          <a href="{{ url_for('notifications_view') }}" class="sg-nav-item {% if '/notifications' in request.path %}active{% endif %}">
+            <i data-lucide="bell-dot"></i>
+            <span>Notifications</span>
+            {% set n_cnt = notif_count if notif_count is defined else (unread_notifs_count if unread_notifs_count is defined else 0) %}
+            {% if n_cnt and n_cnt > 0 %}
+              <span class="sg-nav-badge info">{{ n_cnt }}</span>
+            {% endif %}
+          </a>
+          <a href="{{ url_for('audit_logs_view') }}" class="sg-nav-item {% if '/audit-logs' in request.path %}active{% endif %}">
+            <i data-lucide="shield-check"></i>
+            <span>Audit Trail</span>
+          </a>
+          <a href="{{ url_for('system_health_view') }}" class="sg-nav-item {% if '/system-health' in request.path %}active{% endif %}">
+            <i data-lucide="activity"></i>
+            <span>System Health</span>
+          </a>
+          <a href="{{ url_for('settings_view') }}" class="sg-nav-item {% if '/settings' in request.path %}active{% endif %}">
+            <i data-lucide="settings"></i>
+            <span>Settings</span>
+          </a>
+        </div>
+      </nav>
 
-    <!-- Sidebar Bottom: Active Operator Profile -->
-    <div class="sg-sidebar-footer">
-      <div class="sg-user-chip">
+      <!-- Sidebar User Profile -->
+      <div class="sg-user-area">
         <div class="sg-avatar">
-          {{ (current_user_name or 'SA')[:2]|upper }}
+          {{ (session.get('user', 'SA') if session is defined else 'SA')[:2]|upper }}
         </div>
         <div class="sg-user-info">
-          <div class="sg-user-name">{{ current_user_name|default('Safety Admin') }}</div>
-          <div class="sg-user-role">{{ current_role|default('SUPERVISOR') }}</div>
+          <div class="sg-user-name">{{ session.get('user_name', 'Safety Officer') if session is defined else 'Safety Officer' }}</div>
+          <div class="sg-user-role">Operations Lead</div>
         </div>
+        <a href="#" class="sg-logout-btn" title="Logout" onclick="return false;">
+          <i data-lucide="log-out"></i>
+        </a>
       </div>
-      <a href="{{ url_for('logout_route') }}" class="sg-btn sg-btn--ghost sg-btn--icon" title="Logout Session" style="width:30px;height:30px;">
-        <i data-lucide="log-out" style="width:16px;height:16px;"></i>
-      </a>
-    </div>
-  </aside>
+    </aside>
 
-  <!-- =========================================================================
-       TOPBAR (Fixed Top, Left: 256px, Glassmorphic Obsidian)
-       ========================================================================= -->
-  <header class="sg-topbar">
-    <!-- Topbar Left: Title & Breadcrumbs -->
-    <div class="sg-topbar-left">
-      <div class="sg-topbar-title">
-        {% block page_title %}Operations Overview{% endblock %}
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="sg-page-title">
+        <h1>{% block page_title %}Operations Overview{% endblock %}</h1>
+        <p>{% block page_subtitle %}Real-time construction site safety monitoring{% endblock %}</p>
       </div>
-      <div class="sg-breadcrumb">
-        <span>SiteGuard</span>
-        <span class="sg-breadcrumb-separator">/</span>
-        <span>{% block breadcrumb_section %}Platform{% endblock %}</span>
-        <span class="sg-breadcrumb-separator">/</span>
-        <span style="color: var(--text-primary); font-weight: 500;">{% block breadcrumb_page %}Dashboard{% endblock %}</span>
-      </div>
-    </div>
 
-    <!-- Topbar Right: Actions, Live Pulse, Clock, Notifications -->
-    <div class="sg-topbar-right">
-      <!-- Top Action Slot -->
-      {% block top_actions %}{% endblock %}
-
-      <!-- Site Selector Dropdown -->
-      <div style="min-width: 170px;">
-        <select class="sg-select" style="padding: 6px 30px 6px 12px; font-size: 12.5px; height: 34px;">
-          <option value="ALL">📍 All Sites (Global)</option>
-          {% for s in all_sites|default([]) %}
-            <option value="{{ s.id }}">{{ s.name }}</option>
-          {% endfor %}
+      <div class="sg-topbar-right">
+        <!-- Site Selector -->
+        <select class="sg-site-select" id="global-site-selector" onchange="window.location.search = '?site_id=' + this.value">
+          <option value="">All Sites (Global)</option>
+          {% if all_sites is defined %}
+            {% for s in all_sites %}
+              <option value="{{ s.id }}" {% if request.args.get('site_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          {% elif sites is defined %}
+            {% for s in sites %}
+              <option value="{{ s.id }}" {% if request.args.get('site_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          {% endif %}
         </select>
-      </div>
 
-      <!-- Engine Live Status Beacon -->
-      <div class="sg-badge sg-badge--safe" style="padding: 5px 12px; height: 34px;">
-        <span class="sg-dot sg-dot--safe"></span>
-        <span style="font-family: var(--font-mono); font-size: 11.5px;">Engine Online</span>
-      </div>
-
-      <!-- In-App Notification Bell -->
-      <a href="{{ url_for('notifications_view') }}" class="sg-btn sg-btn--outline sg-btn--icon" style="height: 34px; width: 34px; position: relative;" title="View Notifications">
-        <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
-        {% if unread_notifs_count|default(0) > 0 %}
-          <span style="position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 6px var(--accent);"></span>
-        {% endif %}
-      </a>
-
-      <!-- Operator Avatar -->
-      <div class="sg-avatar" style="width: 34px; height: 34px;">
-        {{ (current_user_name or 'SA')[:2]|upper }}
-      </div>
-    </div>
-  </header>
-
-  <!-- =========================================================================
-       MAIN CONTENT CONTAINER
-       ========================================================================= -->
-  <main class="sg-main">
-    <!-- Flash Messages & Toasts -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-          {% for category, msg in messages %}
-            <div class="sg-badge sg-badge--{% if category in ['danger', 'error'] %}violation{% elif category == 'success' %}safe{% else %}info{% endif %}" style="padding: 10px 16px; font-size: 13px; border-radius: var(--radius-md); justify-content: flex-start;">
-              <i data-lucide="{% if category in ['danger', 'error'] %}alert-circle{% elif category == 'success' %}check-circle-2{% else %}info{% endif %}" style="width: 16px; height: 16px; margin-right: 8px;"></i>
-              {{ msg }}
-            </div>
-          {% endfor %}
+        <!-- System Online Status Chip -->
+        <div class="sg-status-chip online" id="global-status-chip">
+          <span class="sg-dot sg-dot-pulse-green"></span>
+          <span>System Online</span>
         </div>
-      {% endif %}
-    {% endwith %}
 
-    <!-- Page Specific Content -->
-    {% block content %}{% endblock %}
-  </main>
+        <!-- Notification Bell -->
+        <a href="{{ url_for('notifications_view') }}" class="sg-btn sg-btn-outline sg-btn-icon" title="Notifications" style="position: relative;">
+          <i data-lucide="bell"></i>
+          {% set n_cnt = notif_count if notif_count is defined else (unread_notifs_count if unread_notifs_count is defined else 0) %}
+          {% if n_cnt and n_cnt > 0 %}
+            <span style="position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; background: var(--orange); border-radius: 50%;"></span>
+          {% endif %}
+        </a>
 
-  <!-- Global Toast Stack Container -->
-  <div id="sg-toast-container" class="sg-toast-container"></div>
+        <!-- User Chip -->
+        <div class="sg-avatar" style="width: 32px; height: 32px; font-size: 11px;">
+          {{ (session.get('user', 'SA') if session is defined else 'SA')[:2]|upper }}
+        </div>
+      </div>
+    </header>
 
-  <!-- Initialize Lucide Icons & Global App Module -->
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="page-body {% block page_body_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <!-- Lucide Icon Initialization -->
   <script>
     if (window.lucide) {
       lucide.createIcons();
     }
   </script>
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+  <!-- Global Toast Container -->
+  <div class="sg-toast-container" id="toast-container"></div>
+
+  <!-- Page Scripts -->
   {% block scripts %}{% endblock %}
 </body>
 </html>

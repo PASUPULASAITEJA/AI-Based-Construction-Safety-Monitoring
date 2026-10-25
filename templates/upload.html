@@ -1,82 +1,75 @@
 {% extends "base.html" %}
 
-{% block title %}Media Inspection Studios — SiteGuard AI{% endblock %}
+{% block title %}Media Inspection Studios{% endblock %}
 {% block page_title %}Media Inspection Studios{% endblock %}
+{% block page_subtitle %}Deep learning computer vision inspection for single images and recorded video files{% endblock %}
 
 {% block content %}
-<div class="grid-2 mb-24">
-
+<div class="grid-2 mb-5">
   <!-- Card 1: Single Image Inspection Studio -->
-  <div class="card flex flex-col flex-between">
-    <div>
-      <div class="card-header">
-        <div class="card-label">
-          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <span>Single Image Inspection Studio</span>
-        </div>
-        <span class="badge badge-info">JPG, PNG, WEBP</span>
-      </div>
-      <p class="fs-13 text-secondary mb-16 leading-relaxed">
-        Execute immediate high-resolution object detection, 8-category PPE classification, and anatomical spatial association on construction site photos.
-      </p>
-      
-      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
-        <div class="mb-6 flex flex-center gap-6 text-primary">
-          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Instant bounding box rendering with confidence telemetry</span>
-        </div>
-        <div class="mb-6 flex flex-center gap-6 text-primary">
-          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>4-zone anatomical spatial PPE association (Head, Face, Torso, Limbs)</span>
-        </div>
-        <div class="flex flex-center gap-6 text-primary">
-          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Automated violation logging and evidence crop archiving</span>
-        </div>
-      </div>
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2><i data-lucide="image"></i> Single Image Inspection Studio</h2>
+      <span class="sg-badge sg-badge-medium">JPG, PNG</span>
     </div>
-
-    <a href="{{ url_for('image_analysis_view') }}" class="btn btn-primary w-full flex flex-center gap-6">
-      <span>Launch Image Inspection Studio</span>
-      <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-    </a>
+    <div class="sg-card-body" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <p class="text-sm text-2 mb-4" style="line-height: 1.6;">
+          Execute immediate high-resolution object detection, PPE classification, and anatomical spatial association on construction site photos.
+        </p>
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 20px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div class="flex-center gap-2 text-1">
+            <i data-lucide="check" style="color: var(--green); width: 14px; height: 14px;"></i>
+            <span>Instant bounding box rendering with confidence telemetry</span>
+          </div>
+          <div class="flex-center gap-2 text-1">
+            <i data-lucide="check" style="color: var(--green); width: 14px; height: 14px;"></i>
+            <span>Anatomical spatial PPE association (Head, Face, Torso, Limbs)</span>
+          </div>
+          <div class="flex-center gap-2 text-1">
+            <i data-lucide="check" style="color: var(--green); width: 14px; height: 14px;"></i>
+            <span>Automated violation logging and evidence crop archiving</span>
+          </div>
+        </div>
+      </div>
+      <a href="{{ url_for('image_analysis_view') }}" class="sg-btn sg-btn-primary w-full">
+        <span>Launch Image Inspection Studio</span>
+        <i data-lucide="arrow-right"></i>
+      </a>
+    </div>
   </div>
 
   <!-- Card 2: Video Stream Processing Studio -->
-  <div class="card flex flex-col flex-between">
-    <div>
-      <div class="card-header">
-        <div class="card-label">
-          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span>Video Stream Processing Studio</span>
-        </div>
-        <span class="badge badge-purple">MP4, AVI, MOV</span>
-      </div>
-      <p class="fs-13 text-secondary mb-16 leading-relaxed">
-        Process entire construction site video footage frame-by-frame with persistent worker tracking, restricted zone checks, and temporal state machines.
-      </p>
-
-      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
-        <div class="mb-6 flex flex-center gap-6 text-primary">
-          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Sequential frame inference with ByteTrack worker trajectories</span>
-        </div>
-        <div class="mb-6 flex flex-center gap-6 text-primary">
-          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Temporal hysteresis occlusion filtering (10+ persistent violation frames)</span>
-        </div>
-        <div class="flex flex-center gap-6 text-primary">
-          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Full annotated video export and automated shift compliance statistics</span>
-        </div>
-      </div>
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2><i data-lucide="film"></i> Video Processing Studio</h2>
+      <span class="sg-badge sg-badge-medium">MP4, AVI, MOV</span>
     </div>
-
-    <a href="{{ url_for('video_analysis_view') }}" class="btn btn-primary w-full flex flex-center gap-6">
-      <span>Launch Video Processing Studio</span>
-      <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-    </a>
+    <div class="sg-card-body" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <p class="text-sm text-2 mb-4" style="line-height: 1.6;">
+          Process recorded construction site video footage frame-by-frame with persistent worker tracking, restricted zone checks, and temporal state machines.
+        </p>
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 20px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div class="flex-center gap-2 text-1">
+            <i data-lucide="check" style="color: var(--green); width: 14px; height: 14px;"></i>
+            <span>Deep learning worker trajectory tracking across sequential frames</span>
+          </div>
+          <div class="flex-center gap-2 text-1">
+            <i data-lucide="check" style="color: var(--green); width: 14px; height: 14px;"></i>
+            <span>Temporal hysteresis filter to eliminate transient false alarms</span>
+          </div>
+          <div class="flex-center gap-2 text-1">
+            <i data-lucide="check" style="color: var(--green); width: 14px; height: 14px;"></i>
+            <span>Exportable annotated video output with embedded HUD</span>
+          </div>
+        </div>
+      </div>
+      <a href="{{ url_for('video_analysis_view') }}" class="sg-btn sg-btn-primary w-full">
+        <span>Launch Video Analysis Studio</span>
+        <i data-lucide="arrow-right"></i>
+      </a>
+    </div>
   </div>
-
 </div>
 {% endblock %}

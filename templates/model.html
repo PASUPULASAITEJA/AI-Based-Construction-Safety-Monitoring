@@ -1,191 +1,130 @@
 {% extends "base.html" %}
 
-{% block title %}AI Model Architecture — SiteGuard AI{% endblock %}
-{% block page_title %}Computer Vision & Model Specs{% endblock %}
-
-{% block top_actions %}
-  <a href="{{ url_for('settings_view') }}" class="btn btn-secondary">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    Tuning Parameters
-  </a>
-{% endblock %}
+{% block title %}AI Detection Model{% endblock %}
+{% block page_title %}AI Detection Model{% endblock %}
+{% block page_subtitle %}YOLOv8 deep learning neural architecture, dataset telemetry &amp; inference runtime{% endblock %}
 
 {% block content %}
-<div class="grid-2 mb-24">
-  <!-- Model Specifications Card -->
-  <div class="card flex flex-col flex-between">
-    <div>
-      <div class="card-header">
-        <div class="card-label">
-          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-          <span>YOLOv8 Construction-PPE Engine</span>
+<div class="grid-2 mb-5">
+  <!-- LEFT: Model Specification Card -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2><i data-lucide="cpu"></i> Model Weights &amp; Architecture</h2>
+      <span class="sg-badge {{ 'sg-badge-resolved' if model_info.loaded else 'sg-badge-critical' }}">
+        {{ 'ACTIVE INFERENCE' if model_info.loaded else 'NOT LOADED' }}
+      </span>
+    </div>
+    <div class="sg-card-body">
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;" class="mono mb-4">
+        <div class="flex-between">
+          <span class="text-3">Architecture:</span>
+          <span class="text-1 fw-600">YOLOv8 Construction Safety Custom Head</span>
         </div>
-        {% if model_info.loaded %}
-          <span class="badge badge-compliant">LOADED &bull; ACTIVE</span>
+        <div class="flex-between">
+          <span class="text-3">Weights File:</span>
+          <span class="text-orange text-xs" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">{{ model_info.model_path }}</span>
+        </div>
+        <div class="flex-between">
+          <span class="text-3">Compute Device:</span>
+          <span class="text-1">{{ model_info.device }}</span>
+        </div>
+        <div class="flex-between">
+          <span class="text-3">Trained Classes:</span>
+          <span class="text-1">{{ model_info.class_count }} Classes</span>
+        </div>
+        <div class="flex-between">
+          <span class="text-3">Input Resolution:</span>
+          <span class="text-1">{{ model_info.img_size }} &times; {{ model_info.img_size }}</span>
+        </div>
+      </div>
+
+      <div style="font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; margin-bottom: 8px;">
+        Object &amp; PPE Classification Vocabulary
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        {% for cls in model_info.classes %}
+          <span class="sg-badge sg-badge-medium" style="font-size: 10px;">{{ cls }}</span>
         {% else %}
-          <span class="badge badge-critical">NOT LOADED</span>
-        {% endif %}
-      </div>
-
-      <div class="flex-col gap-10 fs-13 mt-8">
-        <div class="flex flex-between flex-center p-10 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-          <span class="text-secondary">Model Architecture:</span>
-          <strong class="text-primary">Ultralytics YOLOv8 (PyTorch)</strong>
-        </div>
-
-        <div class="flex flex-between flex-center p-10 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-          <span class="text-secondary">Weights File Path:</span>
-          <span class="font-mono text-orange fs-12 ellipsis-text max-w-260" title="{{ model_info.model_path }}">{{ model_info.model_path }}</span>
-        </div>
-
-        <div class="flex flex-between flex-center p-10 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-          <span class="text-secondary">Inference Hardware Device:</span>
-          <span class="badge badge-info font-mono fs-11">{{ model_info.device }}</span>
-        </div>
-
-        <div class="flex flex-between flex-center p-10 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-          <span class="text-secondary">Input Image Resolution:</span>
-          <span class="font-mono text-primary">{{ model_info.img_size }} &times; {{ model_info.img_size }} px</span>
-        </div>
-
-        <div class="flex flex-between flex-center p-10 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-          <span class="text-secondary">Confidence Cutoff:</span>
-          <span class="font-mono text-compliant fw-700">{{ model_info.conf }}</span>
-        </div>
-
-        <div class="flex flex-between flex-center p-10 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
-          <span class="text-secondary">IoU / NMS Suppression:</span>
-          <span class="font-mono text-info fw-700">{{ model_info.iou }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="mt-16 pt-12 border-t flex flex-between flex-center fs-11 text-muted">
-      <span>Auto-letterboxing enabled</span>
-      <span class="text-compliant font-mono">FP32 / FP16 Mixed Precision</span>
-    </div>
-  </div>
-
-  <!-- Detected Classes Schema Card -->
-  <div class="card flex flex-col flex-between">
-    <div>
-      <div class="card-header">
-        <div class="card-label">
-          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          <span>Native Model Classes ({{ model_info.class_count if model_info.class_count is defined else model_info.classes|length }} Target Classes)</span>
-        </div>
-        <span class="badge badge-ai">data.yaml</span>
-      </div>
-      <div class="fs-12 text-muted mb-12">
-        Classes configured in ground truth and verified by Ultralytics detection engine:
-      </div>
-
-      <div class="flex flex-wrap gap-8" style="max-height: 290px; overflow-y: auto;">
-        {% for cid, cname in model_info.classes.items() %}
-          <div class="p-8 rounded flex flex-center gap-6" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border);">
-            <span class="font-mono fs-11 text-orange" style="opacity: 0.8;">#{{ cid }}</span>
-            <strong class="fs-12 text-primary">{{ cname }}</strong>
-          </div>
+          <span class="sg-badge sg-badge-medium">Hardhat</span>
+          <span class="sg-badge sg-badge-medium">NO-Hardhat</span>
+          <span class="sg-badge sg-badge-medium">Vest</span>
+          <span class="sg-badge sg-badge-medium">NO-Vest</span>
+          <span class="sg-badge sg-badge-medium">Person</span>
+          <span class="sg-badge sg-badge-medium">Gloves</span>
+          <span class="sg-badge sg-badge-medium">Safety Boots</span>
+          <span class="sg-badge sg-badge-medium">Fall Harness</span>
         {% endfor %}
       </div>
     </div>
+  </div>
 
-    <div class="mt-16 pt-12 border-t flex flex-between flex-center fs-11 text-muted">
-      <span>Spatial mapping: Head, Face, Torso, Hand, Leg</span>
-      <span class="text-orange font-mono">Total Classes: {{ model_info.classes|length }}</span>
+  <!-- RIGHT: Inference Settings Card -->
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <h2><i data-lucide="sliders"></i> Runtime Inference Configuration</h2>
+    </div>
+    <div class="sg-card-body">
+      <form method="POST" action="{{ url_for('update_settings_route') }}">
+        <div class="sg-form-group">
+          <div class="flex-between mb-1">
+            <label class="sg-form-label">Confidence Threshold (conf)</label>
+            <span class="mono text-xs text-orange" id="conf-val">{{ model_info.conf }}</span>
+          </div>
+          <input type="range" name="conf_thresh" class="w-full" min="0.10" max="0.95" step="0.05" value="{{ model_info.conf }}" oninput="document.getElementById('conf-val').textContent = this.value">
+          <div class="sg-form-help">Minimum score to register worker and PPE bounding boxes.</div>
+        </div>
+
+        <div class="sg-form-group">
+          <div class="flex-between mb-1">
+            <label class="sg-form-label">IoU Overlap Threshold (iou)</label>
+            <span class="mono text-xs text-orange" id="iou-val">{{ model_info.iou }}</span>
+          </div>
+          <input type="range" name="iou_thresh" class="w-full" min="0.10" max="0.95" step="0.05" value="{{ model_info.iou }}" oninput="document.getElementById('iou-val').textContent = this.value">
+          <div class="sg-form-help">Non-Maximum Suppression (NMS) overlap suppression threshold.</div>
+        </div>
+
+        <div class="sg-form-group">
+          <label class="sg-form-label">Temporal Persistence (Min Consecutive Frames)</label>
+          <input type="number" name="min_violation_frames" class="sg-input mono" min="1" max="60" value="10">
+          <div class="sg-form-help">Frames an infraction must persist before alerting to eliminate single-frame noise.</div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+          <button type="submit" class="sg-btn sg-btn-primary">
+            <i data-lucide="save"></i> Save Model Parameters
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
-<!-- Dataset & Training Overview -->
-<div class="card mb-24">
-  <div class="card-header">
-    <div class="card-label">
-      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-      <span>Construction Safety Dataset Specification</span>
-    </div>
-    <span class="badge badge-compliant">8,099 Images Ground Truth Verified</span>
+<!-- Dataset & Inspection Telemetry -->
+<div class="sg-card">
+  <div class="sg-card-head">
+    <h2><i data-lucide="database"></i> Training Dataset Ground Truth Telemetry</h2>
   </div>
-
-  <div class="grid-3 gap-12 mb-16">
-    <div class="stat-card">
-      <div class="stat-header">
-        <span class="stat-title">Verified Images</span>
-        <span class="stat-icon stat-icon-blue">IMG</span>
+  <div class="sg-card-body">
+    <div class="grid-4 mb-4">
+      <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
+        <div class="mono text-lg fw-600 text-1">{{ dataset_info.total_images|default('8,099') }}</div>
+        <div class="text-xs text-3">Total Images</div>
       </div>
-      <div class="stat-value font-mono text-primary">{{ dataset_info.total_images|default(8099) }}</div>
-      <div class="stat-trend text-muted fs-11">
-        <span class="text-info">{{ dataset_info.train_count|default(6479) }}</span> train &bull; <span class="text-orange">{{ dataset_info.val_count|default(1620) }}</span> val
+      <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
+        <div class="mono text-lg fw-600 text-orange">{{ dataset_info.train_count|default('6,479') }}</div>
+        <div class="text-xs text-3">Training Split (80%)</div>
+      </div>
+      <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
+        <div class="mono text-lg fw-600 text-green">{{ dataset_info.val_count|default('1,620') }}</div>
+        <div class="text-xs text-3">Validation Split (20%)</div>
+      </div>
+      <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
+        <div class="mono text-lg fw-600 text-1">{{ dataset_info.annotations_count|default('75,994') }}</div>
+        <div class="text-xs text-3">Bounding Box Labels</div>
       </div>
     </div>
-
-    <div class="stat-card">
-      <div class="stat-header">
-        <span class="stat-title">Annotated Instances</span>
-        <span class="stat-icon stat-icon-orange">BBOX</span>
-      </div>
-      <div class="stat-value font-mono text-orange">{{ dataset_info.annotations_count|default(75994) }}</div>
-      <div class="stat-trend text-muted fs-11">Dense bounding boxes across 17 classes</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-header">
-        <span class="stat-title">Configuration Ground Truth</span>
-        <span class="stat-icon stat-icon-purple">YAML</span>
-      </div>
-      <div class="stat-value font-mono fs-18 text-primary">data.yaml</div>
-      <div class="stat-trend text-muted fs-11 font-mono">D:/Safe/data.yaml</div>
-    </div>
-  </div>
-
-  <div class="p-14 rounded" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
-    <div class="flex flex-between flex-center mb-8">
-      <span class="fs-12 fw-700 text-secondary uppercase">Automated Pipeline Training Execution</span>
-      <span class="badge badge-orange font-mono fs-10">train_model.py</span>
-    </div>
-    <div class="font-mono fs-12 p-10 rounded text-primary" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border);">
-      python train_model.py --data data.yaml --epochs 30 --batch 16 --imgsz 640 --deploy
-    </div>
-    <div class="fs-11 text-muted mt-8 flex flex-center gap-6">
-      <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      <span>Automatic best weights deployment to <code class="text-orange">model/best.pt</code> with timestamped weight backup archiving.</span>
-    </div>
-  </div>
-</div>
-
-<!-- Multi-Stage Safety Reasoning Pipeline Flow -->
-<div class="card mb-24">
-  <div class="card-header">
-    <div class="card-label">
-      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-      <span>Multi-Stage Safety Reasoning Architecture</span>
-    </div>
-    <span class="badge badge-ai">Pipeline Flow</span>
-  </div>
-
-  <div class="grid-4 gap-12">
-    <div class="stat-card" style="border-top: 3px solid var(--color-info);">
-      <div class="badge badge-info fs-10 mb-8">STAGE 1 &bull; PERCEPTION</div>
-      <h4 class="fs-14 fw-700 text-primary mb-6">YOLOv8 Detection</h4>
-      <p class="fs-12 text-muted m-0">Concurrent worker personnel and PPE item extraction across entire frame at 640x640 resolution.</p>
-    </div>
-
-    <div class="stat-card" style="border-top: 3px solid var(--safety-orange);">
-      <div class="badge badge-orange fs-10 mb-8">STAGE 2 &bull; TRACKING</div>
-      <h4 class="fs-14 fw-700 text-primary mb-6">ByteTrack Association</h4>
-      <p class="fs-12 text-muted m-0">Maintains persistent worker identities and spatial trajectories across successive video frames.</p>
-    </div>
-
-    <div class="stat-card" style="border-top: 3px solid var(--safety-yellow);">
-      <div class="badge badge-warning fs-10 mb-8">STAGE 3 &bull; REASONING</div>
-      <h4 class="fs-14 fw-700 text-primary mb-6">Spatial Association</h4>
-      <p class="fs-12 text-muted m-0">Anatomically maps helmets to upper 45% head span and vests to the mid-torso bounding span.</p>
-    </div>
-
-    <div class="stat-card" style="border-top: 3px solid var(--color-critical);">
-      <div class="badge badge-critical fs-10 mb-8">STAGE 4 &bull; AUDITING</div>
-      <h4 class="fs-14 fw-700 text-primary mb-6">Temporal State Machine</h4>
-      <p class="fs-12 text-muted m-0">Applies 10-frame hysteresis occlusion filtering and polygon zone rules before committing incidents.</p>
+    <div class="text-xs text-3 mono">
+      Dataset Path: <span class="text-2">{{ dataset_info.dataset_path|default('dataset/') }}</span> &bull; Verified Construction Safety Annotations
     </div>
   </div>
 </div>

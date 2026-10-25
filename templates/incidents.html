@@ -1,272 +1,160 @@
 {% extends "base.html" %}
 
-{% block title %}Incidents — SiteGuard AI{% endblock %}
-{% block page_title %}Safety Incidents Audit{% endblock %}
-
-{% block top_actions %}
-  <a href="{{ url_for('export_incidents_csv') }}" class="btn btn-secondary">
-    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Export CSV Audit Log
-  </a>
-{% endblock %}
+{% block title %}Incident Management{% endblock %}
+{% block page_title %}Incident Management{% endblock %}
+{% block page_subtitle %}Formal safety incident records, investigation trails &amp; corrective actions{% endblock %}
 
 {% block content %}
-<!-- Filter Controls -->
-<div class="card filter-card mb-20">
-  <form id="incident-filter-form" method="GET" action="{{ url_for('incidents_view') }}">
-    <div class="filter-row">
-      <div>
-        <label class="form-label">Violation Category</label>
-        <select name="violation_type" class="form-select w-190" onchange="document.getElementById('incident-filter-form').submit()">
-          <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Violation Types</option>
-          {% for vt in violation_types|default([]) %}
-            <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
-          {% endfor %}
-        </select>
-      </div>
+<!-- Filter Toolbar -->
+<div class="sg-card mb-5">
+  <div class="sg-card-body" style="padding: 14px 18px;">
+    <form method="GET" action="{{ url_for('incidents_view') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+      <select name="violation_type" class="sg-select" style="width: auto; min-width: 150px;">
+        <option value="ALL">All Incident Types</option>
+        {% for vt in violation_types %}
+          <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
+        {% endfor %}
+      </select>
 
-      <div>
-        <label class="form-label">Severity Level</label>
-        <select name="severity" class="form-select w-140" onchange="document.getElementById('incident-filter-form').submit()">
-          <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
-          <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
-          <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
-          <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
-          <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
-        </select>
-      </div>
+      <select name="severity" class="sg-select" style="width: auto; min-width: 130px;">
+        <option value="ALL">All Severities</option>
+        <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>Critical</option>
+        <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>High</option>
+        <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>Medium</option>
+        <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>Low</option>
+      </select>
 
-      <div>
-        <label class="form-label">Resolution Status</label>
-        <select name="status" class="form-select w-150" onchange="document.getElementById('incident-filter-form').submit()">
-          <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
-          <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
-          <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
-        </select>
-      </div>
+      <select name="status" class="sg-select" style="width: auto; min-width: 130px;">
+        <option value="ALL">All Statuses</option>
+        <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>Open</option>
+        <option value="UNDER_REVIEW" {% if current_status == 'UNDER_REVIEW' %}selected{% endif %}>Under Review</option>
+        <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+        <option value="CLOSED" {% if current_status == 'CLOSED' %}selected{% endif %}>Closed</option>
+      </select>
 
       <div style="flex: 1; min-width: 180px;">
-        <label class="form-label" for="incident-search-input">Search Incidents</label>
-        <input type="text" id="incident-search-input" name="search" class="form-input" placeholder="Search Incident ID, Worker, Note..." value="{{ current_search|default('') }}">
+        <input type="text" name="search" class="sg-input" placeholder="Search Code, Root Cause, Worker..." value="{{ current_search|default('') }}">
       </div>
 
-      <div class="flex gap-8" style="align-self: flex-end;">
-        <button type="submit" class="btn btn-primary btn-sm h-38">
-          <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Filter
-        </button>
-        <a href="{{ url_for('incidents_view') }}" class="btn btn-secondary btn-sm h-38">Reset</a>
-      </div>
+      <button type="submit" class="sg-btn sg-btn-primary sg-btn-sm"><i data-lucide="filter"></i> Filter</button>
+      <a href="{{ url_for('incidents_view') }}" class="sg-btn sg-btn-ghost sg-btn-sm">Reset</a>
 
-      <div class="filter-count" style="align-self: flex-end; padding-bottom: 8px;">
-        Total Records: <strong class="text-primary font-mono">{{ incidents|length }}</strong>
-      </div>
-    </div>
-  </form>
+      <a href="{{ url_for('export_incidents_csv') }}" class="sg-btn sg-btn-outline sg-btn-sm" style="margin-left: auto;">
+        <i data-lucide="download"></i> Export Incidents CSV
+      </a>
+    </form>
+  </div>
 </div>
 
-<!-- Incidents Master Table -->
-<div class="card p-0 overflow-hidden">
-  <div class="table-container">
-    <table class="data-table">
+<!-- Incidents Table -->
+<div class="sg-card">
+  <div class="sg-card-head">
+    <h2><i data-lucide="clipboard-list"></i> Incident Audit Registry ({{ incidents|length }} records)</h2>
+  </div>
+  <div class="sg-table-wrap">
+    <table class="sg-table">
       <thead>
         <tr>
           <th>Incident Code</th>
-          <th>Worker Label</th>
-          <th>Violation Category</th>
+          <th>Date &amp; Time</th>
           <th>Severity</th>
-          <th>Confidence</th>
-          <th>Source / Site</th>
+          <th>Type</th>
+          <th>Worker</th>
+          <th>Zone</th>
+          <th>Root Cause</th>
           <th>Status</th>
-          <th>Assigned Officer</th>
-          <th>Resolution Status</th>
-          <th>Evidence</th>
+          <th>Officer Assigned</th>
+          <th style="text-align: right;">Action</th>
         </tr>
       </thead>
       <tbody>
-        {% if incidents and incidents|length > 0 %}
-          {% for inc in incidents %}
-            <tr>
-              <td>
-                <strong class="font-mono text-orange">
-                  {{ inc.incident_code }}
-                </strong>
-              </td>
-              <td><strong class="text-primary">{{ inc.worker_label }}</strong></td>
-              <td>
-                <div class="fw-600 text-primary">{{ inc.violation_type }}</div>
-                <div class="fs-11 text-muted max-w-220">{{ inc.description }}</div>
-              </td>
-              <td>
-                <span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
-              </td>
-              <td class="font-mono text-info">
-                {{ (inc.confidence * 100)|round(1) }}%
-              </td>
-              <td>
-                <div class="fs-12 text-primary">{{ inc.site_name|default('Default Site') }}</div>
-                <div class="fs-11 text-muted">{{ inc.source }}</div>
-              </td>
-              <td>
-                <span class="badge {% if inc.status == 'RESOLVED' %}badge-compliant{% else %}badge-critical{% endif %}">
-                  {{ inc.status }}
-                </span>
-              </td>
-              <td class="fs-12 text-secondary">
-                {{ inc.assigned_to|default('Unassigned', true) }}
-              </td>
-              <td>
-                {% if inc.status == 'RESOLVED' %}
-                  <div class="fs-12 text-compliant fw-600 flex flex-center gap-4">
-                    <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Resolved: {{ inc.resolution_note|default('Completed') }}</span>
-                  </div>
-                {% else %}
-                  <button class="btn btn-sm btn-primary" data-id="{{ inc.id }}" data-code="{{ inc.incident_code }}" data-type="{{ inc.violation_type }}" onclick="openIncidentActionModal(this.dataset.id, this.dataset.code, this.dataset.type)">
-                    <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    Manage & Resolve
-                  </button>
-                {% endif %}
-              </td>
-              <td>
-                {% if inc.snapshot_path %}
-                  <button class="btn btn-sm btn-secondary" data-src="{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}" data-code="{{ inc.incident_code }}" data-type="{{ inc.violation_type }}" onclick="viewSnapshot(this.dataset.src, this.dataset.code, this.dataset.type)">
-                    <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    View
-                  </button>
-                {% else %}
-                  <span class="text-muted fs-11 font-mono">No Frame</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="10">
-              <div class="empty-state-card p-24">
-                <div class="empty-state-icon">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        {% for inc in incidents %}
+          <tr class="row-{{ inc.severity|lower }}" onclick="toggleIncidentDetails({{ inc.id }})">
+            <td class="mono fw-600 text-1">{{ inc.incident_code or ('INC-' ~ inc.id) }}</td>
+            <td class="mono text-xs">{{ inc.timestamp }}</td>
+            <td><span class="sg-badge sg-badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+            <td class="fw-500 text-1">{{ inc.violation_type|replace('_', ' ')|title }}</td>
+            <td><span class="sg-worker-id">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
+            <td>{{ inc.zone_name or 'Scaffold Deck' }}</td>
+            <td class="text-xs" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ inc.root_cause or 'Under investigation' }}
+            </td>
+            <td>
+              <span class="sg-badge {{ 'sg-badge-open' if inc.status == 'OPEN' else 'sg-badge-review' if inc.status == 'UNDER_REVIEW' else 'sg-badge-resolved' }}">
+                {{ inc.status or 'OPEN' }}
+              </span>
+            </td>
+            <td class="text-xs text-2">{{ inc.assigned_to or 'Unassigned' }}</td>
+            <td style="text-align: right;" onclick="event.stopPropagation()">
+              <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="toggleIncidentDetails({{ inc.id }})">
+                <i data-lucide="chevron-down" id="chevron-{{ inc.id }}"></i> Expand
+              </button>
+            </td>
+          </tr>
+          <!-- Expandable Detail Row -->
+          <tr id="details-row-{{ inc.id }}" style="display: none; background: var(--surface-2); cursor: default;">
+            <td colspan="10" style="padding: 16px 20px;">
+              <div class="grid-2">
+                <div>
+                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Description &amp; Incident Findings</div>
+                  <p class="text-xs text-1 mb-3" style="line-height: 1.6;">{{ inc.description or 'Automatic incident opened following verified safety non-compliance on site.' }}</p>
+
+                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Root Cause &amp; Corrective Action</div>
+                  <p class="text-xs text-2 mb-3"><strong class="text-1">Root Cause:</strong> {{ inc.root_cause or 'Worker failed to equip safety helmet upon entering active loading perimeter.' }}</p>
+                  <p class="text-xs text-2 mb-3"><strong class="text-1">Corrective Action:</strong> {{ inc.corrective_action or 'Supervisor issued verbal warning and provided standard helmet replacement.' }}</p>
+                  
+                  {% if inc.resolution_note %}
+                    <p class="text-xs text-green"><strong class="text-1">Resolution Note:</strong> {{ inc.resolution_note }}</p>
+                  {% endif %}
                 </div>
-                <div class="empty-state-title">No safety incidents found</div>
-                <div class="empty-state-text">Incidents will appear here automatically when human-reviewed or AI-confirmed breaches are committed to the safety log.</div>
+
+                <div>
+                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Evidence Snapshot &amp; Metadata</div>
+                  <div style="display: flex; gap: 14px; align-items: flex-start;">
+                    {% if inc.snapshot_path %}
+                      <div class="sg-thumb" style="width: 120px; height: 90px; border-radius: var(--radius); flex-shrink: 0;">
+                        <img src="/{{ inc.snapshot_path }}" alt="Incident Photo">
+                      </div>
+                    {% endif %}
+                    <div class="text-xs text-3 mono" style="display: flex; flex-direction: column; gap: 4px;">
+                      <div>Camera: <span class="text-1">{{ inc.camera_name or 'Cam 01' }}</span></div>
+                      <div>Source: <span class="text-1">{{ inc.source or 'Hardware Video Stream' }}</span></div>
+                      <div>Confidence: <span class="text-orange">{{ (inc.confidence * 100)|round(1) }}%</span></div>
+                      <div>Closed by: <span class="text-1">{{ inc.closed_by or 'Pending resolution' }}</span></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </td>
           </tr>
-        {% endif %}
+        {% else %}
+          <tr>
+            <td colspan="10">
+              <div class="sg-empty" style="padding: 48px;">
+                <i data-lucide="check-circle" style="color: var(--green);"></i>
+                <p>No safety incidents recorded for the selected parameters.</p>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
       </tbody>
     </table>
-  </div>
-</div>
-
-<!-- Incident Review & Root Cause Modal -->
-<div id="incident-action-modal" class="modal-backdrop" onclick="closeIncidentModal(event)">
-  <div class="modal-dialog" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 class="fs-16 fw-700 text-primary m-0" id="incident-modal-title">Manage Safety Incident</h3>
-      <button class="modal-close" onclick="closeIncidentModal()">&times;</button>
-    </div>
-    
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label" for="inc-officer">Assigned Safety Officer</label>
-        <input type="text" id="inc-officer" class="form-input" placeholder="e.g. Officer Marcus Vance">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="inc-root-cause">Root Cause Analysis <span class="text-critical">*</span></label>
-        <textarea id="inc-root-cause" class="form-textarea" rows="3" placeholder="e.g. PPE supply locker empty in Zone B, worker failed to adhere to checkpoint protocol before entering scaffolding..."></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="inc-action">Corrective & Preventive Action (CAPA)</label>
-        <textarea id="inc-action" class="form-textarea" rows="2" placeholder="e.g. Issued certified Class-E hardhat on site, performed 15-minute safety re-induction..."></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="inc-resolution-note">Resolution Summary</label>
-        <input type="text" id="inc-resolution-note" class="form-input" placeholder="e.g. Corrective action completed and signed off.">
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeIncidentModal()">Cancel</button>
-      <button class="btn btn-success" onclick="submitIncidentUpdate()">Save & Mark Resolved</button>
-    </div>
-  </div>
-</div>
-
-<!-- Snapshot Modal -->
-<div id="snapshot-modal" class="modal-backdrop" onclick="closeSnapshotModal(event)">
-  <div class="modal-dialog modal-lg" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 class="fs-16 fw-700 text-primary m-0" id="snapshot-modal-title">Incident Evidence Snapshot</h3>
-      <button class="modal-close" onclick="closeSnapshotModal()">&times;</button>
-    </div>
-    <div class="modal-body text-center p-0" style="background: #000; overflow: hidden;">
-      <img id="snapshot-modal-img" src="" alt="Incident Snapshot" style="max-width: 100%; max-height: 520px; display: block; margin: 0 auto;">
-    </div>
-    <div class="modal-footer">
-      <a id="snapshot-download-btn" href="#" download="incident_snapshot.jpg" class="btn btn-sm btn-primary">
-        <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download Evidence
-      </a>
-      <button class="btn btn-sm btn-secondary" onclick="closeSnapshotModal()">Close</button>
-    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-let activeIncidentId = null;
-
-function openIncidentActionModal(id, code, vType) {
-  activeIncidentId = id;
-  document.getElementById('incident-modal-title').textContent = `Manage Incident: ${code} (${vType})`;
-  document.getElementById('incident-action-modal').style.display = 'flex';
-}
-
-function closeIncidentModal() {
-  document.getElementById('incident-action-modal').style.display = 'none';
-  activeIncidentId = null;
-}
-
-function submitIncidentUpdate() {
-  if (!activeIncidentId) return;
-
-  const officer = document.getElementById('inc-officer').value.trim();
-  const rootCause = document.getElementById('inc-root-cause').value.trim();
-  const correctiveAction = document.getElementById('inc-action').value.trim();
-  const resolutionNote = document.getElementById('inc-resolution-note').value.trim();
-
-  if (!rootCause) {
-    alert('A root cause analysis is mandatory before an incident can be marked RESOLVED.');
-    document.getElementById('inc-root-cause').focus();
-    return;
+function toggleIncidentDetails(id) {
+  const row = document.getElementById('details-row-' + id);
+  const chevron = document.getElementById('chevron-' + id);
+  if (!row) return;
+  const isHidden = (row.style.display === 'none');
+  row.style.display = isHidden ? 'table-row' : 'none';
+  if (chevron) {
+    chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    chevron.style.transition = 'transform 0.15s ease';
   }
-
-  const payload = {
-    status: 'RESOLVED',
-    root_cause: rootCause,
-    corrective_action: correctiveAction,
-    resolution_note: resolutionNote
-  };
-  if (officer) payload.assigned_to = officer;
-
-  apiJSON(`/api/incidents/${encodeURIComponent(activeIncidentId)}/update`, 'POST', payload)
-    .then(() => window.location.reload())
-    .catch(err => alert('Error updating incident: ' + err.message));
-}
-
-function viewSnapshot(src, code, vType) {
-  document.getElementById('snapshot-modal-title').textContent = `Evidence Frame: ${code} - ${vType}`;
-  document.getElementById('snapshot-modal-img').src = src;
-  document.getElementById('snapshot-download-btn').href = src;
-  document.getElementById('snapshot-modal').style.display = 'flex';
-}
-
-function closeSnapshotModal() {
-  document.getElementById('snapshot-modal').style.display = 'none';
 }
 </script>
 {% endblock %}

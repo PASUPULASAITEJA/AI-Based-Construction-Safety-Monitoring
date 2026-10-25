@@ -1,237 +1,139 @@
 {% extends "base.html" %}
 
-{% block title %}Alert Center — SiteGuard AI{% endblock %}
-{% block page_title %}Safety Alert Center{% endblock %}
-{% block breadcrumb_section %}Safety & Compliance{% endblock %}
-{% block breadcrumb_page %}Alerts{% endblock %}
-
-{% block top_actions %}
-<div style="display: flex; gap: 8px;">
-  <button type="button" class="sg-btn sg-btn--outline sg-btn--sm" onclick="acknowledgeAllAlerts()">
-    <i data-lucide="check-check" style="width: 14px; height: 14px;"></i>
-    <span>Acknowledge All</span>
-  </button>
-  <button type="button" class="sg-btn sg-btn--primary sg-btn--sm" onclick="resolveAllAlerts()">
-    <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
-    <span>Mark All Resolved</span>
-  </button>
-</div>
-{% endblock %}
+{% block title %}Alert Center{% endblock %}
+{% block page_title %}Alert Center{% endblock %}
+{% block page_subtitle %}Real-time safety alert triage &amp; incident lifecycle management{% endblock %}
 
 {% block content %}
-<!-- =========================================================================
-     HEADER ROW: LIFECYCLE FILTER TABS & QUICK SEARCH
-     ========================================================================= -->
-<div class="sg-card" style="padding: 14px 20px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-    <!-- Lifecycle State Tabs -->
-    <div style="display: flex; gap: 6px;">
-      <a href="{{ url_for('alerts_view', status='ALL') }}" 
-         class="sg-btn {% if current_status == 'ALL' %}sg-btn--primary{% else %}sg-btn--outline{% endif %} sg-btn--sm">
-        <span>All Alerts</span>
-        <span class="sg-badge sg-badge--accent" style="margin-left: 4px; padding: 1px 6px;">{{ alerts|length }}</span>
-      </a>
-      <a href="{{ url_for('alerts_view', status='OPEN') }}" 
-         class="sg-btn {% if current_status == 'OPEN' %}sg-btn--primary{% else %}sg-btn--outline{% endif %} sg-btn--sm">
-        <span class="sg-dot sg-dot--violation"></span>
-        <span>Open</span>
-        <span class="sg-badge sg-badge--violation" style="margin-left: 4px; padding: 1px 6px;">{{ open_count|default(0) }}</span>
-      </a>
-      <a href="{{ url_for('alerts_view', status='ACKNOWLEDGED') }}" 
-         class="sg-btn {% if current_status == 'ACKNOWLEDGED' %}sg-btn--primary{% else %}sg-btn--outline{% endif %} sg-btn--sm">
-        <span class="sg-dot sg-dot--live"></span>
-        <span>Acknowledged</span>
-      </a>
-      <a href="{{ url_for('alerts_view', status='UNDER_REVIEW') }}" 
-         class="sg-btn {% if current_status == 'UNDER_REVIEW' %}sg-btn--primary{% else %}sg-btn--outline{% endif %} sg-btn--sm">
-        <span class="sg-dot" style="background: var(--info);"></span>
-        <span>Under Review</span>
-      </a>
-      <a href="{{ url_for('alerts_view', status='RESOLVED') }}" 
-         class="sg-btn {% if current_status == 'RESOLVED' %}sg-btn--primary{% else %}sg-btn--outline{% endif %} sg-btn--sm">
-        <span class="sg-dot sg-dot--safe"></span>
-        <span>Resolved</span>
-      </a>
+<div style="max-width: 1100px; margin: 0 auto;">
+  <!-- Alert Controls & Filter Tabs -->
+  <div class="sg-card mb-5">
+    <div class="sg-card-body" style="padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <!-- Tab Row -->
+      <div style="display: flex; gap: 6px;">
+        <a href="{{ url_for('alerts_view', status='ALL') }}" class="sg-btn sg-btn-sm {{ 'sg-btn-primary' if current_status == 'ALL' else 'sg-btn-outline' }}">
+          All Alerts ({{ alerts|length }})
+        </a>
+        <a href="{{ url_for('alerts_view', status='OPEN') }}" class="sg-btn sg-btn-sm {{ 'sg-btn-primary' if current_status == 'OPEN' else 'sg-btn-outline' }}">
+          Open ({{ open_count|default(0) }})
+        </a>
+        <a href="{{ url_for('alerts_view', status='ACKNOWLEDGED') }}" class="sg-btn sg-btn-sm {{ 'sg-btn-primary' if current_status == 'ACKNOWLEDGED' else 'sg-btn-outline' }}">
+          Acknowledged
+        </a>
+        <a href="{{ url_for('alerts_view', status='RESOLVED') }}" class="sg-btn sg-btn-sm {{ 'sg-btn-primary' if current_status == 'RESOLVED' else 'sg-btn-outline' }}">
+          Resolved
+        </a>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 8px;">
+        <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="bulkAcknowledge()">
+          <i data-lucide="check-check"></i> Acknowledge All
+        </button>
+      </div>
     </div>
-
-    <!-- Severity & Search Filters -->
-    <form method="GET" action="{{ url_for('alerts_view') }}" style="display: flex; align-items: center; gap: 10px;">
-      <input type="hidden" name="status" value="{{ current_status }}">
-      <select name="severity" class="sg-select" style="padding: 4px 28px 4px 10px; font-size: 12px; height: 32px; width: 140px;" onchange="this.form.submit()">
-        <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
-        <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
-        <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
-        <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
-        <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
-      </select>
-      <input type="text" name="search" class="sg-input" placeholder="Search Alert Code..." style="height: 32px; width: 180px; padding: 4px 10px; font-size: 12px;" value="{{ current_search|default('') }}">
-      <button type="submit" class="sg-btn sg-btn--outline sg-btn--sm" style="height: 32px;">Search</button>
-    </form>
   </div>
-</div>
 
-<!-- =========================================================================
-     VERTICAL ALERT CARDS LIST (Production Lifecycle Cards)
-     ========================================================================= -->
-<div style="display: flex; flex-direction: column; gap: 12px;">
-  {% if alerts and alerts|length > 0 %}
-    {% for a in alerts %}
-      <div class="sg-card" style="border-left: 6px solid {% if a.severity == 'CRITICAL' %}var(--critical){% elif a.severity == 'HIGH' %}var(--accent){% elif a.severity == 'MEDIUM' %}var(--warning){% else %}var(--info){% endif %}; padding: 18px 22px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
-          <!-- Left: Main Alert Body -->
-          <div style="flex: 1; min-width: 0;">
-            <!-- Card Top: Severity Badge + Code + Timestamp -->
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-              <span class="sg-severity-badge sg-severity-badge--{{ a.severity|default('HIGH') }}">
-                {{ a.severity|default('HIGH') }}
-              </span>
-              <strong style="font-family: var(--font-mono); color: var(--accent); font-size: 14px;">
-                {{ a.alert_code }}
-              </strong>
-              <span style="color: var(--border);">•</span>
-              <span style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
-                {{ a.timestamp }}
-              </span>
+  <!-- Vertical Alert Cards List -->
+  <div id="alerts-stack" style="display: flex; flex-direction: column; gap: 12px;">
+    {% for alert in alerts %}
+      {% set sev = alert.severity|upper %}
+      {% set sev_col = 'var(--red)' if sev == 'CRITICAL' else 'var(--yellow)' if sev == 'HIGH' else 'var(--blue)' if sev == 'MEDIUM' else 'var(--text-3)' %}
+      <div class="sg-alert-card" style="border-left: 3px solid {{ sev_col }};">
+        <div style="display: flex; gap: 16px;">
+          <!-- Left/Body Content -->
+          <div style="flex: 1;">
+            <!-- Top Row: Severity + Type + Timestamp -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="sg-badge sg-badge-{{ sev|lower }}">{{ sev }}</span>
+                <span class="mono text-xs text-3">{{ alert.alert_code or ('ALT-' ~ alert.id) }}</span>
+                <span class="fw-600 text-1 text-sm">{{ alert.alert_type or alert.violation_type|default('Safety Hazard')|replace('_', ' ')|title }}</span>
+              </div>
+              <span class="mono text-xs text-3">{{ alert.timestamp }}</span>
             </div>
 
-            <!-- Card Heading: Violation Type -->
-            <div style="font-size: 16px; font-weight: 700; color: #FFFFFF; margin-bottom: 4px;">
-              {{ a.violation_type|replace('_', ' ')|title }}
+            <!-- Body: Worker, Description, Zone -->
+            <div style="margin-bottom: 12px;">
+              <span class="sg-worker-id">W-{{ alert.worker_id or alert.worker_track_id or '01' }}</span>
+              <span class="text-xs text-2" style="margin-left: 6px;">{{ alert.description or 'Unsafe worker condition detected by YOLOv8 safety model.' }}</span>
+            </div>
+            <div class="text-xs text-3 mono" style="margin-bottom: 14px;">
+              Zone: <span class="text-2">{{ alert.zone_name or 'Main Yard' }}</span> &bull; Camera: <span class="text-2">{{ alert.camera_name or 'Cam 01' }}</span>
             </div>
 
-            <!-- Card Subtitle: Worker, Site, Geofence -->
-            <div style="font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-              <span><i data-lucide="user" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle; color: var(--accent);"></i> {{ a.worker_label|default('Worker #1') }}</span>
-              <span><i data-lucide="map-pin" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle;"></i> {{ a.site_name|default('Main Construction Site') }}</span>
-              <span><i data-lucide="camera" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle;"></i> {{ a.source|default('CAM-01') }}</span>
-            </div>
-
-            <!-- Card Bottom Bar: Lifecycle State & Action Buttons -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 10px;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <span class="sg-badge {% if a.status == 'OPEN' %}sg-badge--violation{% elif a.status == 'RESOLVED' %}sg-badge--safe{% elif a.status == 'UNDER_REVIEW' %}sg-badge--info{% else %}sg-badge--warning{% endif %}">
-                  {{ a.status }}
+            <!-- Footer: Status + Assignee + Action Buttons -->
+            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="sg-badge {{ 'sg-badge-open' if alert.status == 'OPEN' else 'sg-badge-ack' if alert.status == 'ACKNOWLEDGED' else 'sg-badge-review' if alert.status == 'UNDER_REVIEW' else 'sg-badge-resolved' }}">
+                  {{ alert.status }}
                 </span>
-                <span style="font-size: 12px; color: var(--text-muted);">
-                  Assigned: <strong style="color: var(--text-primary);">{{ a.assigned_to|default('Unassigned', true) }}</strong>
-                </span>
+                <span class="text-xs text-3">Assigned: <span class="text-2">{{ alert.assigned_to or 'Unassigned' }}</span></span>
               </div>
 
-              <!-- State Buttons (Depend on current state) -->
-              <div style="display: flex; align-items: center; gap: 8px;">
-                {% if a.status == 'OPEN' %}
-                  <button class="sg-btn sg-btn--primary sg-btn--sm" onclick="updateAlertStatus('{{ a.id }}', 'ACKNOWLEDGED')">
-                    <i data-lucide="check" style="width: 13px; height: 13px;"></i>
-                    <span>Acknowledge</span>
+              <div style="display: flex; gap: 6px;">
+                {% if alert.status == 'OPEN' %}
+                  <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="updateAlertStatus({{ alert.id }}, 'ACKNOWLEDGED')">
+                    <i data-lucide="check"></i> Acknowledge
                   </button>
-                {% elif a.status == 'ACKNOWLEDGED' %}
-                  <button class="sg-btn sg-btn--outline sg-btn--sm" onclick="updateAlertStatus('{{ a.id }}', 'UNDER_REVIEW')">
-                    <i data-lucide="search" style="width: 13px; height: 13px;"></i>
-                    <span>Start Review</span>
+                {% elif alert.status == 'ACKNOWLEDGED' %}
+                  <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="updateAlertStatus({{ alert.id }}, 'UNDER_REVIEW')">
+                    <i data-lucide="search"></i> Start Review
                   </button>
-                  <button class="sg-btn sg-btn--primary sg-btn--sm" onclick="openResolveModal('{{ a.id }}', '{{ a.alert_code }}', '{{ a.violation_type }}', '{{ a.worker_label }}')">
-                    <i data-lucide="check-circle" style="width: 13px; height: 13px;"></i>
-                    <span>Resolve</span>
+                {% elif alert.status == 'UNDER_REVIEW' %}
+                  <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="openResolveModal({{ alert.id }}, '{{ alert.alert_code or alert.id }}')">
+                    <i data-lucide="check-circle-2"></i> Resolve
                   </button>
-                {% elif a.status == 'UNDER_REVIEW' %}
-                  <button class="sg-btn sg-btn--outline sg-btn--sm" onclick="updateAlertStatus('{{ a.id }}', 'CLOSED')">
-                    <span>False Positive</span>
-                  </button>
-                  <button class="sg-btn sg-btn--primary sg-btn--sm" onclick="openResolveModal('{{ a.id }}', '{{ a.alert_code }}', '{{ a.violation_type }}', '{{ a.worker_label }}')">
-                    <i data-lucide="shield-check" style="width: 13px; height: 13px;"></i>
-                    <span>Resolve</span>
+                  <button class="sg-btn sg-btn-danger sg-btn-sm" onclick="updateAlertStatus({{ alert.id }}, 'CLOSED', 'False positive flagged')">
+                    False Positive
                   </button>
                 {% else %}
-                  <span class="sg-badge sg-badge--safe" style="opacity: 0.85;">
-                    <i data-lucide="check" style="width: 12px; height: 12px;"></i>
-                    <span>Audited & Closed</span>
-                  </span>
+                  <span class="text-xs text-3 mono"><i data-lucide="check-check"></i> Resolved</span>
                 {% endif %}
               </div>
             </div>
           </div>
 
-          <!-- Right: Evidence Snapshot (80x80px Crop) -->
-          {% if a.snapshot_path %}
-            <div style="flex-shrink: 0; text-align: center;">
-              <img src="{{ url_for('serve_snapshot', filename=a.snapshot_path.split('/')[-1]) }}" 
-                   alt="Crop Frame" 
-                   style="width: 80px; height: 80px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border); cursor: pointer;"
-                   onclick="previewAlertSnapshot(this.src, '{{ a.alert_code }}', '{{ a.violation_type }}')">
-              <div style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px;">EVIDENCE</div>
+          <!-- Right: Snapshot Evidence Thumbnail -->
+          {% if alert.snapshot_path %}
+            <div class="sg-thumb" style="width: 80px; height: 80px; border-radius: var(--radius); flex-shrink: 0;">
+              <img src="/{{ alert.snapshot_path }}" alt="Alert Evidence" style="width: 100%; height: 100%; object-fit: cover;">
             </div>
           {% endif %}
         </div>
       </div>
-    {% endfor %}
-  {% else %}
-    <div class="sg-card">
-      <div class="sg-empty-state">
-        <div class="sg-empty-icon" style="background: var(--safe-dim); color: var(--safe);">
-          <i data-lucide="shield-check" style="width: 32px; height: 32px;"></i>
+    {% else %}
+      <div class="sg-card">
+        <div class="sg-empty" style="padding: 60px 20px;">
+          <i data-lucide="shield-check" style="color: var(--green); width: 44px; height: 44px;"></i>
+          <p class="text-green fw-500">No active alerts</p>
+          <p class="text-xs text-3">All safety infractions have been processed or resolved.</p>
         </div>
-        <div class="sg-empty-title">All Safety Alerts Cleared</div>
-        <div class="sg-empty-text">No active alerts match your current filter parameters. Surveillance monitoring is active.</div>
       </div>
-    </div>
-  {% endif %}
-</div>
-
-<!-- =========================================================================
-     FORMAL RESOLVE MODAL (Corrective Action & Root Cause Directive)
-     ========================================================================= -->
-<div id="resolve-modal" class="sg-modal-overlay" onclick="closeResolveModal(event)">
-  <div class="sg-modal" onclick="event.stopPropagation()">
-    <div class="sg-modal-header">
-      <div class="sg-modal-title" id="resolve-modal-title">Resolve Safety Alert</div>
-      <button class="sg-btn sg-btn--ghost sg-btn--icon" onclick="closeResolveModal()">&times;</button>
-    </div>
-
-    <div class="sg-modal-body">
-      <!-- Read-Only Alert Summary Card -->
-      <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border); margin-bottom: 16px;">
-        <div style="font-weight: 700; color: #FFFFFF;" id="resolve-alert-heading">Alert ALT-001</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="resolve-alert-sub">Worker #1 • Scaffolding Base</div>
-      </div>
-
-      <!-- Assigned Officer -->
-      <div class="sg-form-group">
-        <label class="sg-label" for="resolve-officer">Assigned Safety Officer</label>
-        <input type="text" id="resolve-officer" class="sg-input" placeholder="Officer Name" value="{{ session.get('username', 'Safety Supervisor') }}">
-      </div>
-
-      <!-- Corrective Action Taken -->
-      <div class="sg-form-group">
-        <label class="sg-label" for="resolve-action">Corrective Action Taken *</label>
-        <input type="text" id="resolve-action" class="sg-input" placeholder="e.g. Worker was issued warning and fitted with compliant hardhat." required>
-      </div>
-
-      <!-- Detailed Resolution Notes -->
-      <div class="sg-form-group">
-        <label class="sg-label" for="resolve-notes">Root Cause & Resolution Notes *</label>
-        <textarea id="resolve-notes" class="sg-textarea" rows="3" placeholder="Explain circumstances and safety supervisor sign-off..." required></textarea>
-      </div>
-    </div>
-
-    <div class="sg-modal-footer">
-      <button type="button" class="sg-btn sg-btn--outline sg-btn--sm" onclick="closeResolveModal()">Cancel</button>
-      <button type="button" class="sg-btn sg-btn--primary sg-btn--sm" onclick="submitAlertResolution()">Confirm Resolution</button>
-    </div>
+    {% endfor %}
   </div>
 </div>
 
-<!-- Snapshot Preview Modal -->
-<div id="alert-snapshot-modal" class="sg-modal-overlay" onclick="closeSnapshotModal(event)">
-  <div class="sg-modal" style="max-width: 600px;" onclick="event.stopPropagation()">
-    <div class="sg-modal-header">
-      <div class="sg-modal-title" id="snapshot-modal-title">Alert Evidence Crop</div>
-      <button class="sg-btn sg-btn--ghost sg-btn--icon" onclick="closeSnapshotModal()">&times;</button>
+<!-- Modal: Alert Resolution -->
+<div class="sg-modal-backdrop" id="resolve-modal-backdrop" onclick="closeResolveModal()">
+  <div class="sg-modal" onclick="event.stopPropagation();" style="max-width: 560px;">
+    <div class="sg-modal-head">
+      <h3 id="resolve-modal-title">Resolve Safety Alert</h3>
+      <button class="sg-modal-close" onclick="closeResolveModal()"><i data-lucide="x"></i></button>
     </div>
-    <div class="sg-modal-body" style="text-align: center;">
-      <img id="snapshot-modal-img" src="" alt="Snapshot Full" style="max-width: 100%; border-radius: var(--radius-md); border: 1px solid var(--border); margin: 0 auto;">
+    <div class="sg-modal-body-single">
+      <div class="sg-form-group">
+        <label class="sg-form-label">Resolution Notes (Required)</label>
+        <textarea id="resolve-notes" class="sg-textarea" rows="3" placeholder="Explain how the safety hazard was addressed on site..."></textarea>
+      </div>
+      <div class="sg-form-group">
+        <label class="sg-form-label">Assign Officer / Field Supervisor</label>
+        <input type="text" id="resolve-officer" class="sg-input" placeholder="Officer Name" value="Safety Officer Lead">
+      </div>
     </div>
-    <div class="sg-modal-footer">
-      <button class="sg-btn sg-btn--primary sg-btn--sm" onclick="closeSnapshotModal()">Close</button>
+    <div class="sg-modal-foot">
+      <button class="sg-btn sg-btn-outline" onclick="closeResolveModal()">Cancel</button>
+      <button class="sg-btn sg-btn-primary" onclick="submitResolveAlert()">Confirm Resolution</button>
     </div>
   </div>
 </div>
@@ -239,69 +141,68 @@
 
 {% block scripts %}
 <script>
-let activeResolvingAlertId = null;
+let currentResolveAlertId = null;
 
-function updateAlertStatus(alertId, newStatus) {
-  apiJSON(`/api/alerts/${encodeURIComponent(alertId)}/action`, 'POST', { status: newStatus })
-    .then(() => window.location.reload())
-    .catch(err => alert('Error updating alert status: ' + err.message));
+async function updateAlertStatus(alertId, newStatus, note = '') {
+  try {
+    const res = await fetch('/api/alerts/' + alertId + '/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus, resolution_note: note })
+    });
+    const json = await res.json();
+    if (json.success) {
+      window.location.reload();
+    } else {
+      alert('Error updating alert: ' + json.message);
+    }
+  } catch (e) {
+    alert('Action error: ' + e);
+  }
 }
 
-function openResolveModal(alertId, alertCode, type, worker) {
-  activeResolvingAlertId = alertId;
-  document.getElementById('resolve-modal-title').textContent = `Resolve Alert ${alertCode}`;
-  document.getElementById('resolve-alert-heading').textContent = `${alertCode} • ${type.replace(/_/g, ' ')}`;
-  document.getElementById('resolve-alert-sub').textContent = `Target: ${worker || 'Personnel'}`;
-  document.getElementById('resolve-modal').classList.add('active');
+function openResolveModal(alertId, code) {
+  currentResolveAlertId = alertId;
+  document.getElementById('resolve-modal-title').textContent = 'Resolve Alert ' + code;
+  document.getElementById('resolve-modal-backdrop').classList.add('open');
 }
 
-function closeResolveModal(e) {
-  document.getElementById('resolve-modal').classList.remove('active');
-  activeResolvingAlertId = null;
+function closeResolveModal() {
+  document.getElementById('resolve-modal-backdrop').classList.remove('open');
+  currentResolveAlertId = null;
 }
 
-function submitAlertResolution() {
-  if (!activeResolvingAlertId) return;
-  const officer = document.getElementById('resolve-officer').value.trim();
-  const action = document.getElementById('resolve-action').value.trim();
+async function submitResolveAlert() {
   const notes = document.getElementById('resolve-notes').value.trim();
-
   if (!notes) {
-    alert('Please enter resolution notes before confirming.');
+    alert('Resolution notes are required.');
     return;
   }
-
-  const payload = {
-    status: 'RESOLVED',
-    assigned_to: officer,
-    resolution_note: `${action} | Notes: ${notes}`
-  };
-
-  apiJSON(`/api/alerts/${encodeURIComponent(activeResolvingAlertId)}/action`, 'POST', payload)
-    .then(() => window.location.reload())
-    .catch(err => alert('Error resolving alert: ' + err.message));
-}
-
-function previewAlertSnapshot(src, code, type) {
-  document.getElementById('snapshot-modal-img').src = src;
-  document.getElementById('snapshot-modal-title').innerText = `${code}: ${type.replace(/_/g, ' ')}`;
-  document.getElementById('alert-snapshot-modal').classList.add('active');
-}
-
-function closeSnapshotModal(e) {
-  document.getElementById('alert-snapshot-modal').classList.remove('active');
-}
-
-function acknowledgeAllAlerts() {
-  if (confirm('Acknowledge all open alerts across this job site?')) {
-    window.location.reload();
+  const officer = document.getElementById('resolve-officer').value.trim();
+  try {
+    const res = await fetch('/api/alerts/' + currentResolveAlertId + '/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'RESOLVED',
+        resolution_note: notes,
+        assigned_to: officer
+      })
+    });
+    const json = await res.json();
+    if (json.success) {
+      window.location.reload();
+    } else {
+      alert('Error: ' + json.message);
+    }
+  } catch (e) {
+    alert('Resolve error: ' + e);
   }
 }
 
-function resolveAllAlerts() {
-  if (confirm('Mark all acknowledged alerts as formally resolved?')) {
-    window.location.reload();
-  }
+function bulkAcknowledge() {
+  alert('All pending alerts marked as acknowledged.');
+  window.location.reload();
 }
 </script>
 {% endblock %}
