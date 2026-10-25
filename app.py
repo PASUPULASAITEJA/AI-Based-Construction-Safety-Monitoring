@@ -994,7 +994,8 @@ def settings_view():
 # Camera & Video Stream Controls
 # ==============================================================================
 
-@app.route("/video_feed")
+@app.route("/video_feed", endpoint="video_feed")
+@app.route("/video_feed", endpoint="video_feed_route")
 def video_feed():
     return Response(generate_video_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
