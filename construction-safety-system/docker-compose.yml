@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: siteguard_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite:///./data/safety.db
+      - MODEL_PATH=./models/best.pt
+      - SNAPSHOTS_DIR=./data/snapshots
+      - UPLOADS_DIR=./data/uploads
+    volumes:
+      - ./backend/data/snapshots:/app/data/snapshots
+      - ./backend/data/uploads:/app/data/uploads
+      - ./backend/data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: siteguard_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
