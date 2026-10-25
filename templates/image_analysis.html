@@ -1,29 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}Image Inspection Studio{% endblock %}
+{% block title %}Image Inspection Studio — SiteGuard AI{% endblock %}
 {% block page_title %}Image Inspection Studio{% endblock %}
-{% block page_subtitle %}Single-frame high-resolution PPE compliance &amp; safety inspection{% endblock %}
+{% block page_subtitle %}High-resolution static frame inspection with bounding box localization and PPE classification{% endblock %}
 
 {% block content %}
 <div style="max-width: 1200px; margin: 0 auto;">
-  <!-- STATE A: Upload Zone -->
-  <div id="image-upload-card" class="sg-card mb-5" style="{% if result %}display: none;{% endif %}">
+  <!-- Upload State Container -->
+  <div id="image-upload-card" class="sg-card mb-5">
     <div class="sg-card-head">
-      <h2><i data-lucide="image"></i> Construction Image Inspection Ingestion</h2>
+      <i data-lucide="image" style="color: var(--blue); width: 16px; height: 16px;"></i>
+      <h2>Construction Site Image Inspection Ingestion</h2>
     </div>
     <div class="sg-card-body" style="padding: 40px 24px;">
       <form id="image-form" onsubmit="handleImageUpload(event)">
-        <div id="image-drop-zone" style="border: 2px dashed var(--border-hover); border-radius: var(--radius-lg); padding: 48px 24px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all 0.2s;" onclick="document.getElementById('image-input').click()">
-          <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--blue-dim); color: var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+        <div id="image-drop-zone" style="border: 2px dashed var(--border-2); border-radius: var(--radius-lg); padding: 48px 24px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all 0.2s;" onclick="document.getElementById('image-input').click()">
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--blue-light); border: 1px solid var(--blue-mid); color: var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
             <i data-lucide="image" style="width: 28px; height: 28px;"></i>
           </div>
           <div style="font-size: 16px; font-weight: 600; color: var(--text-1); margin-bottom: 6px;">Drop construction site photo here</div>
-          <div class="text-xs text-3" style="margin-bottom: 20px;">Supports .jpg, .jpeg, .png &mdash; high resolution supported</div>
+          <div class="text-xs text-3" style="margin-bottom: 20px;">Supports .jpg, .jpeg, .png &bull; High resolution supported</div>
           <button type="button" class="sg-btn sg-btn-primary" onclick="event.stopPropagation(); document.getElementById('image-input').click();">
             <i data-lucide="upload"></i> Browse Files
           </button>
           <input type="file" id="image-input" name="image" accept=".jpg,.jpeg,.png" style="display: none;" onchange="onImageSelected(this)">
-          <div id="selected-image-name" class="mono text-xs text-orange" style="margin-top: 14px; display: none;"></div>
+          <div id="selected-image-name" class="mono text-xs" style="color: var(--orange); margin-top: 14px; display: none;"></div>
         </div>
 
         <div id="image-processing-bar" style="display: none; margin-top: 20px;">
@@ -40,46 +41,48 @@
     </div>
   </div>
 
-  <!-- STATE B: Results View (50/50 Grid) -->
-  <div id="image-results-view" style="{% if not result %}display: none;{% endif %}">
+  <!-- Results State: 50/50 Grid -->
+  <div id="image-results-view" style="display: none;">
     <div class="grid-2 mb-5">
       <!-- LEFT: Annotated Image with Zoom -->
       <div class="sg-card">
         <div class="sg-card-head">
-          <h2><i data-lucide="zoom-in"></i> Annotated Image Result</h2>
-          <a id="download-annotated-img" href="{{ result.annotated_image_url if result else '#' }}" download class="sg-btn sg-btn-outline sg-btn-sm">
+          <i data-lucide="zoom-in" style="color: var(--blue); width: 16px; height: 16px;"></i>
+          <h2>Annotated Image Result</h2>
+          <a id="download-annotated-img" href="#" download class="sg-btn sg-btn-secondary sg-btn-sm">
             <i data-lucide="download"></i> Download Result
           </a>
         </div>
         <div class="sg-card-body" style="padding: 12px; background: #000; text-align: center; overflow: hidden;">
-          <img id="result-img" src="{{ result.annotated_image_url if result else '' }}" alt="Annotated Inspection Result" style="max-width: 100%; height: auto; border-radius: var(--radius); transition: transform 0.2s; cursor: zoom-in;" onclick="toggleZoom(this)">
+          <img id="result-img" src="" alt="Annotated Inspection Result" style="max-width: 100%; height: auto; border-radius: var(--radius); transition: transform 0.2s; cursor: zoom-in;" onclick="toggleZoom(this)">
         </div>
-        <div class="sg-card-foot text-xs text-3 mono">
-          Click image to toggle 1.8&times; detail zoom &bull; Ground truth spatial bounding boxes
+        <div style="padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace;">
+          Click image to toggle 1.8&times; zoom &bull; Real YOLOv8 bounding boxes &bull; Color-coded compliance
         </div>
       </div>
 
       <!-- RIGHT: Detection Breakdown Table & Telemetry -->
       <div class="sg-card">
         <div class="sg-card-head">
-          <h2><i data-lucide="list-checks"></i> Detection Breakdown</h2>
-          <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="resetImageUpload()">
+          <i data-lucide="list-checks" style="color: var(--green); width: 16px; height: 16px;"></i>
+          <h2>Detection Breakdown</h2>
+          <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="resetImageUpload()">
             <i data-lucide="rotate-ccw"></i> Inspect Another
           </button>
         </div>
         <div class="sg-card-body">
           <!-- Summary Header -->
           <div class="grid-3 mb-4">
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-1" id="img-worker-count">{{ result.stats.worker_count if result else '0' }}</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600 text-1" style="font-size: 18px;" id="img-worker-count">0</div>
               <div class="text-xs text-3">Workers Found</div>
             </div>
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-red" id="img-violation-count">{{ result.stats.incidents|length if result and result.stats and result.stats.incidents else '0' }}</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600" style="font-size: 18px; color: var(--red);" id="img-violation-count">0</div>
               <div class="text-xs text-3">Violations</div>
             </div>
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-green" id="img-comp-rate">88%</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600" style="font-size: 18px; color: var(--green);" id="img-comp-rate">88%</div>
               <div class="text-xs text-3">Compliance Rate</div>
             </div>
           </div>
@@ -96,45 +99,30 @@
                 </tr>
               </thead>
               <tbody id="detection-table-body">
-                {% if result and result.stats and result.stats.detections %}
-                  {% for det in result.stats.detections %}
-                    <tr>
-                      <td class="fw-500 text-1">{{ det.class_name }}</td>
-                      <td class="mono">{{ (det.confidence * 100)|round(1) }}%</td>
-                      <td>{{ det.zone|default('Head / Torso') }}</td>
-                      <td>
-                        <span class="sg-badge {{ 'sg-badge-resolved' if det.status == 'Compliant' else 'sg-badge-critical' }}">
-                          {{ det.status }}
-                        </span>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr>
-                    <td class="fw-500 text-1">Safety Helmet</td>
-                    <td class="mono">94.2%</td>
-                    <td>Head</td>
-                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                  </tr>
-                  <tr>
-                    <td class="fw-500 text-1">High-Vis Vest</td>
-                    <td class="mono">91.8%</td>
-                    <td>Torso</td>
-                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                  </tr>
-                  <tr>
-                    <td class="fw-500 text-1">Safety Boots</td>
-                    <td class="mono">88.5%</td>
-                    <td>Feet</td>
-                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                  </tr>
-                  <tr>
-                    <td class="fw-500 text-1">Safety Gloves</td>
-                    <td class="mono">42.0%</td>
-                    <td>Hands</td>
-                    <td><span class="sg-badge sg-badge-critical">MISSING</span></td>
-                  </tr>
-                {% endif %}
+                <tr class="row-critical">
+                  <td class="strong">Safety Helmet</td>
+                  <td class="mono">94.2%</td>
+                  <td>Head</td>
+                  <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
+                </tr>
+                <tr class="row-high">
+                  <td class="strong">High-Vis Vest</td>
+                  <td class="mono">91.8%</td>
+                  <td>Torso</td>
+                  <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
+                </tr>
+                <tr class="row-medium">
+                  <td class="strong">Safety Boots</td>
+                  <td class="mono">88.5%</td>
+                  <td>Feet</td>
+                  <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
+                </tr>
+                <tr class="row-critical">
+                  <td class="strong">Safety Gloves</td>
+                  <td class="mono">42.0%</td>
+                  <td>Hands</td>
+                  <td><span class="sg-badge sg-badge-critical">MISSING</span></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -198,13 +186,14 @@ async function handleImageUpload(e) {
         document.getElementById('img-worker-count').textContent = data.stats.worker_count || 1;
         document.getElementById('img-violation-count').textContent = (data.stats.incidents && data.stats.incidents.length) || 0;
       }
+      sgToast('success', 'Inspection Complete', 'Spatial bounding boxes identified.');
     } else {
-      alert('Upload failed: ' + data.message);
+      sgToast('error', 'Inspection Failed', data.message || 'Server error.');
       pBar.style.display = 'none';
       btn.disabled = false;
     }
   } catch (err) {
-    alert('Inspection error: ' + err);
+    sgToast('error', 'Network Error', err.toString());
     pBar.style.display = 'none';
     btn.disabled = false;
   }

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}PPE Safety Requirements &amp; Catalog{% endblock %}
+{% block title %}PPE Safety Requirements &amp; Catalog — SiteGuard AI{% endblock %}
 {% block page_title %}8-Category PPE Safety Standard{% endblock %}
 {% block page_subtitle %}Personal protective equipment specifications evaluated by YOLOv8 CV engine and safety rules{% endblock %}
 
@@ -10,7 +10,7 @@
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <div>
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-          <span class="sg-badge sg-badge-medium">REGULATORY COMPLIANCE</span>
+          <span class="sg-badge sg-badge-orange">REGULATORY COMPLIANCE</span>
           <span class="sg-badge sg-badge-low">OSHA 1926.100 &bull; ISO 45001</span>
         </div>
         <h2 style="font-size: 16px; font-weight: 700; color: var(--text-1);">Industrial Personal Protective Equipment Standard</h2>
@@ -18,7 +18,7 @@
           Master personal protective equipment categories evaluated by the YOLOv8 computer vision detection engine and per-zone spatial rule matrices.
         </div>
       </div>
-      <a href="{{ url_for('model_view') }}" class="sg-btn sg-btn-outline sg-btn-sm">
+      <a href="{{ url_for('model.model') }}" class="sg-btn sg-btn-secondary sg-btn-sm">
         <i data-lucide="cpu"></i> Model Capability Matrix
       </a>
     </div>
@@ -27,7 +27,7 @@
 
 <div class="grid-4 mb-5">
   {% for ppe in ppe_capabilities %}
-    <div class="sg-card" style="border-top: 2px solid {{ 'var(--green)' if ppe.is_supported else 'var(--border)' }};">
+    <div class="sg-card" style="border-top: 3px solid {{ 'var(--green)' if ppe.is_supported else 'var(--border)' }};">
       <div class="sg-card-body" style="display: flex; flex-direction: column; justify-content: space-between;">
         <div>
           <div class="flex-between mb-2">
@@ -42,7 +42,7 @@
         </div>
         <div class="flex-between text-xs mono text-3" style="border-top: 1px solid var(--border); padding-top: 8px;">
           <span>Inference:</span>
-          <span class="{{ 'text-green' if ppe.is_supported else 'text-3' }}">{{ 'ACTIVE' if ppe.is_supported else 'STANDBY' }}</span>
+          <span style="color: {{ 'var(--green)' if ppe.is_supported else 'var(--text-3)' }}; font-weight: 600;">{{ 'ACTIVE' if ppe.is_supported else 'STANDBY' }}</span>
         </div>
       </div>
     </div>

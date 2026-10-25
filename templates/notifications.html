@@ -1,41 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Notifications{% endblock %}
-{% block page_title %}System Notifications{% endblock %}
-{% block page_subtitle %}Real-time safety dispatch, hazard broadcasts &amp; officer action alerts{% endblock %}
+{% block title %}Notifications — SiteGuard AI{% endblock %}
+{% block page_title %}Safety Dispatch &amp; Notifications{% endblock %}
+{% block page_subtitle %}Real-time safety dispatch logs, hazard broadcasts, and officer acknowledgement status{% endblock %}
 
 {% block content %}
-<div style="max-width: 900px; margin: 0 auto;">
+<div style="max-width: 960px; margin: 0 auto;">
+  <!-- Filter Tabs & Actions -->
   <div class="sg-card mb-5">
     <div class="sg-card-body" style="padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-      <div style="display: flex; gap: 6px;">
-        <button class="sg-btn sg-btn-sm sg-btn-primary" onclick="filterNotifs('all', this)">All</button>
-        <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="filterNotifs('unread', this)">Unread</button>
-        <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="filterNotifs('critical', this)">Critical</button>
+      <!-- Filter Tabs -->
+      <div class="sg-range-tabs" id="notif-tabs">
+        <button class="sg-range-tab active" onclick="filterNotifs('all', this)">All</button>
+        <button class="sg-range-tab" onclick="filterNotifs('unread', this)">Unread</button>
+        <button class="sg-range-tab" onclick="filterNotifs('critical', this)">Critical</button>
+        <button class="sg-range-tab" onclick="filterNotifs('high', this)">High</button>
       </div>
 
-      <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="markAllNotificationsRead()">
+      <!-- Mark All Read -->
+      <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="markAllNotificationsRead()">
         <i data-lucide="check-check"></i> Mark All as Read
       </button>
     </div>
   </div>
 
+  <!-- Notifications List Card -->
   <div class="sg-card">
     <div class="sg-card-head">
-      <h2><i data-lucide="bell"></i> Safety Notifications Feed ({{ notifications|length }})</h2>
+      <i data-lucide="bell" style="color: var(--orange); width: 16px; height: 16px;"></i>
+      <h2>Safety Notifications Feed ({{ notifications|length }} Total)</h2>
     </div>
     <div class="sg-card-body" style="padding: 8px 18px;" id="notifs-container">
       {% for n in notifications %}
         {% set sev = n.severity|default('MEDIUM')|upper %}
-        <div class="sg-alert-item notif-item {{ 'unread' if not n.is_read else '' }}" data-read="{{ 'read' if n.is_read else 'unread' }}" data-sev="{{ sev|lower }}">
+        <div class="sg-alert-item notif-item" data-read="{{ 'read' if n.is_read else 'unread' }}" data-sev="{{ sev|lower }}">
           <div class="sg-alert-icon {{ sev|lower }}">
-            <i data-lucide="{{ 'shield-alert' if sev == 'CRITICAL' else 'bell' }}"></i>
+            <i data-lucide="{{ 'shield-alert' if sev == 'CRITICAL' else ('alert-triangle' if sev == 'HIGH' else 'bell') }}"></i>
           </div>
           <div class="sg-alert-body">
             <div class="sg-alert-title">
-              {{ n.title or 'Safety Event Detected' }}
+              <span>{{ n.title or 'Safety Event Detected' }}</span>
+              <span class="sg-badge sg-badge-{{ sev|lower }}">{{ sev }}</span>
               {% if not n.is_read %}
-                <span class="sg-badge sg-badge-open" style="font-size: 9px;">NEW</span>
+                <span class="sg-badge sg-badge-open">NEW</span>
               {% endif %}
             </div>
             <div class="sg-alert-sub" style="margin-top: 4px; font-size: 12px; color: var(--text-2);">
@@ -45,9 +52,10 @@
           </div>
         </div>
       {% else %}
-        <div class="sg-empty" style="padding: 48px;">
-          <i data-lucide="bell-off" style="color: var(--text-3);"></i>
-          <p>No notifications available.</p>
+        <div class="sg-empty">
+          <i data-lucide="bell-off" style="color: var(--text-4);"></i>
+          <h3>No Notifications</h3>
+          <p>No safety notifications or dispatch alerts recorded.</p>
         </div>
       {% endfor %}
     </div>
@@ -62,16 +70,17 @@ async function markAllNotificationsRead() {
     const res = await fetch('/api/notifications/mark-read', { method: 'POST' });
     const json = await res.json();
     if (json.success) {
-      window.location.reload();
+      sgToast('success', 'Marked Read', 'All notifications marked as read.');
+      setTimeout(() => window.location.reload(), 400);
     }
   } catch (e) {
-    alert('Error marking notifications: ' + e);
+    sgToast('error', 'Error', e.toString());
   }
 }
 
 function filterNotifs(filter, btn) {
-  document.querySelectorAll('.sg-card-body button').forEach(b => b.className = 'sg-btn sg-btn-sm sg-btn-outline');
-  btn.className = 'sg-btn sg-btn-sm sg-btn-primary';
+  document.querySelectorAll('#notif-tabs .sg-range-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 
   const items = document.querySelectorAll('.notif-item');
   items.forEach(el => {
@@ -81,6 +90,8 @@ function filterNotifs(filter, btn) {
       el.style.display = (el.getAttribute('data-read') === 'unread') ? 'flex' : 'none';
     } else if (filter === 'critical') {
       el.style.display = (el.getAttribute('data-sev') === 'critical') ? 'flex' : 'none';
+    } else if (filter === 'high') {
+      el.style.display = (el.getAttribute('data-sev') === 'high') ? 'flex' : 'none';
     }
   });
 }

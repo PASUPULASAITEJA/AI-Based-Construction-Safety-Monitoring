@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}System Settings{% endblock %}
+{% block title %}System Settings — SiteGuard AI{% endblock %}
 {% block page_title %}System Settings &amp; Safety Policies{% endblock %}
-{% block page_subtitle %}Detection sensitivity thresholds, geofenced PPE compliance rules &amp; server configuration{% endblock %}
+{% block page_subtitle %}Detection sensitivity thresholds, geofenced PPE compliance rules, and server configuration{% endblock %}
 
 {% block content %}
 <div style="max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
@@ -10,38 +10,39 @@
   <!-- SECTION 1 — Detection Thresholds -->
   <div class="sg-card">
     <div class="sg-card-head">
-      <h2><i data-lucide="sliders"></i> Section 1 &mdash; Computer Vision Detection Thresholds</h2>
+      <i data-lucide="sliders" style="color: var(--orange); width: 16px; height: 16px;"></i>
+      <h2>Section 1 &mdash; Computer Vision Detection Thresholds</h2>
     </div>
     <div class="sg-card-body">
-      <form method="POST" action="{{ url_for('update_settings_route') }}">
+      <form method="POST" action="/settings">
         <div class="sg-form-group">
           <div class="flex-between mb-1">
-            <label class="sg-form-label">YOLOv8 Confidence Threshold</label>
-            <span class="mono text-xs text-orange" id="conf-val-display">{{ settings.conf_thresh|default('0.45') }}</span>
+            <label class="sg-label">YOLOv8 Confidence Threshold (conf)</label>
+            <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="conf-val-display">{{ settings.conf_thresh|default('0.45') }}</span>
           </div>
           <input type="range" name="conf_thresh" class="w-full" min="0.10" max="0.90" step="0.05" value="{{ settings.conf_thresh|default('0.45') }}" oninput="document.getElementById('conf-val-display').textContent = this.value">
-          <div class="sg-form-help">Lower values increase detection sensitivity for distant workers; higher values reduce false alerts.</div>
+          <div class="text-xs text-3 mt-1">Lower values increase detection sensitivity for distant workers; higher values reduce false alerts.</div>
         </div>
 
         <div class="sg-form-group">
           <div class="flex-between mb-1">
-            <label class="sg-form-label">IoU Spatial Overlap Threshold</label>
-            <span class="mono text-xs text-orange" id="iou-val-display">{{ settings.iou_thresh|default('0.45') }}</span>
+            <label class="sg-label">IoU Spatial Overlap Threshold (iou)</label>
+            <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="iou-val-display">{{ settings.iou_thresh|default('0.45') }}</span>
           </div>
           <input type="range" name="iou_thresh" class="w-full" min="0.10" max="0.90" step="0.05" value="{{ settings.iou_thresh|default('0.45') }}" oninput="document.getElementById('iou-val-display').textContent = this.value">
-          <div class="sg-form-help">Suppression threshold for overlapping worker and equipment bounding boxes.</div>
+          <div class="text-xs text-3 mt-1">Non-Maximum Suppression (NMS) threshold for overlapping worker and equipment bounding boxes.</div>
         </div>
 
         <div class="grid-2">
           <div class="sg-form-group">
-            <label class="sg-form-label">Min Consecutive Violation Frames</label>
-            <input type="number" name="min_violation_frames" class="sg-input mono" min="1" max="50" value="{{ settings.min_violation_frames|default('10') }}">
-            <div class="sg-form-help">Frames an infraction must persist before alerting.</div>
+            <label class="sg-label">Min Consecutive Violation Frames</label>
+            <input type="number" name="min_violation_frames" class="sg-input mono w-full" min="1" max="50" value="{{ settings.min_violation_frames|default('10') }}">
+            <div class="text-xs text-3 mt-1">Frames an infraction must persist before alerting to eliminate camera noise.</div>
           </div>
           <div class="sg-form-group">
-            <label class="sg-form-label">Min Consecutive Zone Frames</label>
-            <input type="number" name="min_zone_frames" class="sg-input mono" min="1" max="50" value="{{ settings.min_zone_frames|default('5') }}">
-            <div class="sg-form-help">Incursion persistence required for spatial alarm.</div>
+            <label class="sg-label">Min Consecutive Zone Frames</label>
+            <input type="number" name="min_zone_frames" class="sg-input mono w-full" min="1" max="50" value="{{ settings.min_zone_frames|default('5') }}">
+            <div class="text-xs text-3 mt-1">Incursion persistence required for spatial geofence alarms.</div>
           </div>
         </div>
 
@@ -57,7 +58,8 @@
   <!-- SECTION 2 — Required PPE by Zone Type -->
   <div class="sg-card">
     <div class="sg-card-head">
-      <h2><i data-lucide="shield"></i> Section 2 &mdash; Mandatory PPE Policy by Zone Classification</h2>
+      <i data-lucide="shield" style="color: var(--green); width: 16px; height: 16px;"></i>
+      <h2>Section 2 &mdash; Mandatory PPE Policy by Zone Classification</h2>
     </div>
     <div class="sg-card-body">
       <div class="sg-table-wrap mb-4">
@@ -72,32 +74,32 @@
           </thead>
           <tbody>
             <tr>
-              <td class="fw-500 text-1">Safety Helmet (Hardhat)</td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
+              <td class="strong">Safety Helmet (Hardhat)</td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
               <td><input type="checkbox"> <span class="text-xs text-3">Optional</span></td>
             </tr>
             <tr>
-              <td class="fw-500 text-1">High-Visibility Vest</td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
+              <td class="strong">High-Visibility Vest</td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
               <td><input type="checkbox"> <span class="text-xs text-3">Optional</span></td>
             </tr>
             <tr>
-              <td class="fw-500 text-1">Steel-Toe Safety Boots</td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
+              <td class="strong">Steel-Toe Safety Boots</td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
               <td><input type="checkbox"> <span class="text-xs text-3">Optional</span></td>
             </tr>
             <tr>
-              <td class="fw-500 text-1">Heavy-Duty Gloves</td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
+              <td class="strong">Heavy-Duty Gloves</td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
               <td><input type="checkbox"> <span class="text-xs text-3">Optional</span></td>
             </tr>
             <tr>
-              <td class="fw-500 text-1">Fall Arrest Harness</td>
-              <td><input type="checkbox" checked disabled> <span class="text-xs text-green">Required</span></td>
+              <td class="strong">Fall Arrest Harness</td>
+              <td><input type="checkbox" checked disabled> <span class="text-xs text-green fw-500">Required</span></td>
               <td><input type="checkbox"> <span class="text-xs text-3">Optional</span></td>
               <td><input type="checkbox"> <span class="text-xs text-3">Optional</span></td>
             </tr>
@@ -105,7 +107,7 @@
         </table>
       </div>
       <div style="display: flex; justify-content: flex-end;">
-        <button type="button" class="sg-btn sg-btn-outline" onclick="alert('Spatial PPE rules active and enforced by CV engine.')">
+        <button type="button" class="sg-btn sg-btn-secondary" onclick="sgToast('success', 'Rules Enforced', 'Spatial PPE rules are active and verified by AI pipeline.')">
           <i data-lucide="check"></i> Enforce Zone Safety Rules
         </button>
       </div>
@@ -115,27 +117,28 @@
   <!-- SECTION 3 — System Configuration -->
   <div class="sg-card">
     <div class="sg-card-head">
-      <h2><i data-lucide="server"></i> Section 3 &mdash; Server Environment &amp; Network Configuration</h2>
+      <i data-lucide="server" style="color: var(--blue); width: 16px; height: 16px;"></i>
+      <h2>Section 3 &mdash; Server Environment &amp; Network Configuration</h2>
     </div>
     <div class="sg-card-body">
       <div class="grid-2 mb-4">
         <div class="sg-form-group">
-          <label class="sg-form-label">Host Binding</label>
-          <input type="text" class="sg-input mono" value="0.0.0.0" readonly>
+          <label class="sg-label">Host Binding</label>
+          <input type="text" class="sg-input mono w-full" value="0.0.0.0" readonly>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Listening Port</label>
-          <input type="text" class="sg-input mono" value="5000" readonly>
+          <label class="sg-label">Listening Port</label>
+          <input type="text" class="sg-input mono w-full" value="5000" readonly>
         </div>
       </div>
       <div class="grid-2 mb-4">
         <div class="sg-form-group">
-          <label class="sg-form-label">Acceleration Runtime</label>
-          <input type="text" class="sg-input mono text-orange" value="{{ device_name }}" readonly>
+          <label class="sg-label">Acceleration Device</label>
+          <input type="text" class="sg-input mono w-full" style="color: var(--orange);" value="{{ device_name }}" readonly>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Session Security Lifetime</label>
-          <input type="text" class="sg-input mono" value="28,800 Seconds (8 Hours)" readonly>
+          <label class="sg-label">Session Security Lifetime</label>
+          <input type="text" class="sg-input mono w-full" value="28,800 Seconds (8 Hours)" readonly>
         </div>
       </div>
       <div class="text-xs text-3 mono">

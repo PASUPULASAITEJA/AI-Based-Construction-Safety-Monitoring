@@ -1,37 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}Video Analysis Studio{% endblock %}
-{% block page_title %}Video Analysis Studio{% endblock %}
-{% block page_subtitle %}Upload and analyze construction site video footage with YOLOv8 inference{% endblock %}
+{% block title %}Video Analysis Studio — SiteGuard AI{% endblock %}
+{% block page_title %}Video Inference Studio{% endblock %}
+{% block page_subtitle %}High-throughput asynchronous video auditing and automated hazard trajectory tracking{% endblock %}
 
 {% block content %}
 <div style="max-width: 1200px; margin: 0 auto;">
-  <!-- STATE A: Upload Zone (Visible if no result) -->
-  <div id="upload-container" class="sg-card mb-5" style="{% if analysis_result %}display: none;{% endif %}">
+  <!-- Upload State Container -->
+  <div id="upload-container" class="sg-card mb-5">
     <div class="sg-card-head">
-      <h2><i data-lucide="film"></i> Video Ingestion &amp; Automated Safety Auditing</h2>
+      <i data-lucide="film" style="color: var(--orange); width: 16px; height: 16px;"></i>
+      <h2>Video Ingestion &amp; Automated Safety Auditing</h2>
     </div>
     <div class="sg-card-body" style="padding: 40px 24px;">
       <form id="video-form" onsubmit="handleVideoUpload(event)">
-        <div id="drop-zone" style="border: 2px dashed var(--border-hover); border-radius: var(--radius-lg); padding: 48px 24px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all 0.2s;" onclick="document.getElementById('video-input').click()">
-          <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--orange-dim); color: var(--orange); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+        <div id="drop-zone" style="border: 2px dashed var(--border-2); border-radius: var(--radius-lg); padding: 48px 24px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all 0.2s;" onclick="document.getElementById('video-input').click()">
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--orange-light); border: 1px solid var(--orange-mid); color: var(--orange); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
             <i data-lucide="film" style="width: 28px; height: 28px;"></i>
           </div>
           <div style="font-size: 16px; font-weight: 600; color: var(--text-1); margin-bottom: 6px;">Drop your construction video here</div>
-          <div class="text-xs text-3" style="margin-bottom: 20px;">Supports .mp4, .avi, .mov &mdash; max 250MB</div>
+          <div class="text-xs text-3" style="margin-bottom: 20px;">Supports .mp4, .avi, .mov &bull; Maximum file size 250MB</div>
           <button type="button" class="sg-btn sg-btn-primary" onclick="event.stopPropagation(); document.getElementById('video-input').click();">
             <i data-lucide="folder-open"></i> Browse Files
           </button>
           <input type="file" id="video-input" name="video" accept=".mp4,.avi,.mov" style="display: none;" onchange="onFileSelected(this)">
-          <div id="selected-file-label" class="mono text-xs text-orange" style="margin-top: 14px; display: none;"></div>
+          <div id="selected-file-label" class="mono text-xs" style="color: var(--orange); margin-top: 14px; display: none;"></div>
         </div>
 
-        <div id="progress-card" style="display: none; margin-top: 24px; background: var(--surface-3); border-radius: var(--radius); padding: 18px; border: 1px solid var(--border);">
+        <div id="progress-card" style="display: none; margin-top: 24px; background: var(--surface-2); border-radius: var(--radius); padding: 18px; border: 1px solid var(--border);">
           <div class="flex-between mb-2">
             <span class="text-xs fw-600 text-1" id="progress-status-text">Processing frames with YOLOv8...</span>
-            <span class="mono text-xs text-orange" id="progress-pct">0%</span>
+            <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="progress-pct">0%</span>
           </div>
-          <div style="width: 100%; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden;">
+          <div style="width: 100%; height: 6px; background: var(--surface-3); border-radius: 99px; overflow: hidden;">
             <div id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--orange), #FB923C); transition: width 0.3s;"></div>
           </div>
           <div class="text-xs text-3 mono" style="margin-top: 8px;">Running temporal tracking &bull; Auditing PPE rules &bull; Encoding stream</div>
@@ -46,54 +47,52 @@
     </div>
   </div>
 
-  <!-- STATE B: Results Container -->
-  <div id="results-container" style="{% if not analysis_result %}display: none;{% endif %}">
+  <!-- Results State Container (Side-by-side) -->
+  <div id="results-container" style="display: none;">
     <div class="grid-2 mb-5">
-      <!-- Left Column: Video Player -->
+      <!-- Left Column: Annotated Video Player -->
       <div class="sg-card">
         <div class="sg-card-head">
-          <h2><i data-lucide="play-square"></i> Annotated Video Feed</h2>
-          <a id="video-download-btn" href="{{ analysis_result.annotated_video_url if analysis_result else '#' }}" download class="sg-btn sg-btn-outline sg-btn-sm">
+          <i data-lucide="play-square" style="color: var(--orange); width: 16px; height: 16px;"></i>
+          <h2>Annotated Video Feed</h2>
+          <a id="video-download-btn" href="#" download class="sg-btn sg-btn-secondary sg-btn-sm">
             <i data-lucide="download"></i> Download Video
           </a>
         </div>
         <div class="sg-card-body" style="padding: 12px; background: #000;">
-          <video id="result-video" controls style="width: 100%; border-radius: var(--radius); background: #000; display: block;">
-            {% if analysis_result %}
-              <source src="{{ analysis_result.annotated_video_url }}" type="video/mp4">
-            {% endif %}
-          </video>
+          <video id="result-video" controls style="width: 100%; border-radius: var(--radius); background: #000; display: block; aspect-ratio: 16/9;"></video>
         </div>
-        <div class="sg-card-foot text-xs text-3 mono">
-          YOLOv8 Bounding Boxes &bull; Trajectory Trails &bull; Instant Violations Flagged
+        <div style="padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace;">
+          YOLOv8 Bounding Boxes &bull; ByteTrack Trajectories &bull; Instant Violations Flagged
         </div>
       </div>
 
       <!-- Right Column: Results Telemetry & Breakdown -->
       <div class="sg-card">
         <div class="sg-card-head">
-          <h2><i data-lucide="clipboard-check"></i> Analysis Summary &amp; Violations</h2>
-          <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="resetVideoUpload()">
+          <i data-lucide="clipboard-check" style="color: var(--green); width: 16px; height: 16px;"></i>
+          <h2>Analysis Summary &amp; Violations</h2>
+          <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="resetVideoUpload()">
             <i data-lucide="rotate-ccw"></i> Analyze Another
           </button>
         </div>
         <div class="sg-card-body">
           <!-- KPI Row -->
           <div class="grid-4 mb-4">
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-1" id="res-frames">{{ analysis_result.stats.frames_processed if analysis_result else '0' }}</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600 text-1" style="font-size: 18px;" id="res-frames">0</div>
               <div class="text-xs text-3">Frames</div>
             </div>
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-orange" id="res-workers">{{ analysis_result.stats.total_workers if analysis_result else '0' }}</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600" style="font-size: 18px; color: var(--orange);" id="res-workers">0</div>
               <div class="text-xs text-3">Workers</div>
             </div>
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-red" id="res-violations">{{ analysis_result.stats.total_violations if analysis_result else '0' }}</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600" style="font-size: 18px; color: var(--red);" id="res-violations">0</div>
               <div class="text-xs text-3">Violations</div>
             </div>
-            <div style="background: var(--surface-2); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono text-lg fw-600 text-green" id="res-compliance">92%</div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
+              <div class="mono fw-600" style="font-size: 18px; color: var(--green);" id="res-compliance">92%</div>
               <div class="text-xs text-3">Compliance</div>
             </div>
           </div>
@@ -111,14 +110,14 @@
                 </tr>
               </thead>
               <tbody id="res-table-body">
-                <tr>
-                  <td>Safety Helmet Missing</td>
+                <tr class="row-critical">
+                  <td class="strong">Safety Helmet Missing</td>
                   <td class="mono">2</td>
                   <td><span class="sg-badge sg-badge-critical">CRITICAL</span></td>
                   <td><span class="sg-badge sg-badge-open">FLAGGED</span></td>
                 </tr>
-                <tr>
-                  <td>High-Vis Vest Missing</td>
+                <tr class="row-high">
+                  <td class="strong">High-Vis Vest Missing</td>
                   <td class="mono">1</td>
                   <td><span class="sg-badge sg-badge-high">HIGH</span></td>
                   <td><span class="sg-badge sg-badge-open">FLAGGED</span></td>
@@ -163,7 +162,6 @@ async function handleVideoUpload(e) {
   progCard.style.display = 'block';
   submitBtn.disabled = true;
 
-  // Simulate progress steps while backend runs YOLOv8
   let p = 5;
   const interval = setInterval(() => {
     if (p < 90) {
@@ -201,15 +199,16 @@ async function handleVideoUpload(e) {
           document.getElementById('res-workers').textContent = data.stats.total_workers;
           document.getElementById('res-violations').textContent = data.stats.total_violations;
         }
+        sgToast('success', 'Analysis Completed', 'Video successfully audited for safety compliance.');
       }, 500);
     } else {
-      alert('Upload failed: ' + data.message);
+      sgToast('error', 'Upload Failed', data.message || 'Server rejected video file.');
       progCard.style.display = 'none';
       submitBtn.disabled = false;
     }
   } catch (err) {
     clearInterval(interval);
-    alert('Processing error: ' + err);
+    sgToast('error', 'Processing Error', err.toString());
     progCard.style.display = 'none';
     submitBtn.disabled = false;
   }

@@ -1,63 +1,63 @@
 {% extends "base.html" %}
 
-{% block title %}Report Center{% endblock %}
-{% block page_title %}Safety Report Center{% endblock %}
-{% block page_subtitle %}Automated compliance audit generation &amp; OSHA/HSE regulatory documentation{% endblock %}
+{% block title %}Safety Reports — SiteGuard AI{% endblock %}
+{% block page_title %}Safety Report Generator{% endblock %}
+{% block page_subtitle %}Automated OSHA and HSE compliance documentation, weekly incident audits, and verifiable safety records{% endblock %}
 
 {% block content %}
-<!-- 4 Report Generation Cards -->
+<!-- 4 Report Type Cards -->
 <div class="grid-4 mb-5">
-  <!-- Card 1: Today -->
+  <!-- 1. Today -->
   <div class="sg-card">
     <div class="sg-card-body">
-      <div class="sg-kpi-icon" style="background: var(--blue-dim); color: var(--blue);">
-        <i data-lucide="calendar"></i>
+      <div class="sg-kpi-icon" style="background: var(--orange-light); border: 1px solid var(--orange-mid);">
+        <i data-lucide="calendar" style="color: var(--orange);"></i>
       </div>
-      <div class="fw-600 text-1 text-base mb-1">Today's Shift Audit</div>
+      <div class="fw-600 text-1 text-sm mb-1">Today's Shift Audit</div>
       <p class="text-xs text-3 mb-4">Immediate snapshot of current 24-hour non-compliance, active workers, and alerts.</p>
-      <a href="{{ url_for('reports_view', period='TODAY') }}" class="sg-btn sg-btn-outline sg-btn-sm w-full">
+      <a href="{{ url_for('reports.reports', period='TODAY') }}" class="sg-btn sg-btn-secondary sg-btn-sm w-full">
         <i data-lucide="file-text"></i> Generate Today
       </a>
     </div>
   </div>
 
-  <!-- Card 2: Last 7 Days -->
+  <!-- 2. Last 7 Days -->
   <div class="sg-card">
     <div class="sg-card-body">
-      <div class="sg-kpi-icon" style="background: var(--orange-dim); color: var(--orange);">
-        <i data-lucide="calendar-range"></i>
+      <div class="sg-kpi-icon" style="background: var(--orange-light); border: 1px solid var(--orange-mid);">
+        <i data-lucide="calendar-range" style="color: var(--orange);"></i>
       </div>
-      <div class="fw-600 text-1 text-base mb-1">Weekly Safety Summary</div>
+      <div class="fw-600 text-1 text-sm mb-1">Weekly Safety Summary</div>
       <p class="text-xs text-3 mb-4">7-day retrospective on PPE compliance, peak violation windows, and zone hot-spots.</p>
-      <a href="{{ url_for('reports_view', period='7DAYS') }}" class="sg-btn sg-btn-primary sg-btn-sm w-full">
+      <a href="{{ url_for('reports.reports', period='7DAYS') }}" class="sg-btn sg-btn-primary sg-btn-sm w-full">
         <i data-lucide="file-text"></i> Generate 7 Days
       </a>
     </div>
   </div>
 
-  <!-- Card 3: Last 30 Days -->
+  <!-- 3. Last 30 Days -->
   <div class="sg-card">
     <div class="sg-card-body">
-      <div class="sg-kpi-icon" style="background: var(--purple-dim); color: var(--purple);">
-        <i data-lucide="bar-chart-2"></i>
+      <div class="sg-kpi-icon" style="background: var(--orange-light); border: 1px solid var(--orange-mid);">
+        <i data-lucide="bar-chart-2" style="color: var(--orange);"></i>
       </div>
-      <div class="fw-600 text-1 text-base mb-1">Monthly Audit Report</div>
+      <div class="fw-600 text-1 text-sm mb-1">Monthly Audit Report</div>
       <p class="text-xs text-3 mb-4">Complete 30-day compliance evaluation for site executive reviews and insurer audits.</p>
-      <a href="{{ url_for('reports_view', period='30DAYS') }}" class="sg-btn sg-btn-outline sg-btn-sm w-full">
+      <a href="{{ url_for('reports.reports', period='30DAYS') }}" class="sg-btn sg-btn-secondary sg-btn-sm w-full">
         <i data-lucide="file-text"></i> Generate 30 Days
       </a>
     </div>
   </div>
 
-  <!-- Card 4: All Time -->
+  <!-- 4. All Time -->
   <div class="sg-card">
     <div class="sg-card-body">
-      <div class="sg-kpi-icon" style="background: var(--green-dim); color: var(--green);">
-        <i data-lucide="archive"></i>
+      <div class="sg-kpi-icon" style="background: var(--orange-light); border: 1px solid var(--orange-mid);">
+        <i data-lucide="archive" style="color: var(--orange);"></i>
       </div>
-      <div class="fw-600 text-1 text-base mb-1">Complete Master Record</div>
+      <div class="fw-600 text-1 text-sm mb-1">Master Incident Archive</div>
       <p class="text-xs text-3 mb-4">Comprehensive archive of all recorded camera observations, reviews, and root causes.</p>
-      <a href="{{ url_for('reports_view', period='ALL') }}" class="sg-btn sg-btn-outline sg-btn-sm w-full">
+      <a href="{{ url_for('reports.reports', period='ALL') }}" class="sg-btn sg-btn-secondary sg-btn-sm w-full">
         <i data-lucide="file-text"></i> Generate All Time
       </a>
     </div>
@@ -68,14 +68,14 @@
 <div class="sg-card">
   <div class="sg-card-head">
     <div>
-      <h2><i data-lucide="file-check"></i> Audit Report: {{ period|default('ALL') }}</h2>
+      <h2><i data-lucide="file-check" style="color: var(--green);"></i> Audit Report: {{ period|default('ALL') }}</h2>
       <div class="text-xs text-3 mono" style="margin-top: 2px;">Generated at {{ generated_at }} &bull; SiteGuard AI Certified</div>
     </div>
     <div style="display: flex; gap: 8px;">
-      <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="window.print()">
+      <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="window.print()">
         <i data-lucide="printer"></i> Print / PDF
       </button>
-      <a href="{{ url_for('export_incidents_csv') }}" class="sg-btn sg-btn-primary sg-btn-sm">
+      <a href="/api/incidents/export" class="sg-btn sg-btn-primary sg-btn-sm">
         <i data-lucide="download"></i> Export Incident CSV
       </a>
     </div>
@@ -86,19 +86,19 @@
     <div class="grid-4">
       <div>
         <div class="text-xs text-3">Period Scope</div>
-        <div class="mono text-base fw-600 text-1">{{ period|default('ALL') }}</div>
+        <div class="mono fw-600 text-1" style="font-size: 16px;">{{ period|default('ALL') }}</div>
       </div>
       <div>
         <div class="text-xs text-3">Incidents Logged</div>
-        <div class="mono text-base fw-600 text-orange">{{ report_incidents|length }}</div>
+        <div class="mono fw-600" style="font-size: 16px; color: var(--orange);">{{ report_incidents|length }}</div>
       </div>
       <div>
         <div class="text-xs text-3">Critical Severities</div>
-        <div class="mono text-base fw-600 text-red">{{ crit_count|default(0) }}</div>
+        <div class="mono fw-600" style="font-size: 16px; color: var(--red);">{{ crit_count|default(0) }}</div>
       </div>
       <div>
         <div class="text-xs text-3">Audit Compliance</div>
-        <div class="mono text-base fw-600 text-green">{{ report_compliance|default(100.0) }}%</div>
+        <div class="mono fw-600" style="font-size: 16px; color: var(--green);">{{ report_compliance|default(100.0) }}%</div>
       </div>
     </div>
   </div>
@@ -120,12 +120,12 @@
       </thead>
       <tbody>
         {% for inc in report_incidents %}
-          <tr>
+          <tr class="row-{{ inc.severity|lower }}">
             <td class="mono fw-600 text-1">{{ inc.incident_code or ('INC-' ~ inc.id) }}</td>
             <td class="mono text-xs">{{ inc.timestamp }}</td>
             <td><span class="sg-badge sg-badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
-            <td class="fw-500 text-1">{{ inc.violation_type|replace('_', ' ')|title }}</td>
-            <td><span class="sg-worker-id">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
+            <td class="strong">{{ inc.violation_type|replace('_', ' ')|title }}</td>
+            <td><span class="sg-wid">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
             <td>{{ inc.zone_name or 'General Site Perimeter' }}</td>
             <td class="text-xs text-2">{{ inc.root_cause or 'Under human review' }}</td>
             <td>
@@ -137,9 +137,10 @@
         {% else %}
           <tr>
             <td colspan="8">
-              <div class="sg-empty" style="padding: 48px;">
+              <div class="sg-empty">
                 <i data-lucide="check-circle" style="color: var(--green);"></i>
-                <p>No safety incidents flagged during this audit period.</p>
+                <h3>No Incidents Flagged</h3>
+                <p>No safety violations were recorded during this audit period.</p>
               </div>
             </td>
           </tr>

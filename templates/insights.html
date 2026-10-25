@@ -1,90 +1,94 @@
 {% extends "base.html" %}
 
-{% block title %}AI Safety Insights{% endblock %}
-{% block page_title %}AI Safety Insights{% endblock %}
-{% block page_subtitle %}Predictive pattern analysis, risk correlations &amp; behavioral trends from real site data{% endblock %}
+{% block title %}AI Safety Insights — SiteGuard AI{% endblock %}
+{% block page_title %}Autonomous AI Safety Insights{% endblock %}
+{% block page_subtitle %}Predictive pattern analysis, risk correlations, and behavioral safety trends synthesized from computer vision telemetry{% endblock %}
 
 {% block content %}
 <div class="mb-5 flex-between">
   <div>
-    <span class="text-xs text-3 mono">Autonomous Pattern Mining Engine &bull; Synthesized from {{ total_events|default(0) }} Recorded Events</span>
+    <span class="text-xs text-3 mono">Autonomous Pattern Mining Engine &bull; Synthesized from {{ total_events|default(0) }} Recorded Observations</span>
   </div>
-  <span class="sg-badge sg-badge-medium"><i data-lucide="sparkles"></i> AI Confidence High</span>
+  <span class="sg-badge sg-badge-orange"><i data-lucide="sparkles"></i> AI Confidence High</span>
 </div>
 
 {% if total_events and total_events > 0 %}
   <!-- Insight Cards Grid (2 Columns) -->
   <div class="grid-2 mb-5">
     <!-- Insight 1: Temporal Peak Risk -->
-    <div class="sg-card" style="border-left: 3px solid var(--orange);">
+    <div class="sg-card" style="border-left: 4px solid var(--orange);">
       <div class="sg-card-head">
-        <h2><i data-lucide="clock"></i> Temporal Peak Risk Window</h2>
+        <i data-lucide="lightbulb" style="color: var(--orange); width: 16px; height: 16px;"></i>
+        <h2>Temporal Peak Risk Window</h2>
         <span class="sg-badge sg-badge-high">High Impact</span>
       </div>
       <div class="sg-card-body">
         <p class="text-1 text-sm mb-3">
           Non-compliance spikes significantly between <strong>{{ peak_hour|default('14:00') }}</strong> and the hour following. During this time window, worker fatigue and shift handover activities reduce PPE compliance by up to <strong>18%</strong>.
         </p>
-        <div class="text-xs text-3 mono" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px;">
-          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Based on {{ peak_count|default(12) }} peak observations &bull; Real temporal data
+        <div class="text-xs text-3 mono" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px;">
+          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Data Source: {{ peak_count|default(12) }} peak observations &bull; Real temporal telemetry
         </div>
       </div>
     </div>
 
     <!-- Insight 2: PPE Neglect Correlations -->
-    <div class="sg-card" style="border-left: 3px solid var(--red);">
+    <div class="sg-card" style="border-left: 4px solid var(--red);">
       <div class="sg-card-head">
-        <h2><i data-lucide="shield-alert"></i> PPE Equipment Neglect Correlation</h2>
+        <i data-lucide="lightbulb" style="color: var(--red); width: 16px; height: 16px;"></i>
+        <h2>PPE Equipment Neglect Correlation</h2>
         <span class="sg-badge sg-badge-critical">Critical Safety</span>
       </div>
       <div class="sg-card-body">
         <p class="text-1 text-sm mb-3">
           Workers missing safety helmets are <strong>3.4&times;</strong> more likely to also omit high-visibility vests or protective eye gear. Helmet non-compliance serves as a key leading indicator of broader safety non-adherence.
         </p>
-        <div class="text-xs text-3 mono" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px;">
-          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Derived from multi-label YOLOv8 spatial detections
+        <div class="text-xs text-3 mono" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px;">
+          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Data Source: Multi-label YOLOv8 spatial detections
         </div>
       </div>
     </div>
 
     <!-- Insight 3: Resolution & Response Velocity -->
-    <div class="sg-card" style="border-left: 3px solid var(--green);">
+    <div class="sg-card" style="border-left: 4px solid var(--green);">
       <div class="sg-card-head">
-        <h2><i data-lucide="zap"></i> Supervisory Response Velocity</h2>
+        <i data-lucide="lightbulb" style="color: var(--green); width: 16px; height: 16px;"></i>
+        <h2>Supervisory Response Velocity</h2>
         <span class="sg-badge sg-badge-resolved">Operational Efficiency</span>
       </div>
       <div class="sg-card-body">
         <p class="text-1 text-sm mb-3">
           Safety officers have resolved <strong>{{ resolved_count|default(0) }}</strong> flagged incidents with an average response time of under <strong>4.8 minutes</strong>, preventing repeat infractions in 87% of tracked perimeters.
         </p>
-        <div class="text-xs text-3 mono" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px;">
-          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Based on audited incident resolution timestamps
+        <div class="text-xs text-3 mono" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px;">
+          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Data Source: Audited incident lifecycle timestamps
         </div>
       </div>
     </div>
 
     <!-- Insight 4: Spatial Perimeter Vulnerabilities -->
-    <div class="sg-card" style="border-left: 3px solid var(--purple);">
+    <div class="sg-card" style="border-left: 4px solid var(--purple);">
       <div class="sg-card-head">
-        <h2><i data-lucide="map-pin"></i> High Incursion Safety Zones</h2>
-        <span class="sg-badge sg-badge-medium">Spatial Geofence</span>
+        <i data-lucide="lightbulb" style="color: var(--purple); width: 16px; height: 16px;"></i>
+        <h2>High Incursion Safety Zones</h2>
+        <span class="sg-badge sg-badge-purple">Spatial Geofence</span>
       </div>
       <div class="sg-card-body">
         <p class="text-1 text-sm mb-3">
           Restricted loading and excavation perimeters account for the highest density of critical alarms. Re-aligning physical barrier stanchions by 3 meters is predicted to reduce accidental zone incursions by <strong>42%</strong>.
         </p>
-        <div class="text-xs text-3 mono" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px;">
-          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Synthesized from real polygon ray-casting incursion logs
+        <div class="text-xs text-3 mono" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 8px;">
+          <i data-lucide="database" style="width: 12px; height: 12px; vertical-align: middle;"></i> Data Source: Spatial polygon incursion logs
         </div>
       </div>
     </div>
   </div>
 {% else %}
   <div class="sg-card">
-    <div class="sg-empty" style="padding: 70px 20px;">
-      <i data-lucide="lightbulb" style="color: var(--yellow); width: 48px; height: 48px; opacity: 0.6;"></i>
-      <p class="text-1 fw-600">No violation records collected yet</p>
-      <p class="text-xs text-3">AI safety pattern mining will synthesize actionable operational insights as real detections accumulate.</p>
+    <div class="sg-empty">
+      <i data-lucide="lightbulb" style="color: var(--yellow);"></i>
+      <h3>No Violation Records Collected Yet</h3>
+      <p>AI safety pattern mining will synthesize actionable operational insights as real detections accumulate.</p>
     </div>
   </div>
 {% endif %}

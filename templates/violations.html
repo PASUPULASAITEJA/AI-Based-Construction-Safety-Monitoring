@@ -1,64 +1,54 @@
 {% extends "base.html" %}
 
-{% block title %}Safety Violations{% endblock %}
-{% block page_title %}Safety Violations{% endblock %}
-{% block page_subtitle %}Full audit log of all detected PPE non-compliance and spatial zone infractions{% endblock %}
+{% block title %}Safety Violations — SiteGuard AI{% endblock %}
+{% block page_title %}Safety Violations Registry{% endblock %}
+{% block page_subtitle %}Central audit trail of real-time computer vision non-compliance events and human verification{% endblock %}
 
 {% block content %}
-<!-- Row 1: 5 Stat Cards -->
-<div class="grid-5 mb-5">
-  <div class="sg-kpi" style="--kpi-accent: var(--blue);">
-    <div class="sg-kpi-icon" style="background: var(--blue-dim); color: var(--blue);">
-      <i data-lucide="layers"></i>
-    </div>
-    <div class="sg-kpi-num">{{ review_stats.total|default(violations|length) }}</div>
+<!-- Top: 5 Stat Mini-Cards -->
+<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px;">
+  <div class="sg-kpi" style="--kpi-bg: var(--blue-light); --kpi-accent: var(--blue);">
+    <div class="sg-kpi-icon"><i data-lucide="layers"></i></div>
+    <div class="sg-kpi-num" data-count="{{ review_stats.total|default(violations|length) }}">{{ review_stats.total|default(violations|length) }}</div>
     <div class="sg-kpi-label">Total Violations</div>
-    <div class="sg-kpi-trend trend-flat"><i data-lucide="database"></i> Historical audit</div>
+    <div class="sg-kpi-trend kpi-flat"><i data-lucide="database"></i> System Log</div>
   </div>
 
-  <div class="sg-kpi" style="--kpi-accent: var(--red);">
-    <div class="sg-kpi-icon" style="background: var(--red-dim); color: var(--red);">
-      <i data-lucide="check-circle"></i>
-    </div>
-    <div class="sg-kpi-num">{{ review_stats.confirmed|default(0) }}</div>
+  <div class="sg-kpi" style="--kpi-bg: var(--red-light); --kpi-accent: var(--red);">
+    <div class="sg-kpi-icon"><i data-lucide="check-circle"></i></div>
+    <div class="sg-kpi-num" data-count="{{ review_stats.confirmed|default(0) }}">{{ review_stats.confirmed|default(0) }}</div>
     <div class="sg-kpi-label">Confirmed Valid</div>
-    <div class="sg-kpi-trend trend-down"><i data-lucide="alert-octagon"></i> Human verified</div>
+    <div class="sg-kpi-trend kpi-down"><i data-lucide="alert-octagon"></i> Human Verified</div>
   </div>
 
-  <div class="sg-kpi" style="--kpi-accent: var(--yellow);">
-    <div class="sg-kpi-icon" style="background: var(--yellow-dim); color: var(--yellow);">
-      <i data-lucide="clock"></i>
-    </div>
-    <div class="sg-kpi-num">{{ review_stats.pending|default(0) }}</div>
+  <div class="sg-kpi" style="--kpi-bg: var(--yellow-light); --kpi-accent: var(--yellow);">
+    <div class="sg-kpi-icon"><i data-lucide="clock"></i></div>
+    <div class="sg-kpi-num" data-count="{{ review_stats.pending|default(0) }}">{{ review_stats.pending|default(0) }}</div>
     <div class="sg-kpi-label">Pending Review</div>
-    <div class="sg-kpi-trend trend-flat"><i data-lucide="inbox"></i> In queue</div>
+    <div class="sg-kpi-trend kpi-flat"><i data-lucide="inbox"></i> Action Queue</div>
   </div>
 
-  <div class="sg-kpi" style="--kpi-accent: var(--purple);">
-    <div class="sg-kpi-icon" style="background: var(--purple-dim); color: var(--purple);">
-      <i data-lucide="flag-off"></i>
-    </div>
-    <div class="sg-kpi-num">{{ review_stats.false_positives|default(review_stats.false_pos|default(0)) }}</div>
+  <div class="sg-kpi" style="--kpi-bg: var(--purple-light); --kpi-accent: var(--purple);">
+    <div class="sg-kpi-icon"><i data-lucide="flag-off"></i></div>
+    <div class="sg-kpi-num" data-count="{{ review_stats.false_positives|default(review_stats.false_pos|default(0)) }}">{{ review_stats.false_positives|default(review_stats.false_pos|default(0)) }}</div>
     <div class="sg-kpi-label">False Positives</div>
-    <div class="sg-kpi-trend trend-flat"><i data-lucide="sliders"></i> Tuning CV model</div>
+    <div class="sg-kpi-trend kpi-flat"><i data-lucide="sliders"></i> Filtered Out</div>
   </div>
 
-  <div class="sg-kpi" style="--kpi-accent: var(--green);">
-    <div class="sg-kpi-icon" style="background: var(--green-dim); color: var(--green);">
-      <i data-lucide="percent"></i>
-    </div>
-    <div class="sg-kpi-num">{{ review_stats.confirmation_rate|default(review_stats.conf_rate|default(100.0)) }}%</div>
+  <div class="sg-kpi" style="--kpi-bg: var(--green-light); --kpi-accent: var(--green);">
+    <div class="sg-kpi-icon"><i data-lucide="percent"></i></div>
+    <div class="sg-kpi-num" data-suffix="%">{{ review_stats.confirmation_rate|default(review_stats.conf_rate|default(100.0)) }}%</div>
     <div class="sg-kpi-label">Confirmation Accuracy</div>
-    <div class="sg-kpi-trend trend-up"><i data-lucide="trending-up"></i> High precision</div>
+    <div class="sg-kpi-trend kpi-up"><i data-lucide="trending-up"></i> High Precision</div>
   </div>
 </div>
 
-<!-- Row 2: Filter Toolbar -->
+<!-- Filter Toolbar -->
 <div class="sg-card mb-5">
   <div class="sg-card-body" style="padding: 14px 18px;">
-    <form method="GET" action="{{ url_for('violations_view') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+    <form method="GET" action="{{ url_for('violations.violations') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
       <!-- Type Filter -->
-      <select name="violation_type" class="sg-select" style="width: auto; min-width: 150px;">
+      <select name="violation_type" class="sg-select text-xs" style="min-width: 160px;">
         <option value="ALL">All Violation Types</option>
         {% for vt in violation_types %}
           <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
@@ -66,7 +56,7 @@
       </select>
 
       <!-- Severity Filter -->
-      <select name="severity" class="sg-select" style="width: auto; min-width: 130px;">
+      <select name="severity" class="sg-select text-xs" style="min-width: 130px;">
         <option value="ALL">All Severities</option>
         <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>Critical</option>
         <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>High</option>
@@ -75,7 +65,7 @@
       </select>
 
       <!-- Status Filter -->
-      <select name="status" class="sg-select" style="width: auto; min-width: 130px;">
+      <select name="status" class="sg-select text-xs" style="min-width: 130px;">
         <option value="ALL">All Statuses</option>
         <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>Open</option>
         <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>Confirmed</option>
@@ -83,34 +73,35 @@
       </select>
 
       <!-- Site Filter -->
-      <select name="site_id" class="sg-select" style="width: auto; min-width: 140px;">
+      <select name="site_id" class="sg-select text-xs" style="min-width: 140px;">
         <option value="ALL">All Sites</option>
         {% for s in sites %}
           <option value="{{ s.id }}" {% if current_site|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
         {% endfor %}
       </select>
 
-      <!-- Search Box -->
+      <!-- Search Input -->
       <div style="flex: 1; min-width: 180px;">
-        <input type="text" name="search" class="sg-input" placeholder="Search Worker, Code, Notes..." value="{{ current_search|default('') }}">
+        <input type="text" name="search" class="sg-input text-xs w-full" placeholder="Search Worker ID, code, or notes..." value="{{ current_search|default('') }}">
       </div>
 
       <button type="submit" class="sg-btn sg-btn-primary sg-btn-sm">
         <i data-lucide="filter"></i> Apply
       </button>
-      <a href="{{ url_for('violations_view') }}" class="sg-btn sg-btn-ghost sg-btn-sm">Clear</a>
+      <a href="{{ url_for('violations.violations') }}" class="sg-btn sg-btn-ghost sg-btn-sm">Reset</a>
 
-      <a href="{{ url_for('export_violations_csv') }}" class="sg-btn sg-btn-outline sg-btn-sm" style="margin-left: auto;">
+      <a href="/api/violations/export" class="sg-btn sg-btn-secondary sg-btn-sm" style="margin-left: auto;">
         <i data-lucide="download"></i> Export CSV
       </a>
     </form>
   </div>
 </div>
 
-<!-- Row 3: Violations Table -->
+<!-- Violations Data Table -->
 <div class="sg-card">
   <div class="sg-card-head">
-    <h2><i data-lucide="alert-triangle"></i> Violations Registry ({{ violations|length }} items)</h2>
+    <i data-lucide="alert-triangle" style="color: var(--orange); width: 16px; height: 16px;"></i>
+    <h2>Violations Registry ({{ violations|length }} Recorded)</h2>
   </div>
   <div class="sg-table-wrap">
     <table class="sg-table">
@@ -123,7 +114,6 @@
           <th>Severity</th>
           <th>Zone</th>
           <th>Camera</th>
-          <th>Duration</th>
           <th>Confidence</th>
           <th>Snapshot</th>
           <th>Status</th>
@@ -132,28 +122,28 @@
       </thead>
       <tbody>
         {% for v in violations %}
-          <tr class="row-{{ v.severity|lower }}" onclick="openViolationModal({{ v.id }})">
+          {% set s_cls = v.severity|lower %}
+          <tr class="row-{{ s_cls }}" onclick="openViolationModal({{ v.id }})">
             <td class="mono text-3">#{{ v.id }}</td>
             <td class="mono text-xs">{{ v.timestamp }}</td>
-            <td><span class="sg-worker-id">W-{{ v.worker_id or v.worker_label or '01' }}</span></td>
-            <td class="fw-500 text-1">{{ v.violation_type|replace('_', ' ')|title }}</td>
+            <td><span class="sg-wid">W-{{ v.worker_id or v.worker_label or '01' }}</span></td>
+            <td class="strong">{{ v.violation_type|replace('_', ' ')|title }}</td>
             <td>
-              <span class="sg-badge sg-badge-{{ v.severity|lower }}">{{ v.severity }}</span>
+              <span class="sg-badge sg-badge-{{ s_cls }}">{{ v.severity }}</span>
             </td>
             <td>{{ v.zone_name or 'Main Yard' }}</td>
             <td class="mono text-xs">{{ v.camera_name or 'Cam 01' }}</td>
-            <td class="mono text-xs">{{ v.duration_sec|default('3.2') }}s</td>
             <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 48px; height: 4px; background: var(--surface-3); border-radius: 99px; overflow: hidden;">
-                  <div style="height: 100%; width: {{ (v.confidence * 100)|round(0) }}%; background: var(--orange);"></div>
+              <div class="sg-conf-wrap">
+                <div class="sg-conf-track">
+                  <div class="sg-conf-fill {{ 'high' if v.confidence >= 0.8 else ('mid' if v.confidence >= 0.6 else 'low') }}" style="width: {{ (v.confidence * 100)|round(0) }}%;"></div>
                 </div>
-                <span class="mono text-xs">{{ (v.confidence * 100)|round(0) }}%</span>
+                <span class="sg-conf-pct">{{ (v.confidence * 100)|round(0) }}%</span>
               </div>
             </td>
             <td>
               {% if v.snapshot_path %}
-                <div class="sg-thumb" style="width: 32px; height: 32px;">
+                <div class="sg-thumb">
                   <img src="/{{ v.snapshot_path }}" alt="Snap">
                 </div>
               {% else %}
@@ -171,14 +161,14 @@
             </td>
             <td style="text-align: right;" onclick="event.stopPropagation()">
               <div style="display: inline-flex; gap: 4px;">
-                <button class="sg-btn sg-btn-ghost sg-btn-icon" title="View details" onclick="openViolationModal({{ v.id }})">
+                <button class="sg-btn sg-btn-ghost sg-btn-xs" title="View details" onclick="openViolationModal({{ v.id }})">
                   <i data-lucide="eye"></i>
                 </button>
                 {% if v.status == 'OPEN' %}
-                  <button class="sg-btn sg-btn-outline sg-btn-icon text-green" title="Confirm Violation" onclick="confirmViolation({{ v.id }})">
+                  <button class="sg-btn sg-btn-secondary sg-btn-xs" style="color: var(--green);" title="Confirm Violation" onclick="confirmViolation({{ v.id }})">
                     <i data-lucide="check"></i>
                   </button>
-                  <button class="sg-btn sg-btn-outline sg-btn-icon text-red" title="Mark False Positive" onclick="markFalsePositive({{ v.id }})">
+                  <button class="sg-btn sg-btn-secondary sg-btn-xs" style="color: var(--red);" title="Mark False Positive" onclick="markFalsePositive({{ v.id }})">
                     <i data-lucide="flag"></i>
                   </button>
                 {% endif %}
@@ -187,10 +177,11 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="12">
-              <div class="sg-empty" style="padding: 48px;">
+            <td colspan="11">
+              <div class="sg-empty">
                 <i data-lucide="shield-check" style="color: var(--green);"></i>
-                <p>No safety violations matching active criteria.</p>
+                <h3>No Violations Found</h3>
+                <p>No safety non-compliance events match current filter criteria.</p>
               </div>
             </td>
           </tr>
@@ -209,48 +200,56 @@
     </div>
     <div class="sg-modal-body">
       <div class="sg-modal-left">
-        <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 8px;">Snapshot Evidence</div>
+        <div class="sg-section-label">Snapshot Evidence</div>
         <div style="background: #000; border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border);">
           <img id="modal-snapshot" src="" alt="Snapshot" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
+
+        <div class="sg-section-label" style="margin-top: 16px;">PPE Verified Status</div>
+        <div class="sg-ppe-status-grid">
+          <div class="sg-ppe-status present" id="ppe-helmet"><i data-lucide="hard-hat"></i><small>Helmet</small></div>
+          <div class="sg-ppe-status present" id="ppe-vest"><i data-lucide="shield"></i><small>Vest</small></div>
+          <div class="sg-ppe-status present" id="ppe-boots"><i data-lucide="footprints"></i><small>Boots</small></div>
+          <div class="sg-ppe-status missing" id="ppe-gloves"><i data-lucide="hand"></i><small>Gloves</small></div>
+        </div>
       </div>
       <div class="sg-modal-right">
-        <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 8px;">Violation Context</div>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mb-4">
-          <div class="flex-between">
-            <span class="text-3">Incident Code:</span>
-            <span class="mono fw-600 text-1" id="modal-code">--</span>
+        <div class="sg-section-label">Violation Context</div>
+        <div class="mb-4">
+          <div class="sg-detail-row">
+            <span class="key">Incident Code:</span>
+            <span class="val" id="modal-code">--</span>
           </div>
-          <div class="flex-between">
-            <span class="text-3">Worker ID:</span>
-            <span class="sg-worker-id" id="modal-worker">--</span>
+          <div class="sg-detail-row">
+            <span class="key">Worker ID:</span>
+            <span class="val" id="modal-worker">--</span>
           </div>
-          <div class="flex-between">
-            <span class="text-3">Severity:</span>
-            <span id="modal-severity">--</span>
+          <div class="sg-detail-row">
+            <span class="key">Severity:</span>
+            <span class="val" id="modal-severity">--</span>
           </div>
-          <div class="flex-between">
-            <span class="text-3">Zone:</span>
-            <span class="text-1" id="modal-zone">--</span>
+          <div class="sg-detail-row">
+            <span class="key">Zone Location:</span>
+            <span class="val" id="modal-zone">--</span>
           </div>
-          <div class="flex-between">
-            <span class="text-3">Confidence:</span>
-            <span class="mono text-1" id="modal-conf">--</span>
+          <div class="sg-detail-row">
+            <span class="key">Model Confidence:</span>
+            <span class="val" id="modal-conf">--</span>
           </div>
-          <div class="flex-between">
-            <span class="text-3">Timestamp:</span>
-            <span class="mono text-1" id="modal-time">--</span>
+          <div class="sg-detail-row">
+            <span class="key">Timestamp:</span>
+            <span class="val" id="modal-time">--</span>
           </div>
         </div>
 
         <div class="sg-form-group">
-          <label class="sg-form-label">Reviewer Action Notes</label>
-          <textarea id="modal-notes" class="sg-textarea" rows="3" placeholder="Enter corrective notes or reason..."></textarea>
+          <label class="sg-label">Safety Officer Review Notes</label>
+          <textarea id="modal-notes" class="sg-input w-full" rows="3" placeholder="Enter corrective resolution notes or explanation..."></textarea>
         </div>
       </div>
     </div>
     <div class="sg-modal-foot">
-      <button class="sg-btn sg-btn-outline" onclick="closeViolationModal()">Close</button>
+      <button class="sg-btn sg-btn-secondary" onclick="closeViolationModal()">Close</button>
       <button class="sg-btn sg-btn-danger" id="modal-btn-fp" onclick="submitModalFalsePositive()">Mark False Positive</button>
       <button class="sg-btn sg-btn-primary" id="modal-btn-confirm" onclick="submitModalConfirm()">Confirm &amp; Escalate</button>
     </div>
@@ -282,6 +281,7 @@ async function openViolationModal(vId) {
 
       const snap = document.getElementById('modal-snapshot');
       snap.src = v.snapshot_path ? ('/' + v.snapshot_path) : '';
+      if (window.lucide) lucide.createIcons();
     }
   } catch (e) {
     console.error('Error fetching violation:', e);
@@ -304,12 +304,13 @@ async function confirmViolation(vId) {
     });
     const json = await res.json();
     if (json.success) {
-      window.location.reload();
+      sgToast('success', 'Confirmed', 'Violation logged as confirmed.');
+      setTimeout(() => window.location.reload(), 400);
     } else {
-      alert('Error: ' + json.message);
+      sgToast('error', 'Action Failed', json.message || 'Could not confirm.');
     }
   } catch (e) {
-    alert('Action error: ' + e);
+    sgToast('error', 'Error', e.toString());
   }
 }
 
@@ -324,24 +325,23 @@ async function markFalsePositive(vId) {
     });
     const json = await res.json();
     if (json.success) {
-      window.location.reload();
+      sgToast('info', 'Updated', 'Violation marked as false positive.');
+      setTimeout(() => window.location.reload(), 400);
     } else {
-      alert('Error: ' + json.message);
+      sgToast('error', 'Action Failed', json.message || 'Could not update.');
     }
   } catch (e) {
-    alert('Action error: ' + e);
+    sgToast('error', 'Error', e.toString());
   }
 }
 
 async function submitModalConfirm() {
   if (!currentModalViolationId) return;
-  const notes = document.getElementById('modal-notes').value;
   await confirmViolation(currentModalViolationId);
 }
 
 async function submitModalFalsePositive() {
   if (!currentModalViolationId) return;
-  const reason = document.getElementById('modal-notes').value;
   await markFalsePositive(currentModalViolationId);
 }
 </script>

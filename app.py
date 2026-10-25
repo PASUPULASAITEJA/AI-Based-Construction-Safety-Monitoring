@@ -108,19 +108,38 @@ def audit(action, category, details, target_id=None):
         ip_address=request.remote_addr
     )
 
+class UserContext(str):
+    def __new__(cls, name, role="Admin", initials="ST"):
+        obj = str.__new__(cls, name)
+        obj.name = name
+        obj.role = role
+        obj.initials = initials
+        return obj
+
 @app.context_processor
 def inject_global_counts():
     try:
         open_alerts = AlertModel.get_open_count()
         unread_notifs = NotificationModel.get_unread_count()
+        violation_count = ViolationModel.get_count(today_only=True)
     except Exception:
         open_alerts = 0
         unread_notifs = 0
+        violation_count = 0
+    uname = session.get("username", "Safety Admin") or "Safety Admin"
+    urole = session.get("role", "Admin") or "Admin"
+    initials = "".join([part[0].upper() for part in uname.split()[:2]]) or "SA"
+    user_obj = UserContext(uname, role=urole, initials=initials)
     return {
         "open_alerts_count": open_alerts,
         "unread_notifs_count": unread_notifs,
-        "current_user": session.get("username", ""),
-        "current_role": session.get("role", "VIEWER"),
+        "violation_count": violation_count,
+        "alert_count": open_alerts,
+        "notif_count": unread_notifs,
+        "current_user": user_obj,
+        "current_role": urole,
+        "current_site": {"name": "All Sites", "id": None},
+        "system_online": True,
         "is_authenticated": "user_id" in session,
         "ppe_capabilities": get_ppe_capabilities(),
         "csrf_token": get_csrf_token()
@@ -989,6 +1008,31 @@ def settings_view():
     device_name = f"PyTorch on {config.DEVICE.upper()}"
     return render_template("settings.html", active_page="settings", settings=settings,
                            defaults=defaults, device_name=device_name)
+
+# Alias endpoints for blueprint compatibility (e.g. main.index, monitor.monitor, etc.)
+for _alias, (_url, _target) in {
+    "main.index": ("/", "dashboard_view"),
+    "monitor.monitor": ("/monitor", "monitor_view"),
+    "video_analysis.video_analysis": ("/video-analysis", "video_analysis_view"),
+    "image_analysis.image_analysis": ("/image-analysis", "image_analysis_view"),
+    "violations.violations": ("/violations", "violations_view"),
+    "alerts.alerts": ("/alerts", "alerts_view"),
+    "incidents.incidents": ("/incidents", "incidents_view"),
+    "workers.workers": ("/workers", "workers_view"),
+    "sites.sites": ("/sites", "sites_view"),
+    "cameras.cameras": ("/cameras", "cameras_view"),
+    "analytics.analytics": ("/analytics", "analytics_view"),
+    "reports.reports": ("/reports", "reports_view"),
+    "model.model": ("/model", "model_view"),
+    "insights.insights": ("/insights", "insights_view"),
+    "notifications.notifications": ("/notifications", "notifications_view"),
+    "audit_logs.audit_logs": ("/audit-logs", "audit_logs_view"),
+    "system_health.system_health": ("/system-health", "system_health_view"),
+    "settings.settings": ("/settings", "settings_view"),
+    "auth.logout": ("/logout", "logout_route"),
+}.items():
+    if _target in app.view_functions:
+        app.add_url_rule(_url, endpoint=_alias, view_func=app.view_functions[_target])
 
 # ==============================================================================
 # Camera & Video Stream Controls

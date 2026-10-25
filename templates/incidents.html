@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Incident Management{% endblock %}
-{% block page_title %}Incident Management{% endblock %}
-{% block page_subtitle %}Formal safety incident records, investigation trails &amp; corrective actions{% endblock %}
+{% block title %}Incident Management — SiteGuard AI{% endblock %}
+{% block page_title %}Formal Safety Incidents{% endblock %}
+{% block page_subtitle %}Formal safety incident logs, investigation timelines, root cause analysis, and corrective action records{% endblock %}
 
 {% block content %}
 <!-- Filter Toolbar -->
 <div class="sg-card mb-5">
   <div class="sg-card-body" style="padding: 14px 18px;">
-    <form method="GET" action="{{ url_for('incidents_view') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-      <select name="violation_type" class="sg-select" style="width: auto; min-width: 150px;">
+    <form method="GET" action="{{ url_for('incidents.incidents') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+      <select name="violation_type" class="sg-select text-xs" style="min-width: 160px;">
         <option value="ALL">All Incident Types</option>
         {% for vt in violation_types %}
           <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
         {% endfor %}
       </select>
 
-      <select name="severity" class="sg-select" style="width: auto; min-width: 130px;">
+      <select name="severity" class="sg-select text-xs" style="min-width: 130px;">
         <option value="ALL">All Severities</option>
         <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>Critical</option>
         <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>High</option>
@@ -24,7 +24,7 @@
         <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>Low</option>
       </select>
 
-      <select name="status" class="sg-select" style="width: auto; min-width: 130px;">
+      <select name="status" class="sg-select text-xs" style="min-width: 130px;">
         <option value="ALL">All Statuses</option>
         <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>Open</option>
         <option value="UNDER_REVIEW" {% if current_status == 'UNDER_REVIEW' %}selected{% endif %}>Under Review</option>
@@ -33,13 +33,13 @@
       </select>
 
       <div style="flex: 1; min-width: 180px;">
-        <input type="text" name="search" class="sg-input" placeholder="Search Code, Root Cause, Worker..." value="{{ current_search|default('') }}">
+        <input type="text" name="search" class="sg-input text-xs w-full" placeholder="Search Incident Code, Root Cause, Worker..." value="{{ current_search|default('') }}">
       </div>
 
       <button type="submit" class="sg-btn sg-btn-primary sg-btn-sm"><i data-lucide="filter"></i> Filter</button>
-      <a href="{{ url_for('incidents_view') }}" class="sg-btn sg-btn-ghost sg-btn-sm">Reset</a>
+      <a href="{{ url_for('incidents.incidents') }}" class="sg-btn sg-btn-ghost sg-btn-sm">Reset</a>
 
-      <a href="{{ url_for('export_incidents_csv') }}" class="sg-btn sg-btn-outline sg-btn-sm" style="margin-left: auto;">
+      <a href="/api/incidents/export" class="sg-btn sg-btn-secondary sg-btn-sm" style="margin-left: auto;">
         <i data-lucide="download"></i> Export Incidents CSV
       </a>
     </form>
@@ -49,7 +49,8 @@
 <!-- Incidents Table -->
 <div class="sg-card">
   <div class="sg-card-head">
-    <h2><i data-lucide="clipboard-list"></i> Incident Audit Registry ({{ incidents|length }} records)</h2>
+    <i data-lucide="clipboard-list" style="color: var(--orange); width: 16px; height: 16px;"></i>
+    <h2>Incident Audit Registry ({{ incidents|length }} Records)</h2>
   </div>
   <div class="sg-table-wrap">
     <table class="sg-table">
@@ -69,57 +70,58 @@
       </thead>
       <tbody>
         {% for inc in incidents %}
-          <tr class="row-{{ inc.severity|lower }}" onclick="toggleIncidentDetails({{ inc.id }})">
+          {% set s_cls = inc.severity|lower %}
+          <tr class="row-{{ s_cls }}" onclick="toggleIncidentDetails({{ inc.id }})">
             <td class="mono fw-600 text-1">{{ inc.incident_code or ('INC-' ~ inc.id) }}</td>
             <td class="mono text-xs">{{ inc.timestamp }}</td>
-            <td><span class="sg-badge sg-badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
-            <td class="fw-500 text-1">{{ inc.violation_type|replace('_', ' ')|title }}</td>
-            <td><span class="sg-worker-id">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
+            <td><span class="sg-badge sg-badge-{{ s_cls }}">{{ inc.severity }}</span></td>
+            <td class="strong">{{ inc.violation_type|replace('_', ' ')|title }}</td>
+            <td><span class="sg-wid">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
             <td>{{ inc.zone_name or 'Scaffold Deck' }}</td>
             <td class="text-xs" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               {{ inc.root_cause or 'Under investigation' }}
             </td>
             <td>
-              <span class="sg-badge {{ 'sg-badge-open' if inc.status == 'OPEN' else 'sg-badge-review' if inc.status == 'UNDER_REVIEW' else 'sg-badge-resolved' }}">
+              <span class="sg-badge {{ 'sg-badge-open' if inc.status == 'OPEN' else ('sg-badge-review' if inc.status == 'UNDER_REVIEW' else 'sg-badge-resolved') }}">
                 {{ inc.status or 'OPEN' }}
               </span>
             </td>
             <td class="text-xs text-2">{{ inc.assigned_to or 'Unassigned' }}</td>
             <td style="text-align: right;" onclick="event.stopPropagation()">
-              <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="toggleIncidentDetails({{ inc.id }})">
+              <button class="sg-btn sg-btn-secondary sg-btn-xs" onclick="toggleIncidentDetails({{ inc.id }})">
                 <i data-lucide="chevron-down" id="chevron-{{ inc.id }}"></i> Expand
               </button>
             </td>
           </tr>
           <!-- Expandable Detail Row -->
           <tr id="details-row-{{ inc.id }}" style="display: none; background: var(--surface-2); cursor: default;">
-            <td colspan="10" style="padding: 16px 20px;">
+            <td colspan="10" style="padding: 18px 24px;">
               <div class="grid-2">
                 <div>
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Description &amp; Incident Findings</div>
-                  <p class="text-xs text-1 mb-3" style="line-height: 1.6;">{{ inc.description or 'Automatic incident opened following verified safety non-compliance on site.' }}</p>
+                  <div class="sg-section-label">Incident Findings &amp; Observations</div>
+                  <p class="text-xs text-1 mb-3" style="line-height: 1.6;">{{ inc.description or 'Automatic incident logged following verified worker safety hazard detection.' }}</p>
 
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Root Cause &amp; Corrective Action</div>
-                  <p class="text-xs text-2 mb-3"><strong class="text-1">Root Cause:</strong> {{ inc.root_cause or 'Worker failed to equip safety helmet upon entering active loading perimeter.' }}</p>
-                  <p class="text-xs text-2 mb-3"><strong class="text-1">Corrective Action:</strong> {{ inc.corrective_action or 'Supervisor issued verbal warning and provided standard helmet replacement.' }}</p>
-                  
+                  <div class="sg-section-label">Root Cause &amp; Corrective Action</div>
+                  <div class="mb-2 text-xs"><strong class="text-1">Root Cause:</strong> <span class="text-2">{{ inc.root_cause or 'Worker entered hazard perimeter without required PPE.' }}</span></div>
+                  <div class="mb-2 text-xs"><strong class="text-1">Corrective Action:</strong> <span class="text-2">{{ inc.corrective_action or 'Supervisor issued safety equipment and conducted refresher briefing.' }}</span></div>
+
                   {% if inc.resolution_note %}
-                    <p class="text-xs text-green"><strong class="text-1">Resolution Note:</strong> {{ inc.resolution_note }}</p>
+                    <div class="mt-2 text-xs" style="color: var(--green);"><strong class="text-1">Resolution Note:</strong> {{ inc.resolution_note }}</div>
                   {% endif %}
                 </div>
 
                 <div>
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Evidence Snapshot &amp; Metadata</div>
+                  <div class="sg-section-label">Evidence Snapshot &amp; Telemetry</div>
                   <div style="display: flex; gap: 14px; align-items: flex-start;">
                     {% if inc.snapshot_path %}
-                      <div class="sg-thumb" style="width: 120px; height: 90px; border-radius: var(--radius); flex-shrink: 0;">
+                      <div class="sg-thumb" style="width: 130px; height: 95px; border-radius: var(--radius); flex-shrink: 0;">
                         <img src="/{{ inc.snapshot_path }}" alt="Incident Photo">
                       </div>
                     {% endif %}
-                    <div class="text-xs text-3 mono" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div class="text-xs text-3 mono" style="display: flex; flex-direction: column; gap: 5px;">
                       <div>Camera: <span class="text-1">{{ inc.camera_name or 'Cam 01' }}</span></div>
                       <div>Source: <span class="text-1">{{ inc.source or 'Hardware Video Stream' }}</span></div>
-                      <div>Confidence: <span class="text-orange">{{ (inc.confidence * 100)|round(1) }}%</span></div>
+                      <div>Confidence: <span style="color: var(--orange);">{{ (inc.confidence * 100)|round(1) }}%</span></div>
                       <div>Closed by: <span class="text-1">{{ inc.closed_by or 'Pending resolution' }}</span></div>
                     </div>
                   </div>
@@ -130,8 +132,9 @@
         {% else %}
           <tr>
             <td colspan="10">
-              <div class="sg-empty" style="padding: 48px;">
+              <div class="sg-empty">
                 <i data-lucide="check-circle" style="color: var(--green);"></i>
+                <h3>No Incidents Logged</h3>
                 <p>No safety incidents recorded for the selected parameters.</p>
               </div>
             </td>

@@ -13,32 +13,32 @@
 <body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg);">
 
 <div style="width: 100%; max-width: 400px; padding: 24px;">
-  <div class="sg-card" style="box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6); padding: 24px;">
+  <div class="sg-card" style="box-shadow: var(--shadow-xl); padding: 28px;">
     <!-- Brand Header -->
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
       <div class="sg-logo-icon">
         <i data-lucide="hard-hat"></i>
       </div>
       <div>
-        <div class="sg-brand-name">SiteGuard <span>AI</span></div>
-        <div class="sg-brand-sub">Safety Intelligence Platform</div>
+        <div class="sg-logo-name">SiteGuard<span> AI</span></div>
+        <span class="sg-logo-sub">Safety Intelligence Platform</span>
       </div>
     </div>
 
     {% if error %}
-      <div style="background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius); padding: 10px; margin-bottom: 16px; font-size: 12px; color: var(--red);">
+      <div class="sg-flash sg-flash-error">
         {{ error }}
       </div>
     {% endif %}
 
     <form method="POST" action="{{ url_for('login_route') }}">
       <div class="sg-form-group">
-        <label class="sg-form-label" for="username">Username</label>
-        <input type="text" id="username" name="username" class="sg-input" placeholder="Enter username" value="Operator" required autofocus>
+        <label class="sg-label" for="username">Username</label>
+        <input type="text" id="username" name="username" class="sg-input w-full" placeholder="Enter username" value="Operator" required autofocus>
       </div>
       <div class="sg-form-group" style="margin-bottom: 20px;">
-        <label class="sg-form-label" for="password">Password</label>
-        <input type="password" id="password" name="password" class="sg-input" placeholder="Enter password" value="password" required>
+        <label class="sg-label" for="password">Password</label>
+        <input type="password" id="password" name="password" class="sg-input w-full" placeholder="Enter password" value="password" required>
       </div>
       <button type="submit" class="sg-btn sg-btn-primary w-full">Sign In to Workstation</button>
     </form>

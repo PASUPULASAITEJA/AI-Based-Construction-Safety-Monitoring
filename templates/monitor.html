@@ -1,30 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}Live Monitor{% endblock %}
-{% block page_title %}Live Monitor{% endblock %}
-{% block page_subtitle %}Real-time CV inference &amp; spatial zone monitoring{% endblock %}
-{% block page_body_class %}page-body-flush{% endblock %}
+{% block title %}Live Monitor — SiteGuard AI{% endblock %}
+{% block page_title %}Optical Safety Monitor{% endblock %}
+{% block page_subtitle %}Real-time computer vision inference, spatial hazard zoning, and worker tracking{% endblock %}
 
 {% block content %}
-<div style="display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h)); overflow: hidden;">
+<div style="display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h) - 48px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
   <!-- Monitor Control Strip -->
-  <div style="height: 48px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;">
-    <!-- Left: Source Tabs -->
+  <div style="height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;">
+    <!-- Left: Source Switcher -->
     <div style="display: flex; align-items: center; gap: 6px;">
       <button class="sg-btn sg-btn-sm sg-btn-primary" id="tab-hardware" onclick="switchSource('hardware')">
         <i data-lucide="video"></i> Hardware Stream
       </button>
-      <button class="sg-btn sg-btn-sm sg-btn-outline" id="tab-browser" onclick="switchSource('browser')">
+      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="tab-browser" onclick="switchSource('browser')">
         <i data-lucide="camera"></i> Browser Camera
       </button>
-      <button class="sg-btn sg-btn-sm sg-btn-outline" id="tab-simulator" onclick="switchSource('simulator')">
+      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="tab-simulator" onclick="switchSource('simulator')">
         <i data-lucide="play-circle"></i> Simulator
       </button>
     </div>
 
     <!-- Right: Zone & Inference Controls -->
     <div style="display: flex; align-items: center; gap: 8px;">
-      <select class="sg-select" id="monitor-cam-select" style="width: 180px; padding: 5px 8px; font-size: 11px;" onchange="changeCameraSource(this.value)">
+      <select class="sg-select text-xs" id="monitor-cam-select" style="width: 180px; padding: 6px 10px;" onchange="changeCameraSource(this.value)">
         {% for cam in cameras %}
           <option value="{{ cam.id }}" {% if cam.status == 'ONLINE' %}selected{% endif %}>{{ cam.name }}</option>
         {% else %}
@@ -32,7 +31,7 @@
         {% endfor %}
       </select>
 
-      <button class="sg-btn sg-btn-sm sg-btn-outline" id="btn-toggle-draw" onclick="toggleZoneDrawing()">
+      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="btn-toggle-draw" onclick="toggleZoneDrawing()">
         <i data-lucide="edit-3"></i> <span>Draw Zone</span>
       </button>
 
@@ -49,19 +48,19 @@
   </div>
 
   <!-- Main Workstation Layout (3 Columns) -->
-  <div style="display: flex; flex: 1; min-height: 0; background: #000; position: relative;">
-    <!-- Left Panel: Zone Controls (Hidden by default, shown when Draw Zone active) -->
-    <div id="zone-panel" style="width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: none; flex-direction: column; padding: 14px; overflow-y: auto;">
+  <div style="display: flex; flex: 1; min-height: 0; background: var(--bg); position: relative;">
+    <!-- Column 1: Zone Panel (200px) - Toggleable -->
+    <div id="zone-panel" style="width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: none; flex-direction: column; padding: 14px; overflow-y: auto;">
       <div style="font-size: 12px; font-weight: 600; color: var(--text-1); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-        <i data-lucide="shield"></i> Safety Zone Editor
+        <i data-lucide="shield" style="color: var(--orange);"></i> Zone Editor
       </div>
       <div class="sg-form-group">
-        <label class="sg-form-label">Zone Name</label>
-        <input type="text" class="sg-input text-xs" id="zone-name-input" placeholder="e.g. Scaffolding Hazard Zone">
+        <label class="sg-label">Zone Name</label>
+        <input type="text" class="sg-input text-xs w-full" id="zone-name-input" placeholder="e.g. Scaffolding Hazard Zone">
       </div>
       <div class="sg-form-group">
-        <label class="sg-form-label">Zone Severity Type</label>
-        <select class="sg-select text-xs" id="zone-type-select">
+        <label class="sg-label">Zone Severity Type</label>
+        <select class="sg-select text-xs w-full" id="zone-type-select">
           <option value="RESTRICTED">RESTRICTED (Red)</option>
           <option value="HAZARD">HAZARD (Yellow)</option>
           <option value="SAFE">SAFE (Green)</option>
@@ -69,33 +68,34 @@
       </div>
       <div style="display: flex; gap: 6px; margin-bottom: 16px;">
         <button class="sg-btn sg-btn-primary sg-btn-sm" style="flex: 1;" onclick="saveCurrentZone()">Save</button>
-        <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="clearZonePoints()">Clear</button>
+        <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="clearZonePoints()">Clear</button>
       </div>
-      <hr style="border: none; border-top: 1px solid var(--border); margin-bottom: 12px;">
-      <div style="font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 8px;">Existing Zones</div>
+
+      <div class="sg-divider"></div>
+      <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 8px;">Existing Zones</div>
       <div id="zone-list-container" style="display: flex; flex-direction: column; gap: 6px;">
         {% for z in zones %}
           <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-              <span class="sg-dot" style="background: {{ 'var(--red)' if z.zone_type == 'RESTRICTED' else 'var(--yellow)' if z.zone_type == 'HAZARD' else 'var(--green)' }};"></span>
+              <span class="sg-dot" style="background: {{ 'var(--red)' if z.zone_type == 'RESTRICTED' else ('var(--yellow)' if z.zone_type == 'HAZARD' else 'var(--green)') }};"></span>
               <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-1); font-weight: 500;">{{ z.name }}</span>
             </div>
-            <button class="sg-btn sg-btn-ghost sg-btn-sm" style="padding: 2px 4px; color: var(--red);" onclick="deleteZone({{ z.id }})">
-              <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
+            <button class="sg-btn sg-btn-ghost sg-btn-xs" style="color: var(--red);" onclick="deleteZone({{ z.id }})">
+              <i data-lucide="trash-2"></i>
             </button>
           </div>
         {% else %}
-          <div class="text-xs text-3" style="text-align: center; padding: 12px 0;">No zones defined</div>
+          <div class="text-xs text-3" style="text-align: center; padding: 12px 0;">No active zones defined</div>
         {% endfor %}
       </div>
     </div>
 
-    <!-- Center Panel: Video Feed & Real-time Canvas Overlay -->
+    <!-- Column 2: Video Center Panel (flex: 1) -->
     <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #000;">
-      <div class="sg-feed-wrap" style="width: 100%; height: 100%; max-height: calc(100vh - 120px); border: none; border-radius: 0;">
+      <div class="sg-feed-wrap" style="width: 100%; height: 100%; border: none; border-radius: 0;">
         <!-- Live Hardware Feed -->
         <img id="monitor-feed" class="sg-feed-img" src="{{ url_for('video_feed') }}" alt="Live Feed" style="display: block;">
-        <!-- Browser WebRTC Video (Hidden by default) -->
+        <!-- Browser Webcam (Hidden by default) -->
         <video id="browser-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
         <!-- Overlay Canvas for BBoxes & Zones -->
         <canvas id="cv-canvas" class="sg-feed-canvas"></canvas>
@@ -104,31 +104,32 @@
         <div class="sg-feed-hud">
           <div class="sg-hud-chip"><i data-lucide="zap"></i>FPS: <span id="monitor-fps">24.5</span></div>
           <div class="sg-hud-chip"><i data-lucide="users"></i>Workers: <span id="monitor-workers">{{ live_workers|length }}</span></div>
-          <div class="sg-hud-chip" style="color: var(--red);"><i data-lucide="alert-triangle"></i>Violations: <span id="monitor-violations">0</span></div>
+          <div class="sg-hud-chip" style="color: #F87171;"><i data-lucide="alert-triangle"></i>Hazards: <span id="monitor-violations">0</span></div>
         </div>
 
-        <div class="sg-feed-live-badge" id="monitor-live-badge">
-          <span class="sg-dot sg-dot-pulse-red" style="width: 6px; height: 6px;"></span>
-          <span>LIVE CV STREAM</span>
+        <div class="sg-feed-live" id="monitor-live-badge">
+          <div class="sg-dot sg-dot-red"></div>
+          <span>LIVE CV INFERENCE</span>
         </div>
       </div>
     </div>
 
-    <!-- Right Panel: Telemetry & Active Workers (260px) -->
-    <div style="width: 270px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
-      <!-- Active Workers Tab -->
+    <!-- Column 3: Worker Roster (260px) & Detection Telemetry -->
+    <div style="width: 260px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+      <!-- Active Workers Header -->
       <div style="padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
         <div style="font-size: 12px; font-weight: 600; color: var(--text-1); display: flex; align-items: center; gap: 6px;">
-          <i data-lucide="users"></i> Active Workers
+          <i data-lucide="users" style="color: var(--orange);"></i> Worker Roster
         </div>
-        <span class="sg-badge sg-badge-medium" id="workers-count-badge">{{ live_workers|length }}</span>
+        <span class="sg-badge sg-badge-orange" id="workers-count-badge">{{ live_workers|length }} Active</span>
       </div>
 
+      <!-- Worker Cards List -->
       <div style="flex: 1; overflow-y: auto; padding: 12px;" id="live-workers-list">
         {% for worker in live_workers %}
-          <div class="sg-card mb-2" style="padding: 10px; background: var(--surface-2);">
+          <div class="sg-card mb-2" style="padding: 10px; background: var(--surface);">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-              <span class="sg-worker-id">W-{{ worker.worker_id|default('01') }}</span>
+              <span class="sg-wid">W-{{ worker.worker_id|default('01') }}</span>
               <span class="sg-badge {{ 'sg-badge-resolved' if worker.compliance_rate|default(100) >= 80 else 'sg-badge-critical' }}">
                 {{ worker.compliance_rate|default(100) }}%
               </span>
@@ -143,24 +144,24 @@
             </div>
           </div>
         {% else %}
-          <div class="sg-empty" style="padding: 40px 10px;">
-            <i data-lucide="user-x" style="width: 32px; height: 32px; opacity: 0.35;"></i>
-            <p style="font-size: 11px; color: var(--text-3);">Awaiting worker observations in camera frame</p>
+          <div class="sg-empty" style="padding: 30px 10px;">
+            <i data-lucide="user-x" style="width: 28px; height: 28px;"></i>
+            <p style="font-size: 11px;">Awaiting worker observations in camera stream</p>
           </div>
         {% endfor %}
       </div>
 
-      <!-- Detection Info Section -->
+      <!-- Detection Info Section at Bottom -->
       <div style="padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2);">
         <div style="font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 8px;">Detection Telemetry</div>
-        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;" class="mono">
+        <div style="display: flex; flex-direction: column; gap: 5px; font-size: 11px;" class="mono">
           <div class="flex-between">
             <span class="text-3">Model:</span>
             <span class="text-1">{{ model_info.name }}</span>
           </div>
           <div class="flex-between">
             <span class="text-3">Hardware:</span>
-            <span class="text-orange">{{ model_info.device }}</span>
+            <span style="color: var(--orange); font-weight: 600;">{{ model_info.device }}</span>
           </div>
           <div class="flex-between">
             <span class="text-3">Confidence:</span>
@@ -172,7 +173,7 @@
           </div>
           <div class="flex-between">
             <span class="text-3">Inference FPS:</span>
-            <span class="text-green" id="fps-display">24.5</span>
+            <span style="color: var(--green); font-weight: 600;" id="fps-display">24.5</span>
           </div>
         </div>
       </div>
@@ -188,15 +189,13 @@ let zonePoints = [];
 let browserStream = null;
 let currentSource = 'hardware';
 
-// Toggle zone drawing panel & canvas interaction
 function toggleZoneDrawing() {
   isDrawingZone = !isDrawingZone;
   const panel = document.getElementById('zone-panel');
   const btn = document.getElementById('btn-toggle-draw');
   if (panel) panel.style.display = isDrawingZone ? 'flex' : 'none';
   if (btn) {
-    btn.classList.toggle('sg-btn-primary', isDrawingZone);
-    btn.classList.toggle('sg-btn-outline', !isDrawingZone);
+    btn.className = isDrawingZone ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
   }
   if (!isDrawingZone) clearZonePoints();
 }
@@ -206,7 +205,6 @@ function clearZonePoints() {
   redrawCanvas();
 }
 
-// Canvas interaction for drawing polygons
 const canvas = document.getElementById('cv-canvas');
 if (canvas) {
   canvas.addEventListener('click', (e) => {
@@ -239,7 +237,6 @@ function redrawCanvas() {
     }
     ctx.stroke();
 
-    // Draw handles
     ctx.fillStyle = '#FFFFFF';
     zonePoints.forEach(p => {
       ctx.beginPath();
@@ -249,10 +246,9 @@ function redrawCanvas() {
   }
 }
 
-// Save zone via API
 async function saveCurrentZone() {
   if (zonePoints.length < 3) {
-    alert('Please click at least 3 points on the video to define a zone polygon.');
+    sgToast('warning', 'Zone Required', 'Please click at least 3 points on the video to define a zone polygon.');
     return;
   }
   const name = document.getElementById('zone-name-input').value.trim() || 'Zone ' + (new Date().toLocaleTimeString());
@@ -265,17 +261,16 @@ async function saveCurrentZone() {
     });
     const json = await res.json();
     if (json.success) {
-      alert('Zone saved successfully.');
+      sgToast('success', 'Zone Saved', 'Safety zone configured successfully.');
       window.location.reload();
     } else {
-      alert('Error: ' + json.message);
+      sgToast('error', 'Zone Error', json.message || 'Failed to save zone.');
     }
   } catch (e) {
-    alert('Error saving zone: ' + e);
+    sgToast('error', 'Network Error', e.toString());
   }
 }
 
-// Delete zone via API
 async function deleteZone(zoneId) {
   if (!confirm('Are you sure you want to delete this zone?')) return;
   try {
@@ -283,16 +278,15 @@ async function deleteZone(zoneId) {
     const json = await res.json();
     if (json.success) window.location.reload();
   } catch (e) {
-    alert('Delete error: ' + e);
+    sgToast('error', 'Delete Error', e.toString());
   }
 }
 
-// Switch video source
 async function switchSource(source) {
   currentSource = source;
-  document.getElementById('tab-hardware').className = (source === 'hardware') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-outline';
-  document.getElementById('tab-browser').className = (source === 'browser') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-outline';
-  document.getElementById('tab-simulator').className = (source === 'simulator') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-outline';
+  document.getElementById('tab-hardware').className = (source === 'hardware') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+  document.getElementById('tab-browser').className = (source === 'browser') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+  document.getElementById('tab-simulator').className = (source === 'simulator') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
 
   const feedImg = document.getElementById('monitor-feed');
   const webCam = document.getElementById('browser-webcam');
@@ -304,7 +298,7 @@ async function switchSource(source) {
       browserStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       webCam.srcObject = browserStream;
     } catch (e) {
-      alert('Could not access browser camera: ' + e);
+      sgToast('error', 'Camera Error', 'Could not access browser camera: ' + e);
     }
   } else {
     if (browserStream) {
@@ -316,7 +310,6 @@ async function switchSource(source) {
   }
 }
 
-// Start / Stop inference
 async function toggleInference(start) {
   const url = start ? '/camera/start' : '/camera/stop';
   try {
@@ -329,14 +322,13 @@ async function toggleInference(start) {
     if (json.success) {
       window.location.reload();
     } else {
-      alert('Inference toggle error: ' + json.message);
+      sgToast('error', 'Inference Error', json.message || 'Operation failed.');
     }
   } catch (e) {
-    alert('Inference error: ' + e);
+    sgToast('error', 'Network Error', e.toString());
   }
 }
 
-// Polling telemetry
 setInterval(async () => {
   try {
     const res = await fetch('/api/detections/frame');
@@ -349,7 +341,7 @@ setInterval(async () => {
     }
     if (data.worker_count !== undefined) {
       document.getElementById('monitor-workers').textContent = data.worker_count;
-      document.getElementById('workers-count-badge').textContent = data.worker_count;
+      document.getElementById('workers-count-badge').textContent = data.worker_count + ' Active';
     }
     if (data.violation_count !== undefined) {
       document.getElementById('monitor-violations').textContent = data.violation_count;

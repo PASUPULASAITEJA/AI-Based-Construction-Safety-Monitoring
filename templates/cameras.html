@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Camera Network{% endblock %}
-{% block page_title %}Camera Network{% endblock %}
-{% block page_subtitle %}Manage physical RTSP, WebRTC, and hardware cameras across project sites{% endblock %}
+{% block title %}Camera Network — SiteGuard AI{% endblock %}
+{% block page_title %}Optical Camera Infrastructure{% endblock %}
+{% block page_subtitle %}Manage physical RTSP streams, hardware USB devices, and WebRTC ingress endpoints{% endblock %}
 
 {% block content %}
 <div class="mb-5 flex-between">
   <div>
-    <span class="text-xs text-3 mono">{{ cameras|length }} Cameras Registered &bull; Real-time OpenCV Pipeline</span>
+    <span class="text-xs text-3 mono">{{ cameras|length }} Optical Cameras Configured &bull; Continuous YOLOv8 Stream Processing</span>
   </div>
   <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="openAddCameraModal()">
     <i data-lucide="plus"></i> Add Camera
@@ -21,8 +21,8 @@
     <div class="sg-card">
       <div class="sg-card-head">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="sg-dot {{ 'sg-dot-pulse-green' if is_online else '' }}" style="background: {{ 'var(--green)' if is_online else 'var(--text-3)' }};"></span>
-          <h2 style="font-size: 13px;">{{ cam.name }}</h2>
+          <div class="sg-dot {{ 'sg-dot-green' if is_online else '' }}" style="background: {{ 'var(--green)' if is_online else 'var(--text-4)' }};"></div>
+          <h2>{{ cam.name }}</h2>
         </div>
         <span class="sg-badge {{ 'sg-badge-resolved' if is_online else 'sg-badge-low' }}">
           {{ cam.status or 'OFFLINE' }}
@@ -36,31 +36,31 @@
           </div>
           <div class="flex-between">
             <span class="text-3">Stream Type:</span>
-            <span class="text-orange">{{ cam.stream_type|upper }}</span>
+            <span style="color: var(--orange); font-weight: 600;">{{ cam.stream_type|upper }}</span>
           </div>
           <div class="flex-between">
             <span class="text-3">Source:</span>
             <span class="text-2 text-xs" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ cam.stream_source }}</span>
           </div>
           <div class="flex-between">
-            <span class="text-3">FPS:</span>
-            <span class="text-1">{{ cam.fps|default('25.0') }}</span>
+            <span class="text-3">Frame Rate:</span>
+            <span class="text-1">{{ cam.fps|default('25.0') }} FPS</span>
           </div>
           <div class="flex-between">
             <span class="text-3">Site Location:</span>
-            <span class="text-1">{{ cam.site_name or 'Main Site Yard' }}</span>
+            <span class="text-1">{{ cam.site_name or 'Main Yard' }}</span>
           </div>
           <div class="flex-between">
-            <span class="text-3">Last Seen:</span>
+            <span class="text-3">Last Polled:</span>
             <span class="text-3 text-xs">{{ cam.last_seen or 'Active' }}</span>
           </div>
         </div>
       </div>
-      <div class="sg-card-foot">
-        <a href="{{ url_for('monitor_view') }}?camera_id={{ cam.id }}" class="sg-btn sg-btn-outline sg-btn-sm">
+      <div style="padding: 12px 18px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+        <a href="{{ url_for('monitor.monitor') }}?camera_id={{ cam.id }}" class="sg-btn sg-btn-secondary sg-btn-sm">
           <i data-lucide="video"></i> View Feed
         </a>
-        <button class="sg-btn sg-btn-ghost sg-btn-sm text-red" title="Delete Camera" onclick="deleteCamera({{ cam.id }})">
+        <button class="sg-btn sg-btn-ghost sg-btn-xs" style="color: var(--red);" title="Delete Camera" onclick="deleteCamera({{ cam.id }})">
           <i data-lucide="trash-2"></i>
         </button>
       </div>
@@ -68,10 +68,10 @@
   {% else %}
     <div style="grid-column: 1 / -1;">
       <div class="sg-card">
-        <div class="sg-empty" style="padding: 60px 20px;">
-          <i data-lucide="camera-off" style="color: var(--text-3); width: 44px; height: 44px;"></i>
-          <p class="text-1 fw-600">No cameras registered</p>
-          <p class="text-xs text-3">Click "Add Camera" above to register hardware devices or RTSP feeds.</p>
+        <div class="sg-empty">
+          <i data-lucide="camera-off" style="color: var(--text-4);"></i>
+          <h3>No Cameras Registered</h3>
+          <p>Click "Add Camera" above to register physical hardware devices or network RTSP endpoints.</p>
         </div>
       </div>
     </div>
@@ -86,22 +86,22 @@
       <button class="sg-modal-close" onclick="closeAddCameraModal()"><i data-lucide="x"></i></button>
     </div>
     <form onsubmit="submitNewCamera(event)">
-      <div class="sg-modal-body-single">
+      <div style="padding: 20px;">
         <div class="sg-form-group">
-          <label class="sg-form-label">Camera Name</label>
-          <input type="text" id="new-cam-name" class="sg-input" placeholder="e.g. Scaffolding South Feed" required>
+          <label class="sg-label">Camera Name</label>
+          <input type="text" id="new-cam-name" class="sg-input w-full" placeholder="e.g. Scaffolding South Feed" required>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Associated Site</label>
-          <select id="new-cam-site" class="sg-select">
+          <label class="sg-label">Associated Site</label>
+          <select id="new-cam-site" class="sg-select w-full">
             {% for s in sites %}
               <option value="{{ s.id }}">{{ s.name }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Stream Protocol Type</label>
-          <select id="new-cam-type" class="sg-select">
+          <label class="sg-label">Stream Protocol Type</label>
+          <select id="new-cam-type" class="sg-select w-full">
             <option value="webcam">Local Hardware Webcam (Device Index 0)</option>
             <option value="rtsp">RTSP IP Camera Stream</option>
             <option value="http">HTTP / MJPEG Video URL</option>
@@ -109,12 +109,12 @@
           </select>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Stream Source / Address</label>
-          <input type="text" id="new-cam-source" class="sg-input mono" placeholder="0 or rtsp://admin:pass@192.168.1.100:554/live" value="0" required>
+          <label class="sg-label">Stream Source / Address</label>
+          <input type="text" id="new-cam-source" class="sg-input mono w-full" placeholder="0 or rtsp://admin:pass@192.168.1.100:554/live" value="0" required>
         </div>
       </div>
       <div class="sg-modal-foot">
-        <button type="button" class="sg-btn sg-btn-outline" onclick="closeAddCameraModal()">Cancel</button>
+        <button type="button" class="sg-btn sg-btn-secondary" onclick="closeAddCameraModal()">Cancel</button>
         <button type="submit" class="sg-btn sg-btn-primary">Register Camera</button>
       </div>
     </form>
@@ -151,12 +151,13 @@ async function submitNewCamera(e) {
     });
     const json = await res.json();
     if (json.success) {
-      window.location.reload();
+      sgToast('success', 'Camera Added', 'Camera registered in network.');
+      setTimeout(() => window.location.reload(), 400);
     } else {
-      alert('Error creating camera: ' + json.message);
+      sgToast('error', 'Error', json.message || 'Error creating camera');
     }
   } catch (err) {
-    alert('Camera error: ' + err);
+    sgToast('error', 'Error', err.toString());
   }
 }
 
@@ -165,9 +166,12 @@ async function deleteCamera(camId) {
   try {
     const res = await fetch('/api/cameras/' + camId, { method: 'DELETE' });
     const json = await res.json();
-    if (json.success) window.location.reload();
+    if (json.success) {
+      sgToast('info', 'Removed', 'Camera removed.');
+      setTimeout(() => window.location.reload(), 400);
+    }
   } catch (e) {
-    alert('Delete error: ' + e);
+    sgToast('error', 'Error', e.toString());
   }
 }
 </script>

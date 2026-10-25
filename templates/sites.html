@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Sites &amp; Zones{% endblock %}
+{% block title %}Sites &amp; Zones — SiteGuard AI{% endblock %}
 {% block page_title %}Sites &amp; Safety Zones{% endblock %}
-{% block page_subtitle %}Construction project perimeters &amp; geofenced safety risk boundaries{% endblock %}
+{% block page_subtitle %}Construction project perimeters and geofenced hazardous risk boundaries{% endblock %}
 
 {% block content %}
 <div class="sg-card mb-5">
   <div class="sg-card-head">
-    <h2><i data-lucide="map-pin"></i> Active Construction Sites ({{ sites|length }})</h2>
+    <i data-lucide="map-pin" style="color: var(--orange); width: 16px; height: 16px;"></i>
+    <h2>Active Construction Sites ({{ sites|length }})</h2>
     <div style="display: flex; gap: 8px;">
-      <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="openAddZoneModal()">
+      <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="openAddZoneModal()">
         <i data-lucide="plus"></i> Add Zone
       </button>
       <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="openAddSiteModal()">
@@ -34,7 +35,7 @@
       <tbody>
         {% for site in sites %}
           <tr onclick="toggleSiteZones({{ site.id }})">
-            <td class="mono fw-600 text-orange">{{ site.site_code }}</td>
+            <td class="mono fw-600" style="color: var(--orange);">{{ site.site_code }}</td>
             <td>
               <div class="fw-600 text-1">{{ site.name }}</div>
               <div class="text-xs text-3">{{ site.project_name or 'General Construction' }}</div>
@@ -52,7 +53,7 @@
               </span>
             </td>
             <td style="text-align: right;" onclick="event.stopPropagation()">
-              <button class="sg-btn sg-btn-ghost sg-btn-icon text-red" title="Delete Site" onclick="deleteSite({{ site.id }})">
+              <button class="sg-btn sg-btn-ghost sg-btn-xs" style="color: var(--red);" title="Delete Site" onclick="deleteSite({{ site.id }})">
                 <i data-lucide="trash-2"></i>
               </button>
             </td>
@@ -61,11 +62,9 @@
           <!-- Expandable Zones Sub-table -->
           <tr id="site-zones-{{ site.id }}" style="display: none; background: var(--surface-2); cursor: default;">
             <td colspan="7" style="padding: 16px 20px;">
-              <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 10px;">
-                Geofenced Spatial Zones for {{ site.name }}
-              </div>
+              <div class="sg-section-label">Geofenced Spatial Zones for {{ site.name }}</div>
               <div class="sg-table-wrap">
-                <table class="sg-table" style="background: var(--surface);">
+                <table class="sg-table" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
                   <thead>
                     <tr>
                       <th>Zone Name</th>
@@ -78,7 +77,7 @@
                   <tbody>
                     {% for z in zones if z.site_id == site.id %}
                       <tr>
-                        <td class="fw-500 text-1">{{ z.name }}</td>
+                        <td class="strong">{{ z.name }}</td>
                         <td>
                           {% if z.zone_type == 'RESTRICTED' %}
                             <span class="sg-badge sg-badge-critical">RESTRICTED</span>
@@ -88,18 +87,18 @@
                             <span class="sg-badge sg-badge-resolved">SAFE</span>
                           {% endif %}
                         </td>
-                        <td class="text-xs">Helmet, Vest, Boots, Harness</td>
+                        <td class="text-xs">Helmet, High-Vis Vest, Boots, Harness</td>
                         <td class="mono text-xs">{{ z.coordinates|length if z.coordinates is sequence and z.coordinates is not string else '4' }} pts</td>
                         <td style="text-align: right;">
-                          <button class="sg-btn sg-btn-ghost sg-btn-sm text-red" onclick="deleteZone({{ z.id }})">
-                            <i data-lucide="trash"></i>
+                          <button class="sg-btn sg-btn-ghost sg-btn-xs" style="color: var(--red);" onclick="deleteZone({{ z.id }})">
+                            <i data-lucide="trash-2"></i>
                           </button>
                         </td>
                       </tr>
                     {% else %}
                       <tr>
                         <td colspan="5" class="text-xs text-3" style="text-align: center; padding: 14px;">
-                          No spatial zones defined for this site yet. Click "Add Zone" above.
+                          No spatial zones defined for this site yet. Click "Add Zone" above or draw in Live Monitor.
                         </td>
                       </tr>
                     {% endfor %}
@@ -111,9 +110,10 @@
         {% else %}
           <tr>
             <td colspan="7">
-              <div class="sg-empty" style="padding: 48px;">
-                <i data-lucide="map-pin" style="color: var(--text-3);"></i>
-                <p>No construction sites registered. Click "Add Site" to start.</p>
+              <div class="sg-empty">
+                <i data-lucide="map-pin" style="color: var(--text-4);"></i>
+                <h3>No Construction Sites</h3>
+                <p>No active construction sites registered. Click "Add Site" to get started.</p>
               </div>
             </td>
           </tr>
@@ -131,26 +131,26 @@
       <button class="sg-modal-close" onclick="closeAddSiteModal()"><i data-lucide="x"></i></button>
     </div>
     <form onsubmit="submitNewSite(event)">
-      <div class="sg-modal-body-single">
+      <div style="padding: 20px;">
         <div class="sg-form-group">
-          <label class="sg-form-label">Site Name</label>
-          <input type="text" id="new-site-name" class="sg-input" placeholder="e.g. Skyline Tower Phase II" required>
+          <label class="sg-label">Site Name</label>
+          <input type="text" id="new-site-name" class="sg-input w-full" placeholder="e.g. Skyline Tower Phase II" required>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Project Code / Name</label>
-          <input type="text" id="new-site-project" class="sg-input" placeholder="e.g. SKY-2026-B">
+          <label class="sg-label">Project Code / Name</label>
+          <input type="text" id="new-site-project" class="sg-input w-full" placeholder="e.g. SKY-2026-B">
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Location</label>
-          <input type="text" id="new-site-loc" class="sg-input" placeholder="e.g. Sector 4, Metro Development Zone">
+          <label class="sg-label">Location</label>
+          <input type="text" id="new-site-loc" class="sg-input w-full" placeholder="e.g. Sector 4, Metro Development Zone">
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Assigned Safety Officer</label>
-          <input type="text" id="new-site-officer" class="sg-input" placeholder="Officer Name">
+          <label class="sg-label">Assigned Safety Officer</label>
+          <input type="text" id="new-site-officer" class="sg-input w-full" placeholder="Officer Name">
         </div>
       </div>
       <div class="sg-modal-foot">
-        <button type="button" class="sg-btn sg-btn-outline" onclick="closeAddSiteModal()">Cancel</button>
+        <button type="button" class="sg-btn sg-btn-secondary" onclick="closeAddSiteModal()">Cancel</button>
         <button type="submit" class="sg-btn sg-btn-primary">Save Site</button>
       </div>
     </form>
@@ -165,33 +165,33 @@
       <button class="sg-modal-close" onclick="closeAddZoneModal()"><i data-lucide="x"></i></button>
     </div>
     <form onsubmit="submitNewZone(event)">
-      <div class="sg-modal-body-single">
+      <div style="padding: 20px;">
         <div class="sg-form-group">
-          <label class="sg-form-label">Associated Site</label>
-          <select id="new-zone-site" class="sg-select">
+          <label class="sg-label">Associated Site</label>
+          <select id="new-zone-site" class="sg-select w-full">
             {% for s in sites %}
               <option value="{{ s.id }}">{{ s.name }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Zone Name</label>
-          <input type="text" id="new-zone-name" class="sg-input" placeholder="e.g. Crane Perimeter" required>
+          <label class="sg-label">Zone Name</label>
+          <input type="text" id="new-zone-name" class="sg-input w-full" placeholder="e.g. Crane Perimeter" required>
         </div>
         <div class="sg-form-group">
-          <label class="sg-form-label">Risk Category</label>
-          <select id="new-zone-type" class="sg-select">
+          <label class="sg-label">Risk Category</label>
+          <select id="new-zone-type" class="sg-select w-full">
             <option value="RESTRICTED">RESTRICTED &mdash; Strict No Entry / Fall Hazard (Red)</option>
             <option value="HAZARD">HAZARD &mdash; Full PPE Mandatory (Yellow)</option>
             <option value="SAFE">SAFE &mdash; Standard Walkway (Green)</option>
           </select>
         </div>
         <div class="text-xs text-3">
-          Note: Precise polygon vertex mapping can be configured dynamically in <a href="{{ url_for('monitor_view') }}" class="text-orange">Live Monitor &rarr; Draw Zone</a>.
+          Note: Precise polygon vertex mapping can be configured interactively in <a href="{{ url_for('monitor.monitor') }}" style="color: var(--orange); font-weight: 500;">Live Monitor &rarr; Draw Zone</a>.
         </div>
       </div>
       <div class="sg-modal-foot">
-        <button type="button" class="sg-btn sg-btn-outline" onclick="closeAddZoneModal()">Cancel</button>
+        <button type="button" class="sg-btn sg-btn-secondary" onclick="closeAddZoneModal()">Cancel</button>
         <button type="submit" class="sg-btn sg-btn-primary">Create Zone</button>
       </div>
     </form>
@@ -236,12 +236,13 @@ async function submitNewSite(e) {
     });
     const json = await res.json();
     if (json.success) {
-      window.location.reload();
+      sgToast('success', 'Site Created', 'Site registered successfully.');
+      setTimeout(() => window.location.reload(), 400);
     } else {
-      alert('Error creating site: ' + json.message);
+      sgToast('error', 'Error', json.message || 'Error creating site');
     }
   } catch (err) {
-    alert('Site creation error: ' + err);
+    sgToast('error', 'Error', err.toString());
   }
 }
 
@@ -250,8 +251,6 @@ async function submitNewZone(e) {
   const siteId = document.getElementById('new-zone-site').value;
   const name = document.getElementById('new-zone-name').value.trim();
   const type = document.getElementById('new-zone-type').value;
-
-  // Standard bounding box placeholder coordinates if created manually
   const defaultCoords = [[100, 100], [500, 100], [500, 400], [100, 400]];
 
   try {
@@ -262,12 +261,13 @@ async function submitNewZone(e) {
     });
     const json = await res.json();
     if (json.success) {
-      window.location.reload();
+      sgToast('success', 'Zone Created', 'Spatial safety zone created.');
+      setTimeout(() => window.location.reload(), 400);
     } else {
-      alert('Error creating zone: ' + json.message);
+      sgToast('error', 'Error', json.message || 'Error creating zone');
     }
   } catch (err) {
-    alert('Zone creation error: ' + err);
+    sgToast('error', 'Error', err.toString());
   }
 }
 
@@ -276,9 +276,12 @@ async function deleteSite(siteId) {
   try {
     const res = await fetch('/api/sites/' + siteId, { method: 'DELETE' });
     const json = await res.json();
-    if (json.success) window.location.reload();
+    if (json.success) {
+      sgToast('info', 'Deleted', 'Site removed.');
+      setTimeout(() => window.location.reload(), 400);
+    }
   } catch (e) {
-    alert('Delete error: ' + e);
+    sgToast('error', 'Error', e.toString());
   }
 }
 
@@ -287,9 +290,12 @@ async function deleteZone(zoneId) {
   try {
     const res = await fetch('/zones/' + zoneId, { method: 'DELETE' });
     const json = await res.json();
-    if (json.success) window.location.reload();
+    if (json.success) {
+      sgToast('info', 'Deleted', 'Zone removed.');
+      setTimeout(() => window.location.reload(), 400);
+    }
   } catch (e) {
-    alert('Delete error: ' + e);
+    sgToast('error', 'Error', e.toString());
   }
 }
 </script>

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}System Health{% endblock %}
-{% block page_title %}System Health &amp; Diagnostics{% endblock %}
-{% block page_subtitle %}Live infrastructure status, hardware camera telemetry &amp; CV pipeline health{% endblock %}
+{% block title %}System Health &amp; Diagnostics — SiteGuard AI{% endblock %}
+{% block page_title %}System Health &amp; Infrastructure Diagnostics{% endblock %}
+{% block page_subtitle %}Real-time hardware camera status, database connection latency, and AI inference runtime integrity{% endblock %}
 
 {% block content %}
 <div class="mb-5 flex-between">
   <div style="display: flex; align-items: center; gap: 8px;">
-    <span class="sg-dot sg-dot-pulse-green" style="width: 8px; height: 8px;"></span>
-    <span class="mono text-xs text-1">Server Online &bull; Diagnostics Last Run: <span id="diag-timestamp">{{ now_str }}</span></span>
+    <div class="sg-dot sg-dot-green"></div>
+    <span class="mono text-xs text-1">Server Online &bull; Diagnostics Last Verified: <span id="diag-timestamp">{{ now_str }}</span></span>
   </div>
   <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="runDiagnostics(this)">
     <i data-lucide="refresh-cw"></i> Run Full Diagnostic
@@ -21,26 +21,26 @@
   <div class="sg-card">
     <div class="sg-card-head">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="{{ 'database' if health.db_ok else 'alert-circle' }}" style="color: {{ 'var(--green)' if health.db_ok else 'var(--red)' }};"></i>
+        <i data-lucide="{{ 'check-circle' if health.db_ok else 'x-circle' }}" style="color: {{ 'var(--green)' if health.db_ok else 'var(--red)' }};"></i>
         <h2>SQLite Database Engine</h2>
       </div>
       <span class="sg-badge {{ 'sg-badge-resolved' if health.db_ok else 'sg-badge-critical' }}">
-        {{ 'HEALTHY' if health.db_ok else 'FAILED' }}
+        {{ 'OK' if health.db_ok else 'FAIL' }}
       </span>
     </div>
     <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;" class="mono">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
         <div class="flex-between">
           <span class="text-3">Database Path:</span>
-          <span class="text-1 text-xs" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">{{ db_path }}</span>
+          <span class="text-1 text-xs" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ db_path }}</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Query Latency:</span>
-          <span class="text-green">{{ health.db_latency_ms|default('1.2') }} ms</span>
+          <span style="color: var(--green); font-weight: 600;">{{ health.db_latency_ms|default('1.2') }} ms</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Total Safety Incidents:</span>
-          <span class="text-1">{{ total_incidents }} records</span>
+          <span class="text-1">{{ total_incidents }} records logged</span>
         </div>
       </div>
     </div>
@@ -50,26 +50,26 @@
   <div class="sg-card">
     <div class="sg-card-head">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="cpu" style="color: {{ 'var(--green)' if health.model_loaded else 'var(--red)' }};"></i>
+        <i data-lucide="{{ 'check-circle' if health.model_loaded else 'x-circle' }}" style="color: {{ 'var(--green)' if health.model_loaded else 'var(--red)' }};"></i>
         <h2>YOLOv8 Inference Engine</h2>
       </div>
       <span class="sg-badge {{ 'sg-badge-resolved' if health.model_loaded else 'sg-badge-critical' }}">
-        {{ 'MODEL LOADED' if health.model_loaded else 'OFFLINE' }}
+        {{ 'OK' if health.model_loaded else 'FAIL' }}
       </span>
     </div>
     <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;" class="mono">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
         <div class="flex-between">
           <span class="text-3">Model File:</span>
-          <span class="text-orange text-xs" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">{{ model_path }}</span>
+          <span class="text-xs" style="color: var(--orange); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ model_path }}</span>
         </div>
         <div class="flex-between">
-          <span class="text-3">Execution Device:</span>
+          <span class="text-3">Execution Hardware:</span>
           <span class="text-1">{{ device_str }}</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Vocabulary Classes:</span>
-          <span class="text-1">{{ health.model_class_count|default(17) }} Classes</span>
+          <span class="text-1">{{ health.model_class_count|default(17) }} Classes Active</span>
         </div>
       </div>
     </div>
@@ -79,22 +79,22 @@
   <div class="sg-card">
     <div class="sg-card-head">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="video" style="color: {{ 'var(--green)' if health.camera_online else 'var(--yellow)' }};"></i>
+        <i data-lucide="{{ 'check-circle' if health.camera_online else 'alert-circle' }}" style="color: {{ 'var(--green)' if health.camera_online else 'var(--yellow)' }};"></i>
         <h2>Video &amp; Camera Subsystem</h2>
       </div>
       <span class="sg-badge {{ 'sg-badge-resolved' if health.camera_online else 'sg-badge-high' }}">
-        {{ 'ACTIVE STREAM' if health.camera_online else 'STANDBY' }}
+        {{ 'OK' if health.camera_online else 'STANDBY' }}
       </span>
     </div>
     <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;" class="mono">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
         <div class="flex-between">
           <span class="text-3">Capture Mode:</span>
           <span class="text-1">{{ camera_mode }}</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Zero Synthetic Fallback:</span>
-          <span class="text-green fw-600">ENFORCED</span>
+          <span style="color: var(--green); font-weight: 600;">ENFORCED</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Hardware Lock State:</span>
@@ -108,18 +108,18 @@
   <div class="sg-card">
     <div class="sg-card-head">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="hard-drive" style="color: var(--blue);"></i>
+        <i data-lucide="{{ 'check-circle' if health.snapshots_writable else 'x-circle' }}" style="color: {{ 'var(--green)' if health.snapshots_writable else 'var(--red)' }};"></i>
         <h2>Storage &amp; Snapshot Evidence</h2>
       </div>
       <span class="sg-badge {{ 'sg-badge-resolved' if health.snapshots_writable else 'sg-badge-critical' }}">
-        {{ 'WRITABLE' if health.snapshots_writable else 'READ ONLY' }}
+        {{ 'OK' if health.snapshots_writable else 'FAIL' }}
       </span>
     </div>
     <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;" class="mono">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
         <div class="flex-between">
           <span class="text-3">Available Disk Space:</span>
-          <span class="text-green fw-600">{{ health.disk_free_gb }} GB Free</span>
+          <span style="color: var(--green); font-weight: 600;">{{ health.disk_free_gb }} GB Free</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Archived Snapshots:</span>
@@ -133,20 +133,20 @@
     </div>
   </div>
 
-  <!-- Server Uptime & Process -->
+  <!-- Server Uptime & Port -->
   <div class="sg-card">
     <div class="sg-card-head">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="activity" style="color: var(--green);"></i>
+        <i data-lucide="check-circle" style="color: var(--green);"></i>
         <h2>Runtime Uptime &amp; Port Binding</h2>
       </div>
-      <span class="sg-badge sg-badge-resolved">HEALTHY</span>
+      <span class="sg-badge sg-badge-resolved">OK</span>
     </div>
     <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;" class="mono">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
         <div class="flex-between">
           <span class="text-3">Continuous Uptime:</span>
-          <span class="text-green fw-600" id="diag-uptime">{{ health.uptime }}</span>
+          <span style="color: var(--green); font-weight: 600;" id="diag-uptime">{{ health.uptime }}</span>
         </div>
         <div class="flex-between">
           <span class="text-3">HTTP Port:</span>
@@ -160,28 +160,28 @@
     </div>
   </div>
 
-  <!-- Security & Session Health -->
+  <!-- Security & RBAC Session Health -->
   <div class="sg-card">
     <div class="sg-card-head">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="shield-check" style="color: var(--orange);"></i>
+        <i data-lucide="check-circle" style="color: var(--green);"></i>
         <h2>RBAC &amp; Session Security</h2>
       </div>
-      <span class="sg-badge sg-badge-medium">ACTIVE</span>
+      <span class="sg-badge sg-badge-medium">OK</span>
     </div>
     <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;" class="mono">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;" class="mono">
         <div class="flex-between">
           <span class="text-3">CSRF Protection:</span>
-          <span class="text-green">ENABLED</span>
+          <span style="color: var(--green); font-weight: 600;">ENABLED</span>
         </div>
         <div class="flex-between">
           <span class="text-3">Cookie Security:</span>
           <span class="text-1">HttpOnly, SameSite=Lax</span>
         </div>
         <div class="flex-between">
-          <span class="text-3">Active Role:</span>
-          <span class="text-orange">{{ current_role|default('ADMIN') }}</span>
+          <span class="text-3">Active Session Role:</span>
+          <span style="color: var(--orange); font-weight: 600;">{{ current_role|default('ADMIN') }}</span>
         </div>
       </div>
     </div>
@@ -194,7 +194,7 @@
 async function runDiagnostics(btn) {
   btn.disabled = true;
   const original = btn.innerHTML;
-  btn.innerHTML = '<i data-lucide="refresh-cw" class="animate-spin"></i> Checking...';
+  btn.innerHTML = '<i data-lucide="refresh-cw"></i> Verifying...';
   if (window.lucide) lucide.createIcons();
 
   try {
@@ -202,11 +202,11 @@ async function runDiagnostics(btn) {
     const json = await res.json();
     if (json.success) {
       document.getElementById('diag-timestamp').textContent = new Date().toLocaleTimeString();
-      alert('Diagnostic completed: All subsystems operational.');
-      window.location.reload();
+      sgToast('success', 'Diagnostics Complete', 'All hardware, neural model, and database subsystems operational.');
+      setTimeout(() => window.location.reload(), 500);
     }
   } catch (e) {
-    alert('Diagnostic check error: ' + e);
+    sgToast('error', 'Diagnostics Error', e.toString());
   } finally {
     btn.disabled = false;
     btn.innerHTML = original;
