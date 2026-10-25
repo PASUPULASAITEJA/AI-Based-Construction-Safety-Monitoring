@@ -20,6 +20,11 @@ OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
 SNAPSHOTS_DIR = os.path.join(BASE_DIR, "snapshots")
 RUNS_DIR = os.path.join(BASE_DIR, "runs")
 
+# Folder aliases
+UPLOAD_FOLDER = UPLOADS_DIR
+OUTPUT_FOLDER = OUTPUTS_DIR
+SNAPSHOT_FOLDER = SNAPSHOTS_DIR
+
 DB_PATH = os.path.join(BASE_DIR, "database", "safety_monitor.db")
 
 # Ensure required directories exist

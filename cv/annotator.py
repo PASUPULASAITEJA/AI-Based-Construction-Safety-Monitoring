@@ -176,3 +176,22 @@ class FrameAnnotator:
             violation_count=active_violations_count
         )
         return out_frame
+
+# Module-level convenience singleton and helper
+_default_annotator = FrameAnnotator()
+
+def draw_hud_and_detections(frame, workers, zones=None, fps=0.0, frame_num=0):
+    """Convenience functional wrapper around FrameAnnotator."""
+    formatted_zones = []
+    if zones:
+        for z in zones:
+            coords = z.get("coordinates") or z.get("points")
+            if coords:
+                pts = np.array(coords, np.int32).reshape((-1, 1, 2))
+                formatted_zones.append({
+                    "points": pts,
+                    "type": z.get("zone_type") or z.get("type", "RESTRICTED"),
+                    "name": z.get("name", "Zone")
+                })
+    return _default_annotator.annotate(frame, workers, zones=formatted_zones, fps=fps)
+

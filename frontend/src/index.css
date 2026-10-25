@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-base: #07090E;
+    --bg-surface: #0E131F;
+    --bg-card: #141B2D;
+    --border-subtle: #1F293D;
+    --border-strong: #2D3A54;
+    --orange-primary: #F97316;
+    --orange-glow: rgba(249, 115, 22, 0.2);
+    --green-compliant: #10B981;
+    --red-critical: #EF4444;
+    --amber-warning: #F59E0B;
+  }
+
+  body {
+    background-color: #07090E;
+    color: #F3F4F6;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom industrial scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0E131F;
+}
+::-webkit-scrollbar-thumb {
+  background: #2D3A54;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #F97316;
+}
+
+/* Pulse keyframe */
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.08); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

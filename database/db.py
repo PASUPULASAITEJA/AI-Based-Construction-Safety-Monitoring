@@ -300,6 +300,29 @@ def init_db():
     )
     """)
 
+    # 13. Analysis Jobs Table (Background Video Processing)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS analysis_jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT UNIQUE NOT NULL,
+        original_filename TEXT NOT NULL,
+        input_video_path TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING',
+        progress INTEGER DEFAULT 0,
+        current_frame INTEGER DEFAULT 0,
+        total_frames INTEGER DEFAULT 0,
+        violations_count INTEGER DEFAULT 0,
+        processing_duration_sec REAL DEFAULT 0.0,
+        output_video_path TEXT,
+        error_message TEXT,
+        site_id INTEGER,
+        camera_id INTEGER,
+        created_at TEXT NOT NULL,
+        started_at TEXT,
+        completed_at TEXT
+    )
+    """)
+
     # Create Indexes for fast querying
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON violations(timestamp)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_status ON violations(status)")

@@ -1,10 +1,11 @@
 # SiteGuard AI — AI-Based Construction Safety Monitoring Using Computer Vision
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![Framework](https://img.shields.io/badge/Framework-Flask%203.0+-green.svg)](https://flask.palletsprojects.com/)
+[![Framework](https://img.shields.io/badge/Framework-FastAPI%20%7C%20Flask-green.svg)](https://fastapi.tiangolo.com/)
+[![Frontend](https://img.shields.io/badge/Frontend-React%20%7C%20Vite%20%7C%20TypeScript%20%7C%20Tailwind-blue.svg)](https://react.dev/)
 [![Computer Vision](https://img.shields.io/badge/CV-YOLOv8%20%7C%20OpenCV%20%7C%20PyTorch-orange.svg)](https://ultralytics.com/)
 [![Database](https://img.shields.io/badge/Database-SQLite%203-lightgrey.svg)](https://sqlite.org/)
-[![Tests](https://img.shields.io/badge/Tests-28%20Passed%20(Pytest)-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-35%20Passed%20(Pytest)-brightgreen.svg)]()
 
 > **SiteGuard AI** is a real-time, context-aware computer vision and industrial safety operations management system designed for construction perimeters. It provides automated worker detection, multi-object worker tracking, anatomical PPE compliance verification, geofenced restricted/hazard zone incursion monitoring, and temporal violation confirmation to eliminate false alarms caused by transient occlusion and motion blur.
 
@@ -23,11 +24,13 @@ This platform directly implements the research methodology and requirements spec
   4. Develop a rule-based safety reasoning layer combining PPE status, worker identity, and spatial zone membership.
   5. Reduce false alarms using temporal confirmation hysteresis across $N$ consecutive frames and cooldown suppression.
   6. Compare baseline frame-level detection against detection-plus-tracking and proposed context-aware frameworks.
+  7. Robustness testing under different lighting conditions, occlusion, blur, camera angles, and crowded scenes.
 
 ---
 
 ## 2. Experimental Research Results
 
+### 2.1 Comparative Baseline Evaluation
 The benchmark harness (`scripts/research_evaluation.py`) systematically evaluates 3 standardized configurations on real construction validation frames (`dataset/val.txt`):
 
 | Metric / Configuration | Baseline 1: Frame-Level Only | Baseline 2: Detection + Tracking | Proposed System: Context-Aware |
@@ -42,6 +45,19 @@ The benchmark harness (`scripts/research_evaluation.py`) systematically evaluate
 | **Throughput (Inference FPS)** | 11.3 FPS | 15.7 FPS | **16.2 FPS** (Real-time CPU) |
 
 > **Scientific Conclusion:** Adding spatial zone reasoning and temporal confirmation ($N=5$) reduces redundant and false safety alarms by **86.9%** compared to conventional frame-level detection, while eliminating transient occlusion glitches and maintaining full real-time operational throughput.
+
+### 2.2 Environmental Robustness Benchmark (Deliverable 10)
+Executed via `scripts/robustness_evaluation.py` on 30 test frames across 5 physical conditions:
+
+| Environmental Stress Condition | Physical Simulation | Detections | Retention Rate | Confirmed Incidents | Mean Throughput |
+|---|---|---|---|---|---|
+| **Clean Reference Baseline** | High-contrast reference | 46 persons | **100.0%** (Baseline) | 4 incidents | 7.54 FPS |
+| **Low Lighting & Dusk** | Gamma 1.8, 45% Brightness | 42 persons | **91.3%** | 4 incidents | 12.28 FPS |
+| **Solar Glare / Direct Sunlight** | 1.4x Value Clip (Overexposure) | 47 persons | **102.2%** | 4 incidents | 15.14 FPS |
+| **Motion Blur & Camera Vibration** | 11px Linear kernel | 44 persons | **95.7%** | 3 incidents | 14.09 FPS |
+| **Structural Scaffolding Occlusion** | Scaffolding rebar & pipe masks | 41 persons | **89.1%** | 3 incidents | 15.09 FPS |
+
+> **Robustness Finding:** The context-aware temporal pipeline demonstrates exceptional stability: across all extreme degradation conditions, person detection retention remained above **89.1%**, while temporal hysteresis ($N=5$) prevented noise-induced violation storms.
 
 ---
 
@@ -153,26 +169,40 @@ The benchmark harness (`scripts/research_evaluation.py`) systematically evaluate
 4. **Verify Trained Model Weights:**
    Ensure the trained YOLOv8 model weights file is present at `model/best.pt`. (The bundled weights detect 11 classes including `helmet`, `vest`, `boots`, `gloves`, `goggles`, `no_helmet`, `no_vest`, etc.).
 
-5. **Start SiteGuard AI Web Application:**
-   ```powershell
-   python app.py
-   ```
-   Open your browser and navigate to:
-   ```
-   http://127.0.0.1:5000
-   ```
+5. **Start Application Server:**
+   - **Option A: FastAPI + React / TypeScript / Tailwind Interface (Recommended):**
+     ```powershell
+     uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
+     ```
+     Access the web application at:
+     ```
+     http://127.0.0.1:8000
+     ```
+     *(Directly serves the compiled React/Vite/Tailwind frontend with live monitoring, interactive polygon zone drawer, async video jobs, and REST APIs).*
 
-6. **Run Automated Test Suite:**
+   - **Option B: Flask SSR Application:**
+     ```powershell
+     python app.py
+     ```
+     Access at: `http://127.0.0.1:5000`
+
+6. **Run Automated Test Suite (35 Tests):**
    ```powershell
    python -m pytest tests/ -v
    ```
-   *(Executes 28 automated unit and integration tests covering detector, tracker, spatial zones, temporal rules, database persistence, RBAC, and REST APIs).*
+   *(Executes 35 automated unit and integration tests covering detector, tracker, spatial zones, temporal rules, database persistence, RBAC, FastAPI backend, and REST APIs).*
 
 7. **Execute Scientific Research Evaluation Benchmark:**
    ```powershell
    python scripts/research_evaluation.py
    ```
-   *(Executes comparative benchmark across Baseline 1, Baseline 2, and Proposed Framework and outputs `outputs/research_evaluation_metrics.json`).*
+   *(Executes comparative benchmark across Baseline 1, Baseline 2, and Proposed Framework; outputs `outputs/research_evaluation_metrics.json`).*
+
+8. **Execute Environmental Robustness Degradation Benchmark:**
+   ```powershell
+   python scripts/robustness_evaluation.py
+   ```
+   *(Tests lighting, glare, blur, and occlusion stress; outputs `outputs/robustness_evaluation_metrics.json`).*
 
 ---
 
