@@ -1,7 +1,14 @@
 {% extends "base.html" %}
 
 {% block title %}System Health Telemetry — SiteGuard AI{% endblock %}
-{% block page_title %}System Health & Diagnostics{% endblock %}
+{% block page_title %}System Health & Platform Telemetry{% endblock %}
+
+{% block top_actions %}
+  <button class="btn btn-primary" onclick="window.location.reload()">
+    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+    Run Diagnostic Ping
+  </button>
+{% endblock %}
 
 {% block content %}
 {% set h = health|default({}) %}
@@ -15,15 +22,18 @@
   <div class="flex flex-between flex-center flex-wrap gap-16">
     <div>
       {% if core_issues|length == 0 %}
-        <span class="badge badge-compliant fs-12 p-10">ALL CORE SUBSYSTEMS OPERATIONAL</span>
+        <span class="badge badge-compliant fs-12 p-8 mb-8 inline-block">ALL CORE SUBSYSTEMS OPERATIONAL</span>
       {% else %}
-        <span class="badge badge-critical fs-12 p-10">DEGRADED: {{ core_issues|join(', ') }}</span>
+        <span class="badge badge-critical fs-12 p-8 mb-8 inline-block">DEGRADED: {{ core_issues|join(', ') }}</span>
       {% endif %}
-      <h2 class="fs-22 fw-800 text-primary mt-8 mb-4">SiteGuard AI Operations Platform Telemetry</h2>
-      <div class="fs-13 text-secondary">Continuous runtime monitoring of database integrity, YOLOv8 inference engine, camera streaming, and storage.</div>
+      <h2 class="fs-20 fw-800 text-primary m-0">SiteGuard AI Enterprise Platform Diagnostics</h2>
+      <div class="fs-13 text-secondary mt-4">
+        Continuous telemetry verification across database latency, YOLOv8 inference pipeline, live stream channels, and snapshot storage.
+      </div>
     </div>
-    <div class="font-mono fs-12 text-muted">
-      Last Diagnostic Ping: <span class="text-primary">{{ now_str }}</span>
+    <div class="font-mono fs-12 text-muted p-10 rounded" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
+      <div>Diagnostic Timestamp:</div>
+      <div class="text-primary fw-700 mt-2">{{ now_str }}</div>
     </div>
   </div>
 </div>
@@ -31,129 +41,219 @@
 <!-- Diagnostics Grid -->
 <div class="grid-3 mb-24">
 
-  <!-- 1. Backend Server API -->
-  <div class="card">
-    <div class="flex flex-between flex-center mb-12">
-      <div class="card-label m-0">
-        <svg class="icon text-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-        <span>Flask Web Application</span>
+  <!-- 1. Flask Web Application -->
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          <span>Flask Application Core</span>
+        </div>
+        <span class="badge badge-compliant">RESPONDING</span>
       </div>
-      <span class="badge badge-compliant">RESPONDING</span>
+
+      <div class="flex-col gap-8 fs-12 text-secondary mt-8">
+        <div class="flex flex-between flex-center">
+          <span>HTTP Port:</span>
+          <strong class="font-mono text-primary">{{ config_port }}</strong>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Server Uptime:</span>
+          <strong class="font-mono text-primary">{{ h.uptime|default('Unknown', true) }}</strong>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Security Protocol:</span>
+          <span class="badge badge-compliant fs-10">CSRF VERIFIED</span>
+        </div>
+      </div>
     </div>
-    <div class="fs-12 text-secondary flex flex-col gap-6">
-      <div>HTTP Port: <strong class="text-primary font-mono">{{ config_port }}</strong></div>
-      <div>Process Uptime: <strong class="text-primary">{{ h.uptime|default('Unknown', true) }}</strong></div>
-      <div>Security: <span class="badge badge-green fs-9">CSRF PROTECTED</span></div>
+    <div class="mt-16 pt-10 border-t fs-11 text-muted">
+      Production WSGI / Flask Core
     </div>
   </div>
 
   <!-- 2. SQLite Database -->
-  <div class="card">
-    <div class="flex flex-between flex-center mb-12">
-      <div class="card-label m-0">
-        <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-        <span>SQLite Safety Database</span>
-      </div>
-      {% if h.db_ok %}
-        <span class="badge badge-compliant">OPERATIONAL</span>
-      {% else %}
-        <span class="badge badge-critical">UNREACHABLE</span>
-      {% endif %}
-    </div>
-    <div class="fs-12 text-secondary flex flex-col gap-6">
-      <div>Database Path: <span class="font-mono text-muted fs-11">{{ db_path }}</span></div>
-      <div>Total Incident Records: <strong class="text-primary font-mono">{{ total_incidents }}</strong></div>
-      <div>Query Latency:
-        {% if h.db_ok and h.db_latency_ms is not none %}
-          <strong class="text-compliant font-mono">{{ '%.2f'|format(h.db_latency_ms) }} ms</strong>
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>SQLite Database</span>
+        </div>
+        {% if h.db_ok %}
+          <span class="badge badge-compliant">OPERATIONAL</span>
         {% else %}
-          <span class="text-critical font-mono">Check failed</span>
+          <span class="badge badge-critical">UNREACHABLE</span>
         {% endif %}
       </div>
+
+      <div class="flex-col gap-8 fs-12 text-secondary mt-8">
+        <div class="flex flex-between flex-center">
+          <span>Database File:</span>
+          <span class="font-mono text-muted fs-11 ellipsis-text max-w-140" title="{{ db_path }}">{{ db_path }}</span>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Total Incidents:</span>
+          <strong class="font-mono text-primary">{{ total_incidents }}</strong>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Query Round-Trip:</span>
+          {% if h.db_ok and h.db_latency_ms is not none %}
+            <strong class="font-mono text-compliant">{{ '%.2f'|format(h.db_latency_ms) }} ms</strong>
+          {% else %}
+            <span class="font-mono text-critical">Check failed</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="mt-16 pt-10 border-t fs-11 text-muted">
+      WAL Journal Mode Enabled
     </div>
   </div>
 
   <!-- 3. AI Inference Engine -->
-  <div class="card">
-    <div class="flex flex-between flex-center mb-12">
-      <div class="card-label m-0">
-        <svg class="icon text-purple" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-        <span>YOLOv8 CV Detector</span>
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-purple" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          <span>YOLOv8 CV Engine</span>
+        </div>
+        {% if h.model_loaded %}
+          <span class="badge badge-compliant">LOADED</span>
+        {% else %}
+          <span class="badge badge-critical">NOT LOADED</span>
+        {% endif %}
       </div>
-      {% if h.model_loaded %}
-        <span class="badge badge-compliant">LOADED</span>
-      {% else %}
-        <span class="badge badge-critical">NOT LOADED</span>
-      {% endif %}
+
+      <div class="flex-col gap-8 fs-12 text-secondary mt-8">
+        <div class="flex flex-between flex-center">
+          <span>Compute Device:</span>
+          <span class="badge badge-info font-mono fs-10">{{ device_str }}</span>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Model Path:</span>
+          <span class="font-mono text-orange fs-11 ellipsis-text max-w-140" title="{{ model_path }}">{{ model_path }}</span>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Configured Classes:</span>
+          <strong class="font-mono text-primary">{{ h.model_class_count|default(0) }}</strong>
+        </div>
+      </div>
     </div>
-    <div class="fs-12 text-secondary flex flex-col gap-6">
-      <div>PyTorch Device: <strong class="text-info font-mono">{{ device_str }}</strong></div>
-      <div>Model Weights: <span class="font-mono text-orange fs-11">{{ model_path }}</span></div>
-      <div>Active Classes: <strong class="text-primary font-mono">{{ h.model_class_count|default(0) }}</strong></div>
+    <div class="mt-16 pt-10 border-t fs-11 text-muted">
+      PyTorch Inference Pipeline
     </div>
   </div>
 
   <!-- 4. Video Streaming Engine -->
-  <div class="card">
-    <div class="flex flex-between flex-center mb-12">
-      <div class="card-label m-0">
-        <svg class="icon text-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-        <span>Live Stream Engine</span>
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <span>Live Stream Engine</span>
+        </div>
+        {% if h.camera_online %}
+          <span class="badge badge-compliant">ONLINE</span>
+        {% else %}
+          <span class="badge badge-muted">STANDBY</span>
+        {% endif %}
       </div>
-      {% if h.camera_online %}
-        <span class="badge badge-compliant">ONLINE</span>
-      {% else %}
-        <span class="badge badge-muted">STANDBY</span>
-      {% endif %}
+
+      <div class="flex-col gap-8 fs-12 text-secondary mt-8">
+        <div class="flex flex-between flex-center">
+          <span>Active Channel:</span>
+          <strong class="font-mono text-primary">{{ camera_mode }}</strong>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Stream Status:</span>
+          {% if h.camera_online %}
+            <span class="text-compliant fw-600">Streaming active</span>
+          {% else %}
+            <span class="text-muted">Standby (connect in Monitor)</span>
+          {% endif %}
+        </div>
+      </div>
     </div>
-    <div class="fs-12 text-secondary flex flex-col gap-6">
-      <div>Camera Channel: <strong class="text-primary font-mono">{{ camera_mode }}</strong></div>
-      <div>Telemetry Feed: {% if h.camera_online %}<span class="text-compliant">Streaming active</span>{% else %}<span class="text-muted">Standby (connect from Live Monitoring)</span>{% endif %}</div>
+    <div class="mt-16 pt-10 border-t fs-11 text-muted">
+      OpenCV / WebRTC Video Pipeline
     </div>
   </div>
 
-  <!-- 5. Storage & Snapshots Directory -->
-  <div class="card">
-    <div class="flex flex-between flex-center mb-12">
-      <div class="card-label m-0">
-        <svg class="icon text-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-        <span>File Storage Subsystem</span>
-      </div>
-      {% if h.snapshots_writable %}
-        <span class="badge badge-compliant">WRITABLE</span>
-      {% else %}
-        <span class="badge badge-critical">NOT WRITABLE</span>
-      {% endif %}
-    </div>
-    <div class="fs-12 text-secondary flex flex-col gap-6">
-      <div>Evidence Directory: <strong class="text-primary font-mono">{{ snapshots_count }}</strong> files</div>
-      <div>Write Test: {% if h.snapshots_writable %}<span class="text-compliant">Passed</span>{% else %}<span class="text-critical">Failed</span>{% endif %}</div>
-      <div>Free Disk Space:
-        {% if h.disk_free_gb is not none and h.disk_free_gb is defined %}
-          <strong class="text-primary font-mono">{{ '%.1f'|format(h.disk_free_gb) }} GB</strong>
+  <!-- 5. File Storage Subsystem -->
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          <span>Evidence Storage</span>
+        </div>
+        {% if h.snapshots_writable %}
+          <span class="badge badge-compliant">WRITABLE</span>
         {% else %}
-          <span class="text-muted">Unknown</span>
+          <span class="badge badge-critical">NOT WRITABLE</span>
         {% endif %}
       </div>
+
+      <div class="flex-col gap-8 fs-12 text-secondary mt-8">
+        <div class="flex flex-between flex-center">
+          <span>Evidence Files:</span>
+          <strong class="font-mono text-primary">{{ snapshots_count }} snapshots</strong>
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Write Permission:</span>
+          {% if h.snapshots_writable %}
+            <span class="text-compliant fw-600">Verified Passed</span>
+          {% else %}
+            <span class="text-critical fw-600">Write Check Failed</span>
+          {% endif %}
+        </div>
+        <div class="flex flex-between flex-center">
+          <span>Free Disk Space:</span>
+          {% if h.disk_free_gb is not none and h.disk_free_gb is defined %}
+            <strong class="font-mono text-primary">{{ '%.1f'|format(h.disk_free_gb) }} GB Free</strong>
+          {% else %}
+            <span class="text-muted">Unknown</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="mt-16 pt-10 border-t fs-11 text-muted">
+      Snapshot Directory Writable
     </div>
   </div>
 
   <!-- 6. Notifications & Alert Subsystem -->
-  <div class="card">
-    <div class="flex flex-between flex-center mb-12">
-      <div class="card-label m-0">
-        <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-        <span>Alerts & Notifications</span>
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span>Alerts & Notifications</span>
+        </div>
+        {% if unread_count and unread_count > 0 %}
+          <span class="badge badge-warning">{{ unread_count }} UNREAD</span>
+        {% else %}
+          <span class="badge badge-muted">NO UNREAD</span>
+        {% endif %}
       </div>
-      {% if unread_count and unread_count > 0 %}
-        <span class="badge badge-warning">{{ unread_count }} UNREAD</span>
-      {% else %}
-        <span class="badge badge-muted">NO UNREAD</span>
-      {% endif %}
+
+      <div class="flex-col gap-8 fs-12 text-secondary mt-8">
+        <div class="flex flex-between flex-center">
+          <span>Unread Alerts:</span>
+          <strong class="font-mono text-primary">{{ unread_count }}</strong>
+        </div>
+        <div class="mt-4">
+          <a href="{{ url_for('notifications_view') }}" class="text-orange fs-12 fw-600 flex flex-center gap-4">
+            <span>Open Notification Center</span>
+            <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+      </div>
     </div>
-    <div class="fs-12 text-secondary flex flex-col gap-6">
-      <div>Pending Incident Alerts: <strong class="text-primary font-mono">{{ unread_count }}</strong></div>
-      <div><a href="{{ url_for('notifications_view') }}" class="text-orange fs-12 fw-600">Open notification feed &rarr;</a></div>
+    <div class="mt-16 pt-10 border-t fs-11 text-muted">
+      In-Memory Dispatch & Broadcast
     </div>
   </div>
 

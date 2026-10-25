@@ -1,41 +1,142 @@
 {% extends "base.html" %}
 
-{% block title %}Live Monitoring — SiteGuard AI{% endblock %}
-{% block page_title %}Live Safety Monitoring{% endblock %}
+{% block title %}Live Monitor — SiteGuard AI{% endblock %}
+{% block page_title %}Live Monitoring Workstation{% endblock %}
+{% block breadcrumb_section %}Surveillance{% endblock %}
+{% block breadcrumb_page %}Live Monitor{% endblock %}
 
 {% block top_actions %}
-<div class="monitor-top-actions">
-  <select id="camera-source-select" class="form-select monitor-camera-select" title="Select Camera Source" aria-label="Select Camera Source" onchange="switchCameraSource(this.value)">
-    <option value="webcam">Hardware Camera (USB/RTSP)</option>
-    <option value="browser">Browser Camera (WebRTC)</option>
+<!-- Workstation Control Bar -->
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+  <!-- Source Tabs -->
+  <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+    <button type="button" class="sg-source-tab-btn active" id="tab-src-webcam" onclick="switchCameraSource('webcam'); updateSourceTabs('webcam')">
+      <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+      <span>Hardware USB/RTSP</span>
+    </button>
+    <button type="button" class="sg-source-tab-btn" id="tab-src-browser" onclick="switchCameraSource('browser'); updateSourceTabs('browser')">
+      <i data-lucide="video" style="width: 14px; height: 14px;"></i>
+      <span>Browser WebRTC</span>
+    </button>
+  </div>
+
+  <!-- Camera Stream Select -->
+  <select id="camera-source-select" class="sg-select" style="padding: 5px 28px 5px 10px; font-size: 12px; height: 32px; width: 180px;" title="Camera Select" onchange="switchCameraSource(this.value)">
+    <option value="webcam">CAM-01 • Primary Perimeter</option>
+    <option value="browser">Browser WebRTC Local</option>
   </select>
-  <button id="btn-camera-start" class="btn btn-sm btn-primary" onclick="startCamera()">Start</button>
-  <button id="btn-camera-stop" class="btn btn-sm btn-danger" onclick="stopCamera()">Stop</button>
+
+  <!-- Start / Stop Controls -->
+  <button id="btn-camera-start" class="sg-btn sg-btn--primary sg-btn--sm" onclick="startCamera()">
+    <i data-lucide="play" style="width: 13px; height: 13px;"></i>
+    <span>Start Inference</span>
+  </button>
+  <button id="btn-camera-stop" class="sg-btn sg-btn--danger sg-btn--sm" onclick="stopCamera()">
+    <i data-lucide="square" style="width: 13px; height: 13px;"></i>
+    <span>Stop</span>
+  </button>
+
+  <!-- Draw Zone Toggle Button -->
+  <button id="btn-draw-mode" class="sg-btn sg-btn--outline sg-btn--sm" onclick="toggleDrawMode()">
+    <i data-lucide="pentagon" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span>Draw Zone</span>
+  </button>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="grid-monitor">
-  <!-- Left: Camera Feed -->
-  <div class="stack">
-    <div class="card p-12">
-      <div class="monitor-stream-header">
-        <div class="card-label m-0">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-          AI Inference Stream
-          <span class="badge badge-muted fs-9">YOLOv8</span>
-        </div>
-        <div id="live-stream-badge" class="badge badge-green">Online</div>
+<!-- =========================================================================
+     3-COLUMN WORKSTATION LAYOUT (Left: Zones | Center: Video | Right: Workers)
+     ========================================================================= -->
+<div class="sg-monitor-grid">
+
+  <!-- =======================================================================
+       LEFT PANEL: Spatial Hazard Zones & Polygon Geofences
+       ======================================================================= -->
+  <div class="sg-card sg-monitor-panel-left" style="display: flex; flex-direction: column;">
+    <div class="sg-card-header">
+      <div class="sg-card-title">
+        <i data-lucide="shield-alert" class="sg-card-title-icon" style="color: var(--accent);"></i>
+        <span>Spatial Geofences</span>
+      </div>
+    </div>
+
+    <div class="sg-card-body" style="padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+      <div style="font-size: 12px; color: var(--text-muted);">
+        Define polygon perimeters to enforce zone-specific PPE requirements or restricted no-go zones.
       </div>
 
-      <div class="video-feed-container" id="stream-wrapper">
+      <!-- Zone Definition Form -->
+      <div style="background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+        <div class="sg-form-group" style="margin-bottom: 10px;">
+          <label class="sg-label" for="zone-name-input">Zone Name</label>
+          <input type="text" id="zone-name-input" class="sg-input" placeholder="e.g. Scaffolding Base" style="padding: 6px 10px; font-size: 12px;">
+        </div>
+
+        <div class="sg-form-group" style="margin-bottom: 12px;">
+          <label class="sg-label" for="zone-type-select">Hazard Type</label>
+          <select id="zone-type-select" class="sg-select" style="padding: 6px 28px 6px 10px; font-size: 12px;">
+            <option value="GROUND">Ground Zone (Basic PPE)</option>
+            <option value="HEIGHTS">Heights / Scaffolding (Harness)</option>
+            <option value="MACHINERY">Heavy Machinery (Full PPE)</option>
+            <option value="WELDING">Welding / Grinding (Goggles)</option>
+            <option value="ELECTRICAL">Electrical (Gloves)</option>
+            <option value="RESTRICTED">Restricted (No Entry)</option>
+            <option value="SAFE">Safe Break Area (No PPE)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 6px;">
+          <button id="btn-save-zone" class="sg-btn sg-btn--primary sg-btn--sm" style="flex: 1;" onclick="saveCurrentZone()" disabled>
+            <i data-lucide="check" style="width: 12px; height: 12px;"></i>
+            <span>Save</span>
+          </button>
+          <button id="btn-clear-draw" class="sg-btn sg-btn--outline sg-btn--sm" onclick="clearActiveDrawing()">
+            <span>Cancel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Zones List -->
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 8px;">
+          Active Geofences for Channel
+        </div>
+        <div id="active-zones-container" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Dynamically populated by zones.js -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================================================================
+       CENTER PANEL: Live Video Canvas & Real-Time Surveillance Viewport
+       ======================================================================= -->
+  <div class="sg-card" style="display: flex; flex-direction: column;">
+    <div class="sg-card-header" style="padding: 12px 18px;">
+      <div class="sg-card-title">
+        <i data-lucide="video" class="sg-card-title-icon"></i>
+        <span>AI Surveillance Stream</span>
+        <span class="sg-badge sg-badge--safe" id="live-stream-badge">
+          <span class="sg-dot sg-dot--safe"></span>
+          <span>ONLINE</span>
+        </span>
+      </div>
+      <div style="font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono);">
+        CHANNEL: <span id="hud-channel" style="color: var(--safe); font-weight: 700;">LIVE_INFERENCE</span>
+      </div>
+    </div>
+
+    <div class="sg-card-body" style="padding: 12px; flex: 1; display: flex; flex-direction: column;">
+      <div class="sg-video-container" id="stream-wrapper" style="flex: 1; min-height: 480px; position: relative;">
+        <!-- Camera Surveillance Viewfinder Corners -->
         <div class="camera-hud-top">
           <div class="camera-rec-pill">
             <span class="camera-rec-dot"></span>
             <span>LIVE REC</span>
           </div>
           <div class="camera-spec-pill">
-            <span>YOLOv8 INFERENCE HUD</span>
+            <span>YOLOv8 • 17-CLASS INDUSTRIAL PPE</span>
           </div>
         </div>
         <div class="camera-hud-corner tl"></div>
@@ -43,73 +144,97 @@
         <div class="camera-hud-corner bl"></div>
         <div class="camera-hud-corner br"></div>
 
-        <img id="live-video-stream" src="{{ url_for('video_feed') }}" alt="Live Feed" class="video-stream-img" onerror="this.classList.add('stream-error');">
-        <video id="browser-webcam-element" autoplay muted class="d-none"></video>
+        <!-- Floating HUD Telemetry -->
+        <div class="sg-hud-badge">
+          <span class="sg-dot sg-dot--live"></span>
+          <span>FPS: <strong id="hud-fps" style="color: var(--accent);">--</strong></span>
+          <span>Workers: <strong id="hud-workers" style="color: #FFFFFF;">0</strong></span>
+          <span>Violations: <strong id="hud-violations" style="color: var(--violation);">0</strong></span>
+        </div>
+
+        <!-- Video Stream Elements -->
+        <img id="live-video-stream" src="{{ url_for('video_feed') }}" alt="Live Feed" class="sg-video-feed" onerror="this.classList.add('stream-error');">
+        <video id="browser-webcam-element" autoplay muted class="d-none" style="width: 100%; height: 100%; object-fit: contain;"></video>
         <canvas id="browser-capture-canvas" class="d-none"></canvas>
-        <canvas id="zone-drawing-canvas" class="zone-canvas-overlay"></canvas>
+        <canvas id="zone-drawing-canvas" class="sg-zone-canvas-overlay"></canvas>
       </div>
 
-      <!-- HUD -->
-      <div class="hud-bar">
-        <span>FPS <span class="hud-val hud-val-blue" id="hud-fps">--</span></span>
-        <span>Workers <span class="hud-val hud-val-orange" id="hud-workers">0</span></span>
-        <span>Violations <span class="hud-val hud-val-red" id="hud-violations">0</span></span>
-        <span>Channel <span class="hud-val hud-val-green" id="hud-channel">Idle</span></span>
+      <!-- Stream Footnote -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono);">
+        <div>SPATIAL ANATOMICAL ASSOCIATION: ACTIVE</div>
+        <div>DOUBLE-CLICK TO CLOSE POLYGON</div>
       </div>
-    </div>
-
-    <!-- Zone Drawing -->
-    <div class="card p-14">
-      <div class="zone-header-wrap">
-        <div class="zone-controls-wrap">
-          <span class="text-sm fw-600">Zone Drawing</span>
-          <select id="zone-type-select" class="form-select zone-select-compact" title="Select Zone Type" aria-label="Select Zone Type">
-            <option value="GROUND">Ground Zone (Basic PPE)</option>
-            <option value="HEIGHTS">Heights / Scaffolding (Harness)</option>
-            <option value="MACHINERY">Heavy Machinery (Full PPE)</option>
-            <option value="WELDING">Welding / Grinding (Goggles)</option>
-            <option value="ELECTRICAL">Electrical (Gloves)</option>
-            <option value="TRENCHING">Trenching (Harness)</option>
-            <option value="RESTRICTED">Restricted (No Entry)</option>
-            <option value="SAFE">Safe (No PPE Required)</option>
-          </select>
-          <input type="text" id="zone-name-input" class="form-input zone-input-compact" placeholder="Zone name">
-        </div>
-        <div class="flex-row-gap-6">
-          <button id="btn-draw-mode" class="btn btn-xs btn-secondary" onclick="toggleDrawMode()">New Polygon</button>
-          <button id="btn-save-zone" class="btn btn-xs btn-primary" onclick="saveCurrentZone()" disabled>Save</button>
-          <button id="btn-clear-draw" class="btn btn-xs btn-secondary" onclick="clearActiveDrawing()">Cancel</button>
-        </div>
-      </div>
-      <div id="active-zones-container" class="active-zones-wrap"></div>
     </div>
   </div>
 
-  <!-- Right: Worker Roster -->
-  <div class="card flex-col">
-    <div class="card-header mb-10">
-      <div class="card-label">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-        Tracked Personnel
-        <span class="badge badge-blue" id="worker-count-badge">0</span>
+  <!-- =======================================================================
+       RIGHT PANEL: Tracked Personnel Roster & Real-Time PPE Status
+       ======================================================================= -->
+  <div class="sg-card" style="display: flex; flex-direction: column;">
+    <div class="sg-card-header">
+      <div class="sg-card-title">
+        <i data-lucide="users" class="sg-card-title-icon" style="color: var(--accent);"></i>
+        <span>Tracked Personnel</span>
+        <span class="sg-badge sg-badge--info" id="worker-count-badge">0</span>
       </div>
-      <button class="btn btn-xs btn-secondary" onclick="refreshWorkerList()">Refresh</button>
+      <button class="sg-btn sg-btn--ghost sg-btn--sm" onclick="refreshWorkerList()" title="Refresh Roster">
+        <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+      </button>
     </div>
 
-    <div class="worker-status-panel worker-roster-list-panel" id="worker-roster-list">
-      <div class="empty-state empty-state-p-40">
-        <svg class="empty-state-icon-svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-        <div class="empty-state-title">No workers detected</div>
-        <div class="empty-state-text">Start a camera to begin real-time worker tracking.</div>
+    <div class="sg-card-body" style="padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+      <!-- Active Worker Cards Container -->
+      <div id="worker-roster-list" style="display: flex; flex-direction: column; gap: 10px; flex: 1;">
+        <div class="sg-empty-state" style="padding: 30px 10px;">
+          <div class="sg-empty-icon">
+            <i data-lucide="hard-hat" style="width: 28px; height: 28px;"></i>
+          </div>
+          <div class="sg-empty-title">No Workers in View</div>
+          <div class="sg-empty-text">Personnel detected by YOLOv8 will appear here with live PPE gear compliance strips.</div>
+        </div>
+      </div>
+
+      <!-- Engine Telemetry Card -->
+      <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; font-family: var(--font-mono); font-size: 11.5px;">
+        <div style="font-weight: 700; color: #FFFFFF; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="cpu" style="width: 13px; height: 13px; color: var(--accent);"></i>
+          <span>Detection Engine Telemetry</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; color: var(--text-secondary); margin-bottom: 3px;">
+          <span>Model Arch:</span>
+          <span style="color: #FFFFFF;">YOLOv8m (17 classes)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; color: var(--text-secondary); margin-bottom: 3px;">
+          <span>Confidence Thresh:</span>
+          <span style="color: var(--accent);">0.45</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; color: var(--text-secondary); margin-bottom: 3px;">
+          <span>IoU Threshold:</span>
+          <span style="color: var(--info);">0.45</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; color: var(--text-secondary);">
+          <span>Execution Device:</span>
+          <span style="color: var(--safe);">Multi-Core CPU / CUDA</span>
+        </div>
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
   window.PPE_CAPABILITIES = {{ ppe_capabilities | tojson | safe }};
+
+  function updateSourceTabs(source) {
+    document.querySelectorAll('.sg-source-tab-btn').forEach(btn => btn.classList.remove('active'));
+    if (source === 'webcam') {
+      document.getElementById('tab-src-webcam').classList.add('active');
+    } else {
+      document.getElementById('tab-src-browser').classList.add('active');
+    }
+  }
 </script>
 <script src="{{ url_for('static', filename='js/zones.js') }}"></script>
 <script src="{{ url_for('static', filename='js/monitor.js') }}"></script>

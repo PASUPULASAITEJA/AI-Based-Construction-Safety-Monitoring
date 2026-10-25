@@ -1,16 +1,31 @@
 {% extends "base.html" %}
 
 {% block title %}Audit Log — SiteGuard AI{% endblock %}
-{% block page_title %}Audit Log{% endblock %}
+{% block page_title %}System Audit Log{% endblock %}
+
+{% block top_actions %}
+  <span class="badge badge-ai fs-11">
+    <svg class="icon icon-12 text-compliant mr-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Immutable Ledger
+  </span>
+{% endblock %}
 
 {% block content %}
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card p-0 overflow-hidden mb-24">
+  <div class="card-header p-16">
+    <div class="card-label">
+      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span>Platform Administrative & Safety Audit Trail</span>
+    </div>
+    <span class="badge badge-low fs-11">{{ audit_logs|length }} Events Logged</span>
+  </div>
+
   <div class="table-container">
     <table class="data-table">
       <thead>
         <tr>
           <th>Timestamp</th>
-          <th>User Role</th>
+          <th>Actor Role</th>
           <th>Action Type</th>
           <th>Category</th>
           <th>Audit Details</th>
@@ -21,22 +36,22 @@
         {% if audit_logs and audit_logs|length > 0 %}
           {% for log in audit_logs %}
             <tr>
-              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">
+              <td class="font-mono fs-12 text-muted">
                 {{ log.timestamp }}
               </td>
               <td>
                 <span class="badge badge-info">{{ log.user_role }}</span>
               </td>
               <td>
-                <strong style="color: var(--text-primary);">{{ log.action }}</strong>
+                <strong class="text-primary">{{ log.action }}</strong>
               </td>
               <td>
                 <span class="badge badge-low">{{ log.category }}</span>
               </td>
-              <td style="color: var(--text-secondary); max-width: 380px;">
+              <td class="text-secondary" style="max-width: 380px;">
                 {{ log.details }}
               </td>
-              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--safety-orange);">
+              <td class="font-mono fs-12 text-orange fw-700">
                 {{ log.target_id }}
               </td>
             </tr>
@@ -44,10 +59,12 @@
         {% else %}
           <tr>
             <td colspan="6">
-              <div class="empty-state-card">
-                <div class="empty-state-icon"></div>
-                <div class="empty-state-title">No audit log entries yet</div>
-                <div class="empty-state-text">System events, officer acknowledgments, and rule changes will be logged here.</div>
+              <div class="empty-state-card p-24">
+                <div class="empty-state-icon">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div class="empty-state-title">No audit log entries recorded yet</div>
+                <div class="empty-state-text">Administrative changes, safety officer reviews, and user authentications will appear in this immutable trail automatically.</div>
               </div>
             </td>
           </tr>

@@ -1,74 +1,121 @@
 {% extends "base.html" %}
 
 {% block title %}AI Insights — SiteGuard AI{% endblock %}
-{% block page_title %}AI Insights{% endblock %}
+{% block page_title %}Safety Intelligence & Insights{% endblock %}
+
+{% block top_actions %}
+  <a href="{{ url_for('analytics_view') }}" class="btn btn-secondary">
+    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    View Statistical Charts
+  </a>
+{% endblock %}
 
 {% block content %}
 <div class="card mb-24">
-  <div class="card-title">
-    <span>Real Data-Driven Executive Safety Insights</span>
-    <span class="badge badge-ai">100% Deterministic Fact Synthesis</span>
+  <div class="card-header">
+    <div class="card-label">
+      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span>Deterministic Executive Safety Synthesis</span>
+    </div>
+    <span class="badge badge-ai">100% Ground Truth Synthesis</span>
   </div>
   <p class="fs-13 text-secondary mb-20">
-    All insights below are synthesized strictly from actual database violation events and frame evaluation records. Zero fabricated narratives or placeholder estimations.
+    All insights below are synthesized dynamically from real database violation events and frame evaluation records. Zero speculative narratives or placeholder estimations.
   </p>
 
   {% if total_events > 0 %}
     <div class="flex-col gap-16">
-      <!-- Main Summary Callout -->
-      <div class="insight-callout">
-        <div class="insight-icon">📊</div>
-        <div class="insight-text">
-          <strong class="text-primary">Executive Event Synthesis:</strong><br>
-          Based on <strong>{{ total_events }}</strong> recorded safety events across all monitoring sessions:
-          <ul class="mt-8 ml-20">
+      <!-- 1. Executive Event Synthesis -->
+      <div class="p-16 rounded" style="background: rgba(249, 115, 22, 0.05); border: 1px solid rgba(249, 115, 22, 0.2);">
+        <div class="flex flex-center gap-10 mb-8">
+          <div class="stat-icon stat-icon-orange" style="width: 28px; height: 28px;">
+            <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <h4 class="fs-15 fw-700 text-primary m-0">Executive Event Synthesis</h4>
+        </div>
+        <div class="fs-13 text-secondary leading-relaxed">
+          Across all active monitoring sessions, a total of <strong class="text-primary font-mono">{{ total_events }}</strong> safety breach events have been verified:
+          <div class="grid-2 gap-8 mt-10">
             {% for v_type, count in type_dist.items() %}
-              <li><strong>{{ count }}</strong> events ({{ ((count / total_events) * 100)|round(1) }}%) involved <strong class="text-primary">{{ v_type }}</strong></li>
+              <div class="p-8 rounded flex flex-between flex-center" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+                <strong class="text-primary fs-12">{{ v_type|replace('_', ' ')|title }}</strong>
+                <span class="font-mono text-orange fs-12 fw-700">{{ count }} events ({{ ((count / total_events) * 100)|round(1) }}%)</span>
+              </div>
             {% endfor %}
-          </ul>
+          </div>
         </div>
       </div>
 
-      <!-- Severity Distribution Insight -->
-      <div class="insight-callout">
-        <div class="insight-icon">⚠️</div>
-        <div class="insight-text">
-          <strong class="text-primary">Risk & Severity Breakdown:</strong><br>
-          Out of {{ total_events }} recorded safety violations:
-          <ul class="mt-8 ml-20">
-            <li><strong class="text-critical">{{ sev_dist.get('CRITICAL', 0) }} Critical Breaches:</strong> Compound hazard zone breaches or severe PPE failure.</li>
-            <li><strong class="text-orange">{{ sev_dist.get('HIGH', 0) }} High Severity:</strong> Restricted zone incursions or high-risk zone entries.</li>
-            <li><strong class="text-warning">{{ sev_dist.get('MEDIUM', 0) }} Medium Severity:</strong> Standard missing helmet or missing safety vest infractions.</li>
-            <li><strong class="text-info">{{ sev_dist.get('LOW', 0) }} Low Severity:</strong> Minor infractions or transient observations.</li>
-          </ul>
+      <!-- 2. Risk & Severity Breakdown -->
+      <div class="p-16 rounded" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
+        <div class="flex flex-center gap-10 mb-8">
+          <div class="stat-icon stat-icon-orange" style="width: 28px; height: 28px;">
+            <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <h4 class="fs-15 fw-700 text-primary m-0">Risk Profile & Severity Hierarchy</h4>
+        </div>
+        <div class="fs-13 text-secondary leading-relaxed">
+          Breakdown of logged events by industrial hazard hierarchy:
+          <div class="grid-4 gap-8 mt-10">
+            <div class="p-10 rounded text-center" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+              <div class="fs-18 font-mono fw-800 text-critical">{{ sev_dist.get('CRITICAL', 0) }}</div>
+              <div class="fs-11 text-muted uppercase mt-2">Critical Severity</div>
+            </div>
+            <div class="p-10 rounded text-center" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+              <div class="fs-18 font-mono fw-800 text-orange">{{ sev_dist.get('HIGH', 0) }}</div>
+              <div class="fs-11 text-muted uppercase mt-2">High Severity</div>
+            </div>
+            <div class="p-10 rounded text-center" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+              <div class="fs-18 font-mono fw-800 text-warning">{{ sev_dist.get('MEDIUM', 0) }}</div>
+              <div class="fs-11 text-muted uppercase mt-2">Medium Severity</div>
+            </div>
+            <div class="p-10 rounded text-center" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
+              <div class="fs-18 font-mono fw-800 text-info">{{ sev_dist.get('LOW', 0) }}</div>
+              <div class="fs-11 text-muted uppercase mt-2">Low Severity</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Time Pattern Insight -->
+      <!-- 3. Temporal Pattern Analysis -->
       {% if peak_hour %}
-        <div class="insight-callout">
-          <div class="insight-icon">⏰</div>
-          <div class="insight-text">
-            <strong class="text-primary">Temporal Pattern Analysis:</strong><br>
-            The highest concentration of recorded violations occurred around <strong>{{ peak_hour }}</strong> with {{ peak_count }} safety events logged. Recommended action: Intensify safety officer supervision and automated camera alerts during this operational window.
+        <div class="p-16 rounded" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+          <div class="flex flex-center gap-10 mb-8">
+            <div class="stat-icon stat-icon-blue" style="width: 28px; height: 28px;">
+              <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+            </div>
+            <h4 class="fs-15 fw-700 text-primary m-0">Temporal Pattern Intelligence</h4>
+          </div>
+          <div class="fs-13 text-secondary leading-relaxed">
+            Highest concentration of recorded violations occurs around <strong class="text-orange font-mono">{{ peak_hour }}</strong> with <strong class="text-primary font-mono">{{ peak_count }}</strong> safety events logged.
+            <div class="fs-12 text-muted mt-6 flex flex-center gap-6">
+              <svg class="icon icon-12 text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>Operational Recommendation: Intensify safety officer checkpoint audits and automated camera alert sensitivity during this peak work shift window.</span>
+            </div>
           </div>
         </div>
       {% endif %}
 
-      <!-- Resolution Progress Insight -->
-      <div class="insight-callout">
-        <div class="insight-icon">✅</div>
-        <div class="insight-text">
-          <strong class="text-primary">Operational Remediation:</strong><br>
-          <strong>{{ resolved_count }}</strong> of {{ total_events }} ({{ ((resolved_count / total_events) * 100)|round(1) }}%) incidents have been formally reviewed, assigned, and resolved by safety officers.
+      <!-- 4. Operational Remediation Progress -->
+      <div class="p-16 rounded" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+        <div class="flex flex-center gap-10 mb-8">
+          <div class="stat-icon stat-icon-green" style="width: 28px; height: 28px;">
+            <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h4 class="fs-15 fw-700 text-primary m-0">Operational Remediation & Compliance Progress</h4>
+        </div>
+        <div class="fs-13 text-secondary leading-relaxed">
+          <strong class="text-compliant font-mono">{{ resolved_count }}</strong> of {{ total_events }} (<strong class="text-compliant font-mono">{{ ((resolved_count / total_events) * 100)|round(1) }}%</strong>) safety incidents have been formally reviewed, assigned, root-caused, and resolved by safety officers.
         </div>
       </div>
     </div>
   {% else %}
-    <div class="empty-state-card">
-      <div class="empty-state-icon">🛡️</div>
+    <div class="empty-state-card p-32">
+      <div class="empty-state-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
       <div class="empty-state-title">No safety events recorded yet</div>
-      <div class="empty-state-text">AI safety synthesis requires actual recorded events from live camera feeds or uploaded video files.</div>
+      <div class="empty-state-text">AI safety intelligence synthesis requires actual recorded events from live camera feeds or uploaded inspection files.</div>
     </div>
   {% endif %}
 </div>

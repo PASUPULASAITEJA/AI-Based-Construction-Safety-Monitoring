@@ -1,128 +1,188 @@
 {% extends "base.html" %}
 
-{% block title %}Image Analysis — SiteGuard AI{% endblock %}
-{% block page_title %}Image Analysis{% endblock %}
+{% block title %}Image Analysis Studio — SiteGuard AI{% endblock %}
+{% block page_title %}Image Inspection Studio{% endblock %}
+
+{% block top_actions %}
+  <a href="{{ url_for('video_analysis_view') }}" class="btn btn-secondary">
+    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Switch to Video Analysis
+  </a>
+{% endblock %}
 
 {% block content %}
 <div class="grid-2 mb-24">
-
-  <!-- Image Upload Card -->
+  <!-- Upload Card -->
   <div class="card">
-    <div class="card-title">
-      <svg class="icon icon-16 mr-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span>Upload Construction Site Image</span>
-      <span class="badge badge-low">JPG, PNG, WEBP</span>
+    <div class="card-header">
+      <div class="card-label">
+        <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>Upload Inspection Image</span>
+      </div>
+      <span class="badge badge-low">JPG, PNG, WEBP &bull; Max 25MB</span>
     </div>
 
     <form id="image-upload-form" enctype="multipart/form-data">
       <div class="upload-dropzone" id="image-dropzone" onclick="document.getElementById('image-file-input').click()">
-        <div class="upload-icon text-muted">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <div class="upload-icon text-orange mb-12">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </div>
-        <h4 class="mb-6 fw-700">Click or Drag & Drop Image File</h4>
+        <h4 class="fs-15 fw-700 text-primary mb-6">Click or Drag & Drop Site Image</h4>
         <p class="fs-12 text-muted m-0">Instant YOLOv8 PPE detection with anatomical spatial association</p>
         <input type="file" id="image-file-input" name="image" accept=".jpg,.jpeg,.png,.webp" class="d-none" onchange="handleImageSelection(event)">
       </div>
-      
-      <div id="image-selected-label" class="mt-12 fs-13 text-orange font-mono d-none"></div>
+
+      <div id="image-selected-label" class="mt-12 p-10 rounded font-mono fs-12 text-orange d-none" style="background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.2);"></div>
 
       <div class="mt-16 flex flex-between flex-center">
-        <div class="fs-12 text-muted">
-          Max resolution: 4K UHD
+        <div class="fs-11 text-muted">
+          <svg class="icon icon-12 text-compliant mr-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Sub-50ms inference latency on GPU
         </div>
         <button type="button" id="btn-process-image" class="btn btn-primary" onclick="submitImageAnalysis()" disabled>
-          <svg class="icon-14 mr-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection
+          <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Run Safety Inspection
         </button>
       </div>
     </form>
   </div>
 
-  <!-- Inspection Features Card -->
-  <div class="card">
-    <div class="card-title">
-      <svg class="icon icon-16 mr-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Spatial PPE Association & Verification</span>
+  <!-- Inspection Capabilities Info -->
+  <div class="card flex flex-col flex-between">
+    <div>
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Spatial PPE Association Engine</span>
+        </div>
+        <span class="badge badge-ai">17-Class Ultralytics</span>
+      </div>
+
+      <div class="flex-col gap-12 fs-13 mt-8">
+        <div class="p-12 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
+          <div class="flex flex-between flex-center mb-4">
+            <strong class="text-primary fs-13">Head Span Geometric Association</strong>
+            <span class="badge badge-compliant fs-10">45% Upper Box</span>
+          </div>
+          <div class="fs-11 text-muted">Associates hardhat and protective helmet labels strictly within the cephalic region of each detected worker.</div>
+        </div>
+
+        <div class="p-12 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
+          <div class="flex flex-between flex-center mb-4">
+            <strong class="text-primary fs-13">High-Visibility Torso Validation</strong>
+            <span class="badge badge-orange fs-10">Torso Segment</span>
+          </div>
+          <div class="fs-11 text-muted">Identifies safety vests and fluorescent jackets across the mid-span of detected worker bounding boxes.</div>
+        </div>
+
+        <div class="p-12 rounded" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border);">
+          <div class="flex flex-between flex-center mb-4">
+            <strong class="text-primary fs-13">Direct Database Incident Logging</strong>
+            <span class="badge badge-critical fs-10">Instant Proof</span>
+          </div>
+          <div class="fs-11 text-muted">Automatically archives annotated full-resolution crops and records infractions in the SQLite ledger.</div>
+        </div>
+      </div>
     </div>
 
-    <div class="flex-col gap-12 fs-13">
-      <div class="feature-item">
-        <strong>Full Person + Hardhat Head Span</strong>
-        <div class="fs-11 text-muted">Maps detected helmets to the upper 45% head span of each detected worker box.</div>
-      </div>
-      <div class="feature-item orange">
-        <strong>High-Visibility Torso Validation</strong>
-        <div class="fs-11 text-muted">Validates fluorescent safety orange and lime hues across worker torso span.</div>
-      </div>
-      <div class="feature-item critical">
-        <strong>Instant Incident Logging</strong>
-        <div class="fs-11 text-muted">Automatically writes verified breaches into SQLite with high-res cropped snapshots.</div>
-      </div>
+    <div class="mt-16 pt-12 border-t flex flex-between flex-center fs-11 text-muted">
+      <span>Supported formats: .JPG, .PNG, .WEBP</span>
+      <span class="text-secondary font-mono">Input Size: 640x640 auto-letterbox</span>
     </div>
   </div>
 </div>
 
 <!-- Results Area -->
 <div id="results-display-container" class="card mb-24 d-none">
-  <div class="card-title">
-    <svg class="icon icon-16 mr-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    <span>Inspection Results & Detection Telemetry</span>
-    <button class="btn btn-sm btn-secondary" onclick="resetImageUploadView()">Upload Another Image</button>
+  <div class="card-header">
+    <div class="card-label">
+      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Inspection Telemetry & Annotated Output</span>
+    </div>
+    <div class="flex gap-10">
+      <a id="btn-download-annotated-img" href="#" download="annotated_safety_inspection.jpg" class="btn btn-sm btn-primary">
+        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Annotated
+      </a>
+      <button class="btn btn-sm btn-secondary" onclick="resetImageUploadView()">
+        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Analyze Another Image
+      </button>
+    </div>
   </div>
 
-  <div class="grid-inspection">
-    <!-- Annotated Image Output -->
+  <div class="grid-2 gap-20">
+    <!-- Annotated Image Output with HUD Preview -->
     <div>
-      <div class="flex flex-between flex-center mb-10">
-        <h5 class="text-secondary m-0 fs-13 uppercase">Annotated Inspection Image</h5>
-        <a id="btn-download-annotated-img" href="#" download="annotated_safety_inspection.jpg" class="btn btn-sm btn-primary"><svg class="icon-14 mr-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Annotated Image</a>
+      <div class="flex flex-between flex-center mb-8">
+        <span class="fs-12 fw-700 text-secondary uppercase font-mono">Annotated Telemetry Canvas</span>
+        <span class="badge badge-ai fs-10">YOLOv8 Output</span>
       </div>
-      <div class="inspection-preview-box">
-        <img id="result-annotated-img" src="" alt="Annotated Output" class="inspection-preview-img">
+      <div class="surveillance-viewport" style="min-height: 440px; display: flex; align-items: center; justify-content: center; background: #000; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; position: relative;">
+        <div class="hud-bracket hud-tl"></div>
+        <div class="hud-bracket hud-tr"></div>
+        <div class="hud-bracket hud-bl"></div>
+        <div class="hud-bracket hud-br"></div>
+        <img id="result-annotated-img" src="" alt="Annotated Output" style="max-width: 100%; max-height: 520px; object-fit: contain; display: block;">
       </div>
     </div>
 
     <!-- Detection Table & Safety Breakdown -->
-    <div>
-      <h5 class="mb-12 text-secondary fs-13 uppercase">Worker Safety Compliance Breakdown</h5>
-      
-      <div class="metrics-grid grid-2 gap-12 mb-16">
-        <div class="metric-card orange p-14">
-          <div class="metric-header"><span>Workers</span></div>
-          <div class="metric-value fs-22" id="result-workers-count">0</div>
+    <div class="flex flex-col">
+      <div class="grid-2 gap-12 mb-16">
+        <div class="stat-card" style="padding: 14px;">
+          <div class="stat-header">
+            <span class="stat-title">Personnel Detected</span>
+            <span class="stat-icon stat-icon-blue">
+              <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </span>
+          </div>
+          <div class="stat-value fs-24 font-mono text-primary" id="result-workers-count">0</div>
+          <div class="stat-trend text-muted fs-11">Total bounding instances</div>
         </div>
-        <div class="metric-card critical p-14">
-          <div class="metric-header"><span>Violations</span></div>
-          <div class="metric-value fs-22" id="result-violations-count">0</div>
+
+        <div class="stat-card" style="padding: 14px;">
+          <div class="stat-header">
+            <span class="stat-title">Breaches Identified</span>
+            <span class="stat-icon stat-icon-orange">
+              <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </span>
+          </div>
+          <div class="stat-value fs-24 font-mono text-critical" id="result-violations-count">0</div>
+          <div class="stat-trend text-muted fs-11">PPE compliance failures</div>
         </div>
       </div>
 
-      <h5 class="mb-10 text-secondary fs-12 uppercase">Personnel PPE Status</h5>
-      <div class="table-container max-h-180 overflow-y-auto mb-16">
+      <div class="flex flex-between flex-center mb-8">
+        <span class="fs-12 fw-700 text-secondary uppercase font-mono">Tracked Personnel PPE Matrix</span>
+      </div>
+      <div class="table-container mb-16" style="max-height: 180px; overflow-y: auto;">
         <table class="data-table">
           <thead>
             <tr>
               <th>Personnel</th>
               <th>Helmet</th>
               <th>Vest</th>
-              <th>Status</th>
+              <th>Compliance</th>
             </tr>
           </thead>
-          <tbody id="result-workers-table-body">
-          </tbody>
+          <tbody id="result-workers-table-body"></tbody>
         </table>
       </div>
 
-      <h5 class="mb-10 text-secondary fs-12 uppercase">Raw YOLOv8 Detections (Class & Confidence)</h5>
-      <div class="table-container max-h-200 overflow-y-auto">
+      <div class="flex flex-between flex-center mb-8">
+        <span class="fs-12 fw-700 text-secondary uppercase font-mono">Raw Bounding Detections</span>
+      </div>
+      <div class="table-container" style="max-height: 200px; overflow-y: auto;">
         <table class="data-table">
           <thead>
             <tr>
               <th>Class</th>
               <th>Confidence</th>
-              <th>Bounding Box [x1, y1, x2, y2]</th>
+              <th>Bounding Coordinates [x1, y1, x2, y2]</th>
             </tr>
           </thead>
-          <tbody id="result-raw-detections-body">
-          </tbody>
+          <tbody id="result-raw-detections-body"></tbody>
         </table>
       </div>
     </div>
@@ -133,7 +193,7 @@
 {% block scripts %}
 <script>
 let selectedImageFile = null;
-const RUN_BTN_HTML = '<svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection';
+const RUN_BTN_HTML = '<svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Run Safety Inspection';
 
 enableFileDrop('image-dropzone', 'image-file-input', handleImageSelection);
 
@@ -141,13 +201,13 @@ function handleImageSelection(e) {
   const file = e.target.files[0];
   if (file) {
     if (file.type && !/^image\/(jpeg|png|webp)$/.test(file.type)) {
-      alert('Unsupported file type. Please choose a JPG, PNG or WEBP image.');
+      alert('Unsupported file format. Please upload a JPG, PNG or WEBP image.');
       return;
     }
     selectedImageFile = file;
     const label = document.getElementById('image-selected-label');
-    label.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    label.style.display = 'block';
+    label.innerHTML = `<strong>Selected:</strong> ${escapeHtml(file.name)} <span style="opacity: 0.7;">(${(file.size / 1024).toFixed(1)} KB)</span>`;
+    label.classList.remove('d-none');
     document.getElementById('btn-process-image').disabled = false;
   }
 }
@@ -160,7 +220,7 @@ function submitImageAnalysis() {
 
   const btnProcess = document.getElementById('btn-process-image');
   btnProcess.disabled = true;
-  btnProcess.innerText = 'Analyzing...';
+  btnProcess.innerHTML = '<span class="spinner-inline mr-6"></span>Analyzing Frame...';
 
   fetch('/upload/image', {
     method: 'POST',
@@ -180,7 +240,7 @@ function submitImageAnalysis() {
     if (data.success) {
       displayImageResults(data);
     } else {
-      alert('Inference error: ' + (data.message || 'Unknown error'));
+      alert('Inference error: ' + (data.message || 'Unknown error occurred.'));
     }
   })
   .catch(err => {
@@ -215,7 +275,7 @@ function displayImageResults(data) {
         .map(v => (v && typeof v === 'object') ? (v.description || v.type || '') : String(v))
         .filter(Boolean);
       tr.innerHTML = `
-        <td><strong>${escapeHtml(w.label || 'Worker #' + w.worker_id)}</strong></td>
+        <td><strong class="text-primary">${escapeHtml(w.label || 'Worker #' + w.worker_id)}</strong></td>
         <td>
           <span class="badge ${w.helmet ? 'badge-compliant' : 'badge-danger'}">
             ${w.helmet ? 'YES (' + ((w.HEAD_conf || 0)*100).toFixed(0) + '%)' : 'MISSING'}
@@ -236,7 +296,7 @@ function displayImageResults(data) {
       wBody.appendChild(tr);
     });
   } else {
-    wBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No workers detected in this image.</td></tr>';
+    wBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 18px;">No workers detected in this image.</td></tr>';
   }
 
   // Raw Detections table
@@ -248,24 +308,24 @@ function displayImageResults(data) {
     rawDets.forEach(d => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong style="color: var(--text-primary);">${escapeHtml(d.class_name || d.category)}</strong></td>
-        <td style="font-family: var(--font-mono); color: var(--color-info);">${((d.confidence || 0)*100).toFixed(1)}%</td>
-        <td style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);">${escapeHtml(JSON.stringify(d.bbox))}</td>
+        <td><strong class="text-primary">${escapeHtml(d.class_name || d.category)}</strong></td>
+        <td class="font-mono text-info">${((d.confidence || 0)*100).toFixed(1)}%</td>
+        <td class="font-mono fs-11 text-muted">${escapeHtml(JSON.stringify(d.bbox))}</td>
       `;
       rawBody.appendChild(tr);
     });
   } else {
-    rawBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No raw bounding boxes returned.</td></tr>';
+    rawBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 18px;">No raw bounding detections returned.</td></tr>';
   }
 
-  container.style.display = 'block';
+  container.classList.remove('d-none');
   container.scrollIntoView({ behavior: 'smooth' });
 }
 
 function resetImageUploadView() {
-  document.getElementById('results-display-container').style.display = 'none';
+  document.getElementById('results-display-container').classList.add('d-none');
   document.getElementById('image-file-input').value = '';
-  document.getElementById('image-selected-label').style.display = 'none';
+  document.getElementById('image-selected-label').classList.add('d-none');
   document.getElementById('btn-process-image').disabled = true;
   selectedImageFile = null;
 }

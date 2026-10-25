@@ -1,70 +1,89 @@
 {% extends "base.html" %}
 
 {% block title %}Settings — SiteGuard AI{% endblock %}
-{% block page_title %}Settings{% endblock %}
+{% block page_title %}System Configuration & Parameters{% endblock %}
 
 {% block content %}
-<div style="max-width: 860px;">
+<div style="max-width: 880px;">
   <form id="settings-form" action="{{ url_for('update_settings_route') }}" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     
-    <!-- AI Detection Parameters -->
-    <div class="card" style="margin-bottom: 24px;">
-      <div class="card-title">
-        <span>AI Model & Inference Parameters</span>
+    <!-- 1. AI Detection Parameters -->
+    <div class="card mb-24">
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          <span>AI Computer Vision & Inference Parameters</span>
+        </div>
+        <span class="badge badge-ai">YOLOv8 Runtime</span>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="conf_thresh">
-          Detection Confidence Threshold: <span id="conf-val" style="color: var(--safety-orange); font-family: var(--font-mono); font-weight: 700;">{{ settings.get('conf_thresh', '0.02') }}</span>
-        </label>
+      <div class="form-group mb-20">
+        <div class="flex flex-between flex-center mb-6">
+          <label class="form-label m-0" for="conf_thresh">Detection Confidence Cutoff</label>
+          <span id="conf-val" class="font-mono text-orange fw-700 fs-13">{{ settings.get('conf_thresh', '0.02') }}</span>
+        </div>
         <input type="range" id="conf_thresh" name="conf_thresh" min="0.01" max="0.90" step="0.01" value="{{ settings.get('conf_thresh', '0.02') }}" class="form-input" oninput="document.getElementById('conf-val').innerText = this.value">
-        <small style="color: var(--text-muted); font-size: 12px;">Minimum confidence score for YOLO worker and PPE item detections.</small>
+        <div class="fs-11 text-muted mt-4">Minimum confidence score required for YOLO worker and PPE item bounding proposals.</div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="iou_thresh">
-          IoU / NMS Suppression Threshold: <span id="iou-val" style="color: var(--safety-orange); font-family: var(--font-mono); font-weight: 700;">{{ settings.get('iou_thresh', '0.45') }}</span>
-        </label>
+      <div class="form-group mb-20">
+        <div class="flex flex-between flex-center mb-6">
+          <label class="form-label m-0" for="iou_thresh">IoU / NMS Suppression Threshold</label>
+          <span id="iou-val" class="font-mono text-orange fw-700 fs-13">{{ settings.get('iou_thresh', '0.45') }}</span>
+        </div>
         <input type="range" id="iou_thresh" name="iou_thresh" min="0.10" max="0.80" step="0.05" value="{{ settings.get('iou_thresh', '0.45') }}" class="form-input" oninput="document.getElementById('iou-val').innerText = this.value">
-        <small style="color: var(--text-muted); font-size: 12px;">Non-maximum suppression overlap threshold.</small>
+        <div class="fs-11 text-muted mt-4">Non-maximum suppression overlap threshold to prevent duplicated worker bounding boxes.</div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Active Inference Engine</label>
-        <input type="text" class="form-input" value="{{ device_name }}" readonly style="background: rgba(0,0,0,0.25); color: var(--text-muted); font-family: var(--font-mono);">
-      </div>
-    </div>
-
-    <!-- Temporal Verification State Machine -->
-    <div class="card" style="margin-bottom: 24px;">
-      <div class="card-title">
-        <span>⏱ Temporal Verification State Machine</span>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="min_violation_frames">
-          Minimum Violation Verification Frames: <span id="mv-val" style="color: var(--safety-orange); font-family: var(--font-mono); font-weight: 700;">{{ settings.get('min_violation_frames', '10') }}</span> frames
-        </label>
-        <input type="range" id="min_violation_frames" name="min_violation_frames" min="3" max="30" step="1" value="{{ settings.get('min_violation_frames', '10') }}" class="form-input" oninput="document.getElementById('mv-val').innerText = this.value">
-        <small style="color: var(--text-muted); font-size: 12px;">Frames of continuous missing PPE required before confirming violation alert. Filters out transient occlusions.</small>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="min_zone_frames">
-          Minimum Zone Incursion Frames: <span id="mz-val" style="color: var(--safety-orange); font-family: var(--font-mono); font-weight: 700;">{{ settings.get('min_zone_frames', '8') }}</span> frames
-        </label>
-        <input type="range" id="min_zone_frames" name="min_zone_frames" min="2" max="20" step="1" value="{{ settings.get('min_zone_frames', '8') }}" class="form-input" oninput="document.getElementById('mz-val').innerText = this.value">
-        <small style="color: var(--text-muted); font-size: 12px;">Frames inside restricted zone before triggering violation alert.</small>
+      <div class="form-group mb-0">
+        <label class="form-label">Inference Compute Engine</label>
+        <input type="text" class="form-input font-mono text-muted" value="{{ device_name }}" readonly style="background: rgba(0,0,0,0.3);">
       </div>
     </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: 12px;">
-      <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">Reset Defaults</button>
+    <!-- 2. Temporal Verification State Machine -->
+    <div class="card mb-24">
+      <div class="card-header">
+        <div class="card-label">
+          <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          <span>Temporal Hysteresis & False-Positive Suppression</span>
+        </div>
+        <span class="badge badge-low">Anti-Flicker Filter</span>
+      </div>
+
+      <div class="form-group mb-20">
+        <div class="flex flex-between flex-center mb-6">
+          <label class="form-label m-0" for="min_violation_frames">Minimum Violation Verification Frames</label>
+          <span id="mv-val" class="font-mono text-orange fw-700 fs-13">{{ settings.get('min_violation_frames', '10') }} frames</span>
+        </div>
+        <input type="range" id="min_violation_frames" name="min_violation_frames" min="3" max="30" step="1" value="{{ settings.get('min_violation_frames', '10') }}" class="form-input" oninput="document.getElementById('mv-val').innerText = this.value + ' frames'">
+        <div class="fs-11 text-muted mt-4">Consecutive frames of unequipped PPE required before confirming a persistent violation. Filters transient occlusions.</div>
+      </div>
+
+      <div class="form-group mb-0">
+        <div class="flex flex-between flex-center mb-6">
+          <label class="form-label m-0" for="min_zone_frames">Minimum Zone Incursion Frames</label>
+          <span id="mz-val" class="font-mono text-orange fw-700 fs-13">{{ settings.get('min_zone_frames', '8') }} frames</span>
+        </div>
+        <input type="range" id="min_zone_frames" name="min_zone_frames" min="2" max="20" step="1" value="{{ settings.get('min_zone_frames', '8') }}" class="form-input" oninput="document.getElementById('mz-val').innerText = this.value + ' frames'">
+        <div class="fs-11 text-muted mt-4">Consecutive frames inside restricted zone polygon before triggering high-priority hazard alarm.</div>
+      </div>
+    </div>
+
+    <div class="flex flex-between flex-center">
+      <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">
+        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Reset Recommended Defaults
+      </button>
+
       {% if current_role == 'ADMIN' %}
-      <button type="submit" class="btn btn-primary">Save Configuration</button>
+      <button type="submit" class="btn btn-primary">
+        <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save System Configuration
+      </button>
       {% else %}
-      <span class="text-muted">Only administrators can change settings.</span>
+      <span class="fs-12 text-muted">Administrative privileges required to modify settings.</span>
       {% endif %}
     </div>
   </form>
@@ -73,15 +92,26 @@
 
 {% block scripts %}
 <script>
-  // Fills the form with the config.py defaults; click Save to apply them.
   const SETTINGS_DEFAULTS = {{ defaults | tojson }};
-  const VALUE_LABELS = { conf_thresh: 'conf-val', iou_thresh: 'iou-val', min_violation_frames: 'mv-val', min_zone_frames: 'mz-val' };
+  const VALUE_LABELS = { 
+    conf_thresh: 'conf-val', 
+    iou_thresh: 'iou-val', 
+    min_violation_frames: 'mv-val', 
+    min_zone_frames: 'mz-val' 
+  };
+
   function resetToDefaults() {
     Object.entries(SETTINGS_DEFAULTS).forEach(([key, value]) => {
       const input = document.getElementById(key);
       const label = document.getElementById(VALUE_LABELS[key]);
       if (input) input.value = value;
-      if (label) label.textContent = value;
+      if (label) {
+        if (key.includes('frames')) {
+          label.textContent = value + ' frames';
+        } else {
+          label.textContent = value;
+        }
+      }
     });
   }
 </script>

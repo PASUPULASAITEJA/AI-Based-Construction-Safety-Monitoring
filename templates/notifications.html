@@ -1,16 +1,25 @@
 {% extends "base.html" %}
 
 {% block title %}Notifications — SiteGuard AI{% endblock %}
-{% block page_title %}Notifications{% endblock %}
+{% block page_title %}Notification Center{% endblock %}
 
 {% block top_actions %}
   <button class="btn btn-secondary" onclick="markAllNotificationsRead()">
-    ✓ Mark All as Read
+    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+    Mark All as Read
   </button>
 {% endblock %}
 
 {% block content %}
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card p-0 overflow-hidden mb-24">
+  <div class="card-header p-16">
+    <div class="card-label">
+      <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <span>High-Priority Safety Notifications</span>
+    </div>
+    <span class="badge badge-ai fs-11">{{ notifications|length }} Dispatches</span>
+  </div>
+
   <div class="table-container">
     <table class="data-table">
       <thead>
@@ -18,39 +27,44 @@
           <th>Severity</th>
           <th>Notification Title</th>
           <th>Message & Location</th>
-          <th>Triggered At</th>
-          <th>Status</th>
+          <th>Triggered Timestamp</th>
+          <th>Read Status</th>
           <th>Action</th>
         </tr>
       </thead>
       <tbody>
         {% if notifications and notifications|length > 0 %}
           {% for n in notifications %}
-            <tr style="{% if n.is_read == 0 %}background: rgba(249, 115, 22, 0.05);{% endif %}">
+            <tr style="{% if n.is_read == 0 %}background: rgba(249, 115, 22, 0.04);{% endif %}">
               <td>
                 <span class="badge badge-{{ n.severity|lower }}">{{ n.severity }}</span>
               </td>
-              <td><strong style="color: var(--text-primary);">{{ n.title }}</strong></td>
-              <td style="color: var(--text-secondary); max-width: 400px;">{{ n.message }}</td>
-              <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">{{ n.timestamp }}</td>
+              <td><strong class="text-primary">{{ n.title }}</strong></td>
+              <td class="text-secondary" style="max-width: 380px;">{{ n.message }}</td>
+              <td class="font-mono fs-12 text-muted">{{ n.timestamp }}</td>
               <td>
                 {% if n.is_read == 1 %}
-                  <span style="font-size: 12px; color: var(--text-muted);">Read</span>
+                  <span class="fs-12 text-muted">Read</span>
                 {% else %}
-                  <span class="badge badge-critical">NEW</span>
+                  <span class="badge badge-critical">NEW UNREAD</span>
                 {% endif %}
               </td>
               <td>
-                <a href="{{ url_for('alerts_view') }}" class="btn btn-sm btn-secondary">Review Alert</a>
+                <a href="{{ url_for('alerts_view') }}" class="btn btn-sm btn-secondary">
+                  <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  Review Alert
+                </a>
               </td>
             </tr>
           {% endfor %}
         {% else %}
           <tr>
             <td colspan="6">
-              <div class="empty-state-card">
-                <div class="empty-state-icon"></div>
-                <div class="empty-state-title">No notifications recorded</div>
+              <div class="empty-state-card p-24">
+                <div class="empty-state-icon">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                </div>
+                <div class="empty-state-title">No notifications registered</div>
                 <div class="empty-state-text">Critical and high severity safety events will trigger high-priority alerts in this feed automatically.</div>
               </div>
             </td>

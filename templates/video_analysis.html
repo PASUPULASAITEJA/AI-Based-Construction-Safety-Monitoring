@@ -1,131 +1,151 @@
 {% extends "base.html" %}
 
-{% block title %}Video Analysis — SiteGuard AI{% endblock %}
-{% block page_title %}Video Analysis{% endblock %}
+{% block title %}Video Analysis Studio — SiteGuard AI{% endblock %}
+{% block page_title %}Video Analysis Studio{% endblock %}
+{% block breadcrumb_section %}Media Intelligence{% endblock %}
+{% block breadcrumb_page %}Video Analysis{% endblock %}
 
 {% block content %}
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
-
+<div class="sg-grid-2" style="margin-bottom: 24px;">
   <!-- Video Upload Control Card -->
-  <div class="card">
-    <div class="card-title">
-      <span>Upload Construction Site Footage</span>
-      <span class="badge badge-low">MP4, AVI, MOV</span>
+  <div class="sg-card">
+    <div class="sg-card-header">
+      <div class="sg-card-title">
+        <i data-lucide="film" class="sg-card-title-icon"></i>
+        <span>Upload Construction Site Footage</span>
+      </div>
+      <span class="sg-badge sg-badge--accent">MP4, AVI, MOV</span>
     </div>
 
-    <form id="video-upload-form" enctype="multipart/form-data">
-      <div class="upload-dropzone" id="video-dropzone" onclick="document.getElementById('video-file-input').click()">
-        <div class="upload-icon"></div>
-        <h4 style="margin-bottom: 6px; font-weight: 700;">Click or Drag & Drop Video File</h4>
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Frame-by-frame sequential YOLOv8 inference with ByteTrack & spatial PPE association</p>
-        <input type="file" id="video-file-input" name="video" accept=".mp4,.avi,.mov" style="display: none;" onchange="handleVideoSelection(event)">
-      </div>
-      
-      <div id="video-selected-label" style="margin-top: 12px; font-size: 13px; color: var(--safety-orange); font-family: var(--font-mono); display: none;"></div>
-
-      <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-size: 12px; color: var(--text-muted);">
-          Max file size: 250MB
+    <div class="sg-card-body">
+      <form id="video-upload-form" enctype="multipart/form-data">
+        <div class="upload-dropzone" id="video-dropzone" style="border: 2px dashed rgba(249,115,22,0.3); background: rgba(249,115,22,0.02); border-radius: var(--radius-lg); padding: 36px 20px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('video-file-input').click()">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+            <i data-lucide="video" style="width: 24px; height: 24px;"></i>
+          </div>
+          <h4 style="margin-bottom: 6px; font-weight: 700; color: #FFFFFF;">Click or Drag & Drop Video File</h4>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Sequential YOLOv8 inference with ByteTrack & anatomical spatial PPE association</p>
+          <input type="file" id="video-file-input" name="video" accept=".mp4,.avi,.mov" style="display: none;" onchange="handleVideoSelection(event)">
         </div>
-        <button type="button" id="btn-process-video" class="btn btn-primary" onclick="submitVideoAnalysis()" disabled>
-          ⚡ Process Video Stream
-        </button>
-      </div>
-    </form>
+        
+        <div id="video-selected-label" style="margin-top: 12px; font-size: 12.5px; color: var(--accent); font-family: var(--font-mono); display: none;"></div>
+
+        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
+            MAX FILE SIZE: 250MB
+          </div>
+          <button type="button" id="btn-process-video" class="sg-btn sg-btn--primary" onclick="submitVideoAnalysis()" disabled>
+            <i data-lucide="play" style="width: 14px; height: 14px;"></i>
+            <span>Process Video Stream</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Processing Pipeline Explanation Card -->
-  <div class="card">
-    <div class="card-title">
-      <span>⚙ Video Processing Pipeline Architecture</span>
+  <div class="sg-card">
+    <div class="sg-card-header">
+      <div class="sg-card-title">
+        <i data-lucide="cpu" class="sg-card-title-icon" style="color: var(--info);"></i>
+        <span>Video Processing Pipeline Architecture</span>
+      </div>
     </div>
 
-    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
-      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--color-info);">
-        <strong>1. Sequential Frame Extraction</strong>
-        <div style="font-size: 11.5px; color: var(--text-muted);">Decodes native container and feeds uncompressed frames to the CV detector.</div>
+    <div class="sg-card-body" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="padding: 12px 14px; background: rgba(255,255,255,0.02); border-radius: var(--radius-md); border-left: 3px solid var(--info);">
+        <strong style="color: #FFFFFF;">1. Sequential Frame Extraction</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Decodes native container stream and dispatches uncompressed frames to the CV pipeline.</div>
       </div>
-      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--safety-orange);">
-        <strong>2. YOLOv8 PPE Detection & ByteTrack Association</strong>
-        <div style="font-size: 11.5px; color: var(--text-muted);">Identifies workers, hardhats, safety vests, boots, masks, and computes spatial containment.</div>
+      <div style="padding: 12px 14px; background: rgba(255,255,255,0.02); border-radius: var(--radius-md); border-left: 3px solid var(--accent);">
+        <strong style="color: #FFFFFF;">2. YOLOv8 Detection & ByteTrack Spatial Association</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Identifies workers, hardhats, vests, gloves, boots, and computes anatomical containment.</div>
       </div>
-      <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--color-critical);">
-        <strong>3. Temporal Verification State Machine</strong>
-        <div style="font-size: 11.5px; color: var(--text-muted);">Ensures 10+ continuous frames of missing gear before logging confirmed violations to database.</div>
+      <div style="padding: 12px 14px; background: rgba(255,255,255,0.02); border-radius: var(--radius-md); border-left: 3px solid var(--violation);">
+        <strong style="color: #FFFFFF;">3. Temporal Verification State Machine</strong>
+        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Requires 10+ continuous frames of missing gear before committing confirmed violations to SQLite.</div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Progress Bar & Processing Telemetry (Active during upload) -->
-<div id="upload-progress-container" class="card" style="display: none; padding: 20px; margin-bottom: 24px;">
+<div id="upload-progress-container" class="sg-card" style="display: none; padding: 22px; margin-bottom: 24px;">
   <div style="display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center;">
-    <strong id="upload-status-title" style="color: var(--text-primary);">Processing Video Footage through YOLOv8 Engine...</strong>
-    <span id="upload-status-pct" style="color: var(--safety-orange); font-family: var(--font-mono); font-weight: 700; font-size: 15px;">0%</span>
+    <strong id="upload-status-title" style="color: #FFFFFF;">Processing Video Footage through YOLOv8 Engine...</strong>
+    <span id="upload-status-pct" style="color: var(--accent); font-family: var(--font-mono); font-weight: 700; font-size: 16px;">0%</span>
   </div>
   <div style="background: rgba(255, 255, 255, 0.08); border-radius: 8px; height: 10px; overflow: hidden;">
-    <div id="upload-progress-bar" style="background: linear-gradient(90deg, var(--safety-orange), var(--color-compliant)); height: 100%; width: 0%; transition: width 0.3s;"></div>
+    <div id="upload-progress-bar" style="background: linear-gradient(90deg, var(--accent), var(--safe)); height: 100%; width: 0%; transition: width 0.3s;"></div>
   </div>
   <div id="upload-status-sub" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">Initializing frame extraction...</div>
 </div>
 
 <!-- Results Area (Populated with Real Video Inference Data) -->
-<div id="results-display-container" class="card" style="display: none; margin-bottom: 24px;">
-  <div class="card-title">
-    <span>Video Inspection Output & Analytics</span>
-    <button class="btn btn-sm btn-secondary" onclick="resetVideoUploadView()">Upload Another Video</button>
+<div id="results-display-container" class="sg-card" style="display: none; margin-bottom: 24px;">
+  <div class="sg-card-header">
+    <div class="sg-card-title">
+      <i data-lucide="check-circle-2" class="sg-card-title-icon" style="color: var(--safe);"></i>
+      <span>Video Inspection Output & Telemetry</span>
+    </div>
+    <button class="sg-btn sg-btn--outline sg-btn--sm" onclick="resetVideoUploadView()">Upload Another Video</button>
   </div>
 
-  <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px;">
-    <!-- Annotated Video Player -->
-    <div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h5 style="color: var(--text-secondary); margin: 0; font-size: 13px; text-transform: uppercase;">Annotated Output Video</h5>
-        <a id="btn-download-annotated-video" href="#" download="annotated_construction_safety.mp4" class="btn btn-sm btn-primary">Download Annotated Video</a>
-      </div>
-      <div style="background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; min-height: 380px;">
-        <video id="result-annotated-video" controls style="max-width: 100%; max-height: 480px; width: 100%;"></video>
-      </div>
-    </div>
-
-    <!-- Telemetry Breakdown -->
-    <div>
-      <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase;">Actual Video Inference Statistics</h5>
-      
-      <div class="metrics-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-        <div class="metric-card info" style="padding: 14px;">
-          <div class="metric-header"><span>Frames Processed</span></div>
-          <div class="metric-value" id="result-frames-count" style="font-size: 22px;">0</div>
+  <div class="sg-card-body">
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px;">
+      <!-- Annotated Video Player -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h5 style="color: var(--text-secondary); margin: 0; font-size: 12px; text-transform: uppercase;">Annotated Output Video</h5>
+          <a id="btn-download-annotated-video" href="#" download="annotated_construction_safety.mp4" class="sg-btn sg-btn--primary sg-btn--sm">
+            <i data-lucide="download" style="width: 13px; height: 13px;"></i>
+            <span>Download Annotated Video</span>
+          </a>
         </div>
-        <div class="metric-card orange" style="padding: 14px;">
-          <div class="metric-header"><span>Workers Tracked</span></div>
-          <div class="metric-value" id="result-workers-count" style="font-size: 22px;">0</div>
-        </div>
-        <div class="metric-card critical" style="padding: 14px;">
-          <div class="metric-header"><span>Violations Logged</span></div>
-          <div class="metric-value" id="result-violations-count" style="font-size: 22px;">0</div>
-        </div>
-        <div class="metric-card success" style="padding: 14px;">
-          <div class="metric-header"><span>Compliance</span></div>
-          <div class="metric-value" id="result-compliance-rate" style="font-size: 22px;">&mdash;</div>
+        <div class="sg-video-container" style="min-height: 380px;">
+          <video id="result-annotated-video" controls style="max-width: 100%; max-height: 480px; width: 100%;"></video>
         </div>
       </div>
 
-      <h5 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Tracked Worker Sample Telemetry</h5>
-      <div class="table-container" style="max-height: 240px; overflow-y: auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Worker ID</th>
-              <th>Helmet</th>
-              <th>Vest</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="result-workers-table-body">
-            <!-- Dynamically populated -->
-          </tbody>
-        </table>
+      <!-- Telemetry Breakdown -->
+      <div>
+        <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Inference Statistics</h5>
+        
+        <div class="sg-grid-2" style="gap: 12px; margin-bottom: 16px;">
+          <div class="sg-stat-card sg-stat-card--info" style="padding: 14px;">
+            <span class="sg-stat-card-label">Frames Processed</span>
+            <div class="sg-stat-card-value" id="result-frames-count" style="font-size: 22px; margin: 4px 0 0;">0</div>
+          </div>
+          <div class="sg-stat-card sg-stat-card--accent" style="padding: 14px;">
+            <span class="sg-stat-card-label">Workers Tracked</span>
+            <div class="sg-stat-card-value" id="result-workers-count" style="font-size: 22px; margin: 4px 0 0;">0</div>
+          </div>
+          <div class="sg-stat-card sg-stat-card--violation" style="padding: 14px;">
+            <span class="sg-stat-card-label">Violations Logged</span>
+            <div class="sg-stat-card-value" id="result-violations-count" style="font-size: 22px; margin: 4px 0 0; color: var(--violation);">0</div>
+          </div>
+          <div class="sg-stat-card sg-stat-card--safe" style="padding: 14px;">
+            <span class="sg-stat-card-label">Compliance</span>
+            <div class="sg-stat-card-value" id="result-compliance-rate" style="font-size: 22px; margin: 4px 0 0; color: var(--safe);">&mdash;</div>
+          </div>
+        </div>
+
+        <h5 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">Tracked Worker Telemetry</h5>
+        <div class="sg-table-container" style="max-height: 240px; overflow-y: auto;">
+          <table class="sg-table sg-table--compact">
+            <thead>
+              <tr>
+                <th>Worker ID</th>
+                <th>Helmet</th>
+                <th>Vest</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="result-workers-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -135,8 +155,6 @@
 {% block scripts %}
 <script>
 let selectedVideoFile = null;
-
-enableFileDrop('video-dropzone', 'video-file-input', handleVideoSelection);
 
 function handleVideoSelection(e) {
   const file = e.target.files[0];
@@ -172,7 +190,6 @@ function submitVideoAnalysis() {
   progressPct.innerText = '25%';
   progressTitle.innerText = 'Uploading video file to server...';
 
-  // Simulated progress tick while server runs full YOLO inference
   let curPct = 25;
   const timer = setInterval(() => {
     if (curPct < 90) {
@@ -234,7 +251,6 @@ function displayVideoResults(data) {
   document.getElementById('result-workers-count').innerText = stats.total_workers || 0;
   document.getElementById('result-violations-count').innerText = stats.total_violations || 0;
 
-  // No workers tracked -> no compliance figure (avoid a misleading 100%)
   const compRate = stats.total_workers > 0
     ? Math.max(0, Math.round(((stats.total_workers - (stats.total_violations || 0)) / stats.total_workers) * 100)) + '%'
     : '\u2014';
@@ -249,9 +265,9 @@ function displayVideoResults(data) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${escapeHtml(w.label || 'Worker #' + w.worker_id)}</strong></td>
-        <td><span class="badge ${w.helmet ? 'badge-compliant' : 'badge-danger'}">${w.helmet ? 'YES' : 'NO'}</span></td>
-        <td><span class="badge ${w.vest ? 'badge-compliant' : 'badge-danger'}">${w.vest ? 'YES' : 'NO'}</span></td>
-        <td><span class="badge ${w.violations && w.violations.length > 0 ? 'badge-critical' : 'badge-compliant'}">${escapeHtml(w.status || 'COMPLIANT')}</span></td>
+        <td><span class="sg-badge ${w.helmet ? 'sg-badge--safe' : 'sg-badge--violation'}">${w.helmet ? 'YES' : 'NO'}</span></td>
+        <td><span class="sg-badge ${w.vest ? 'sg-badge--safe' : 'sg-badge--violation'}">${w.vest ? 'YES' : 'NO'}</span></td>
+        <td><span class="sg-badge ${w.violations && w.violations.length > 0 ? 'sg-badge--critical' : 'sg-badge--safe'}">${escapeHtml(w.status || 'COMPLIANT')}</span></td>
       `;
       tbody.appendChild(tr);
     });

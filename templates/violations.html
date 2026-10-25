@@ -1,73 +1,124 @@
 {% extends "base.html" %}
 
 {% block title %}Safety Violations — SiteGuard AI{% endblock %}
-{% block page_title %}Safety Violations{% endblock %}
+{% block page_title %}Safety Violations History{% endblock %}
+{% block breadcrumb_section %}Safety & Compliance{% endblock %}
+{% block breadcrumb_page %}Violations{% endblock %}
 
 {% block top_actions %}
-  <a href="{{ url_for('export_violations_csv') }}" class="btn btn-sm btn-secondary">Export CSV</a>
+<div style="display: flex; gap: 8px;">
+  <a href="{{ url_for('export_violations_csv') }}" class="sg-btn sg-btn--outline sg-btn--sm">
+    <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+    <span>Export CSV</span>
+  </a>
+  <a href="{{ url_for('reports_view') }}" class="sg-btn sg-btn--primary sg-btn--sm">
+    <i data-lucide="file-text" style="width: 14px; height: 14px;"></i>
+    <span>Generate Audit Report</span>
+  </a>
+</div>
 {% endblock %}
 
 {% block content %}
-<!-- Metrics Summary Cards for Human-in-the-Loop Review -->
-<div class="stats-grid mb-20">
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">Total AI Detections</span>
-      <span class="stat-icon stat-icon-blue">AI</span>
+<!-- =========================================================================
+     TOP METRICS CARDS: Human-in-the-Loop AI Audit Summary
+     ========================================================================= -->
+<div class="sg-grid-4">
+  <div class="sg-stat-card sg-stat-card--info">
+    <div class="sg-stat-card-header">
+      <span class="sg-stat-card-label">Total AI Detections</span>
+      <div class="sg-stat-card-icon">
+        <i data-lucide="cpu" style="width: 16px; height: 16px;"></i>
+      </div>
     </div>
-    <div class="stat-value" id="stat-total-violations">{{ review_stats.total_violations }}</div>
-    <div class="stat-trend">Total safety events evaluated by YOLOv8</div>
-  </div>
-
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">Human-Confirmed</span>
-      <span class="stat-icon stat-icon-red">!</span>
+    <div class="sg-stat-card-value" id="stat-total-violations">
+      {{ review_stats.total_violations|default(0) }}
     </div>
-    <div class="stat-value text-critical" id="stat-confirmed-violations">{{ review_stats.confirmed_violations }}</div>
-    <div class="stat-trend">
-      <span class="text-critical">{{ review_stats.confirmation_rate }}%</span> confirmed breach rate
+    <div class="sg-stat-card-footer">
+      <span>Evaluated by YOLOv8 model</span>
     </div>
   </div>
 
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">False Positives Flagged</span>
-      <span class="stat-icon stat-icon-orange">FP</span>
+  <div class="sg-stat-card sg-stat-card--violation">
+    <div class="sg-stat-card-header">
+      <span class="sg-stat-card-label">Human-Confirmed</span>
+      <div class="sg-stat-card-icon">
+        <i data-lucide="alert-octagon" style="width: 16px; height: 16px;"></i>
+      </div>
     </div>
-    <div class="stat-value text-orange" id="stat-false-positives">{{ review_stats.false_positives }}</div>
-    <div class="stat-trend">
-      <span class="text-orange">{{ review_stats.false_positive_rate }}%</span> FP rate (model tuning)
+    <div class="sg-stat-card-value" id="stat-confirmed-violations" style="color: var(--violation);">
+      {{ review_stats.confirmed_violations|default(0) }}
+    </div>
+    <div class="sg-stat-card-footer">
+      <span style="color: var(--violation); font-weight: 700;">{{ review_stats.confirmation_rate|default(0) }}%</span>
+      <span>confirmed breach rate</span>
     </div>
   </div>
 
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-title">Pending Human Review</span>
-      <span class="stat-icon stat-icon-purple">?</span>
+  <div class="sg-stat-card sg-stat-card--warning">
+    <div class="sg-stat-card-header">
+      <span class="sg-stat-card-label">False Positives Flagged</span>
+      <div class="sg-stat-card-icon">
+        <i data-lucide="flag" style="width: 16px; height: 16px;"></i>
+      </div>
     </div>
-    <div class="stat-value" id="stat-pending-reviews">{{ review_stats.pending_reviews }}</div>
-    <div class="stat-trend">Awaiting safety officer verification</div>
+    <div class="sg-stat-card-value" id="stat-false-positives" style="color: var(--warning);">
+      {{ review_stats.false_positives|default(0) }}
+    </div>
+    <div class="sg-stat-card-footer">
+      <span style="color: var(--warning); font-weight: 700;">{{ review_stats.false_positive_rate|default(0) }}%</span>
+      <span>model tuning feedback</span>
+    </div>
+  </div>
+
+  <div class="sg-stat-card sg-stat-card--accent">
+    <div class="sg-stat-card-header">
+      <span class="sg-stat-card-label">Pending Verification</span>
+      <div class="sg-stat-card-icon">
+        <i data-lucide="help-circle" style="width: 16px; height: 16px;"></i>
+      </div>
+    </div>
+    <div class="sg-stat-card-value" id="stat-pending-reviews">
+      {{ review_stats.pending_reviews|default(0) }}
+    </div>
+    <div class="sg-stat-card-footer">
+      <span>Awaiting safety officer review</span>
+    </div>
   </div>
 </div>
 
-<!-- Filter Controls Card -->
-<div class="card filter-card mb-20">
+<!-- =========================================================================
+     ADVANCED FILTER TOOLBAR
+     ========================================================================= -->
+<div class="sg-card" style="padding: 16px;">
   <form id="filter-form" method="GET" action="{{ url_for('violations_view') }}">
-    <div class="filter-row">
-      <div>
-        <label class="form-label">Violation Type</label>
-        <select name="violation_type" class="form-select w-180" title="Violation Type" aria-label="Violation Type" onchange="document.getElementById('filter-form').submit()">
-          <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Types</option>
+    <div style="display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;">
+      <!-- Violation Type -->
+      <div style="flex: 1; min-width: 160px;">
+        <label class="sg-label">Violation Category</label>
+        <select name="violation_type" class="sg-select" onchange="document.getElementById('filter-form').submit()">
+          <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Categories</option>
           {% for vt in violation_types|default([]) %}
             <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
           {% endfor %}
         </select>
       </div>
 
-      <div>
-        <label class="form-label">Review Status</label>
-        <select name="status" class="form-select w-150" title="Review Status" aria-label="Review Status" onchange="document.getElementById('filter-form').submit()">
+      <!-- Severity -->
+      <div style="min-width: 130px;">
+        <label class="sg-label">Severity Level</label>
+        <select name="severity" class="sg-select" onchange="document.getElementById('filter-form').submit()">
+          <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
+          <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+          <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
+          <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+          <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
+        </select>
+      </div>
+
+      <!-- Review Status -->
+      <div style="min-width: 140px;">
+        <label class="sg-label">Review Status</label>
+        <select name="status" class="sg-select" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
           <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>OPEN / Pending</option>
           <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
@@ -75,20 +126,10 @@
         </select>
       </div>
 
-      <div>
-        <label class="form-label">Severity</label>
-        <select name="severity" class="form-select w-130" title="Severity" aria-label="Severity" onchange="document.getElementById('filter-form').submit()">
-          <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
-          <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>LOW</option>
-          <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
-          <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
-          <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="form-label">Site</label>
-        <select name="site_id" class="form-select w-150" title="Site" aria-label="Site" onchange="document.getElementById('filter-form').submit()">
+      <!-- Site -->
+      <div style="min-width: 140px;">
+        <label class="sg-label">Job Site</label>
+        <select name="site_id" class="sg-select" onchange="document.getElementById('filter-form').submit()">
           <option value="ALL" {% if current_site == 'ALL' %}selected{% endif %}>All Sites</option>
           {% for s in sites %}
             <option value="{{ s.id }}" {% if current_site == s.id|string %}selected{% endif %}>{{ s.name }}</option>
@@ -96,252 +137,309 @@
         </select>
       </div>
 
-      <div>
-        <label class="form-label" for="violation-search-input">Search</label>
-        <input type="text" id="violation-search-input" name="search" class="form-input w-180" placeholder="Search Code, Worker..." title="Search Code or Worker" aria-label="Search Code or Worker" value="{{ current_search|default('') }}">
+      <!-- Keyword Search -->
+      <div style="flex: 1.5; min-width: 200px;">
+        <label class="sg-label" for="violation-search-input">Search Records</label>
+        <input type="text" id="violation-search-input" name="search" class="sg-input" placeholder="Search Code, Worker ID..." value="{{ current_search|default('') }}">
       </div>
 
-      <div>
-        <button type="submit" class="btn btn-primary btn-sm h-38">Filter</button>
-        <a href="{{ url_for('violations_view') }}" class="btn btn-secondary btn-sm h-38">Reset</a>
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 8px;">
+        <button type="submit" class="sg-btn sg-btn--primary">
+          <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+          <span>Filter</span>
+        </button>
+        <a href="{{ url_for('violations_view') }}" class="sg-btn sg-btn--outline">Reset</a>
       </div>
 
-      <div class="filter-count">
-        Records: <strong class="text-primary">{{ violations|length }}</strong>
+      <!-- Result Counter -->
+      <div style="margin-left: auto; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); align-self: center;">
+        Showing <strong style="color: var(--text-primary);">{{ violations|length }}</strong> records
       </div>
     </div>
   </form>
 </div>
 
-<!-- Violations Master Table with Human-in-the-Loop Review -->
-<div class="card p-0 overflow-hidden">
-  <div class="table-container">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Violation Code</th>
-          <th>Worker / Track</th>
-          <th>Violation Category</th>
-          <th>Severity</th>
-          <th>Confidence</th>
-          <th>Site / Camera</th>
-          <th>Detected At</th>
-          <th>Review Status</th>
-          <th>Evidence</th>
-          <th class="text-right">Officer Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if violations and violations|length > 0 %}
-          {% for v in violations %}
-            <tr id="violation-row-{{ v.id }}">
-              <td>
-                <strong class="font-mono text-orange">
-                  {{ v.violation_code }}
-                </strong>
-              </td>
-              <td>
-                <strong>{{ v.worker_label }}</strong>
-                <div class="fs-11 text-muted font-mono">ID: TRK-{{ "%03d"|format(v.worker_id) }}</div>
-              </td>
-              <td>
-                <span class="fw-600 fs-13">{{ v.violation_type }}</span>
-                <div class="fs-11 text-muted max-w-220 text-ellipsis">
-                  {{ v.description }}
-                </div>
-              </td>
-              <td>
-                <span class="badge badge-{{ v.severity|lower }}">{{ v.severity }}</span>
-              </td>
-              <td class="font-mono text-info">
-                {{ (v.confidence * 100)|round(1) }}%
-              </td>
-              <td>
-                <div class="fs-12 text-primary">{{ v.site_name|default('Construction Site') }}</div>
-                <div class="fs-11 text-muted">{{ v.camera_name|default(v.source) }}</div>
-              </td>
-              <td class="text-muted fs-12 font-mono">
-                {{ v.timestamp }}
-              </td>
-              <td>
-                {% if v.review_decision == 'CONFIRMED' %}
-                  <span class="badge badge-red">
-                    CONFIRMED
-                  </span>
-                  {% if v.reviewed_by %}
-                    <div class="fs-10 text-muted mt-2">by {{ v.reviewed_by }}</div>
-                  {% endif %}
-                {% elif v.review_decision == 'FALSE_POSITIVE' %}
-                  <span class="badge badge-orange">
-                    FALSE POSITIVE
-                  </span>
-                  {% if v.reviewed_by %}
-                    <div class="fs-10 text-muted mt-2">by {{ v.reviewed_by }}</div>
-                  {% endif %}
-                {% else %}
-                  <span class="badge badge-warning">
-                    PENDING
-                  </span>
-                {% endif %}
-              </td>
-              <td>
-                {% if v.snapshot_path %}
-                  <button class="btn btn-sm btn-secondary" data-src="{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}" data-code="{{ v.violation_code }}" data-type="{{ v.violation_type }}" data-meta="Worker: {{ v.worker_label }} | Conf: {{ (v.confidence * 100)|round(1) }}% | Time: {{ v.timestamp }}" onclick="viewSnapshot(this.dataset.src, this.dataset.code, this.dataset.type, this.dataset.meta)">
-                    Evidence
-                  </button>
-                {% else %}
-                  <span class="text-muted fs-11">No Frame</span>
-                {% endif %}
-              </td>
-              <td class="text-right">
-                {% if v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
-                  <div class="flex-end-gap-6">
-                    <button class="btn btn-sm btn-danger" data-id="{{ v.id }}" data-code="{{ v.violation_code }}" data-type="{{ v.violation_type }}" onclick="openConfirmModal(this.dataset.id, this.dataset.code, this.dataset.type)">
-                      Confirm
-                    </button>
-                    <button class="btn btn-sm btn-secondary" data-id="{{ v.id }}" data-code="{{ v.violation_code }}" onclick="openFpModal(this.dataset.id, this.dataset.code)">
-                      False +
-                    </button>
-                  </div>
-                {% elif v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
-                  <span style="font-size: 12px; color: var(--text-muted);">Pending</span>
-                {% else %}
-                  <span class="fs-12 text-muted">Reviewed</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="10">
-              <div class="empty-state-card">
-                <div class="empty-state-icon"></div>
-                <div class="empty-state-title">No violation records match your filter</div>
-                <div class="empty-state-text">No safety events recorded or matching the current filter parameters.</div>
+<!-- =========================================================================
+     VIOLATIONS MASTER TABLE (.sg-table)
+     ========================================================================= -->
+<div class="sg-table-container">
+  <table class="sg-table">
+    <thead>
+      <tr>
+        <th>Code #</th>
+        <th>Detected At</th>
+        <th>Tracked Personnel</th>
+        <th>Missing PPE / Violation</th>
+        <th>Severity</th>
+        <th>Confidence</th>
+        <th>Job Site / Camera</th>
+        <th>Review Status</th>
+        <th>Evidence</th>
+        <th style="text-align: right;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if violations and violations|length > 0 %}
+        {% for v in violations %}
+          <tr id="violation-row-{{ v.id }}" class="{% if v.severity == 'CRITICAL' %}--violation{% elif v.severity == 'HIGH' %}--warning{% else %}--safe{% endif %}">
+            <!-- Code -->
+            <td style="font-family: var(--font-mono); font-weight: 700; color: var(--accent);">
+              {{ v.violation_code }}
+            </td>
+
+            <!-- Detected Timestamp -->
+            <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); white-space: nowrap;">
+              {{ v.timestamp }}
+            </td>
+
+            <!-- Tracked Worker -->
+            <td>
+              <div style="font-weight: 600; color: var(--text-primary);">{{ v.worker_label }}</div>
+              <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">ID: TRK-{{ "%03d"|format(v.worker_id) }}</div>
+            </td>
+
+            <!-- Missing PPE / Category -->
+            <td>
+              <div style="font-weight: 600; color: #FFFFFF;">
+                {{ v.violation_type|replace('_', ' ')|title }}
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ v.description }}
               </div>
             </td>
+
+            <!-- Severity Badge -->
+            <td>
+              <span class="sg-severity-badge sg-severity-badge--{{ v.severity|default('HIGH') }}">
+                {{ v.severity|default('HIGH') }}
+              </span>
+            </td>
+
+            <!-- Confidence -->
+            <td style="font-family: var(--font-mono); font-weight: 600; color: {% if v.confidence >= 0.8 %}var(--safe){% elif v.confidence >= 0.6 %}var(--warning){% else %}var(--violation){% endif %};">
+              {{ (v.confidence * 100)|round(1) }}%
+            </td>
+
+            <!-- Site & Camera -->
+            <td>
+              <div style="color: var(--text-primary); font-size: 12.5px;">{{ v.site_name|default('Main Site') }}</div>
+              <div style="color: var(--text-muted); font-size: 11px;">{{ v.camera_name|default(v.source) }}</div>
+            </td>
+
+            <!-- Review Status -->
+            <td>
+              {% if v.review_decision == 'CONFIRMED' %}
+                <span class="sg-badge sg-badge--violation">CONFIRMED</span>
+                {% if v.reviewed_by %}
+                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">by {{ v.reviewed_by }}</div>
+                {% endif %}
+              {% elif v.review_decision == 'FALSE_POSITIVE' %}
+                <span class="sg-badge sg-badge--warning">FALSE POSITIVE</span>
+                {% if v.reviewed_by %}
+                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">by {{ v.reviewed_by }}</div>
+                {% endif %}
+              {% else %}
+                <span class="sg-badge sg-badge--info">OPEN / PENDING</span>
+              {% endif %}
+            </td>
+
+            <!-- Evidence Thumbnail (40x40px, Clickable) -->
+            <td>
+              {% if v.snapshot_path %}
+                <img src="{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}" 
+                     alt="Crop Evidence" 
+                     style="width: 40px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border); cursor: pointer;"
+                     onclick="openDetailModal('{{ v.id }}', '{{ v.violation_code }}', '{{ v.violation_type }}', '{{ v.worker_label }}', '{{ (v.confidence * 100)|round(1) }}', '{{ v.timestamp }}', '{{ v.site_name|default('Main Site') }}', '{{ v.severity }}', '{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}', '{{ v.description }}', '{{ v.review_decision|default('OPEN') }}')">
+              {% else %}
+                <span style="font-size: 11px; color: var(--text-muted);">No Frame</span>
+              {% endif %}
+            </td>
+
+            <!-- Actions -->
+            <td style="text-align: right; white-space: nowrap;">
+              <button class="sg-btn sg-btn--outline sg-btn--sm"
+                      onclick="openDetailModal('{{ v.id }}', '{{ v.violation_code }}', '{{ v.violation_type }}', '{{ v.worker_label }}', '{{ (v.confidence * 100)|round(1) }}', '{{ v.timestamp }}', '{{ v.site_name|default('Main Site') }}', '{{ v.severity }}', '{% if v.snapshot_path %}{{ url_for('serve_snapshot', filename=v.snapshot_path.split('/')[-1]) }}{% endif %}', '{{ v.description }}', '{{ v.review_decision|default('OPEN') }}')">
+                <span>View</span>
+              </button>
+              {% if v.review_decision not in ['CONFIRMED', 'FALSE_POSITIVE'] %}
+                <button class="sg-btn sg-btn--danger sg-btn--sm" onclick="openConfirmDialog('{{ v.id }}', '{{ v.violation_code }}')">
+                  Confirm
+                </button>
+              {% endif %}
+            </td>
           </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="10">
+            <div class="sg-empty-state">
+              <div class="sg-empty-icon">
+                <i data-lucide="shield-check" style="width: 28px; height: 28px; color: var(--safe);"></i>
+              </div>
+              <div class="sg-empty-title">No Safety Violations Found</div>
+              <div class="sg-empty-text">No recorded safety violations match the selected filter criteria.</div>
+            </div>
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </div>
 
-<!-- Confirm Violation Modal -->
-<div id="confirm-modal" class="modal-backdrop">
-  <div class="modal-content max-w-440">
-    <div class="flex-between-center mb-16">
-      <h3 class="m-0 fs-14 text-critical">Confirm Safety Breach</h3>
-      <button class="modal-close-btn" onclick="closeModals()">&times;</button>
+<!-- =========================================================================
+     COMPREHENSIVE VIOLATION DETAIL MODAL (55% Evidence / 45% Investigation)
+     ========================================================================= -->
+<div id="violation-detail-modal" class="sg-modal-overlay" onclick="closeDetailModal(event)">
+  <div class="sg-modal" style="max-width: 820px;" onclick="event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="sg-modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="sg-badge sg-badge--violation" id="modal-code-badge">VIO-000</span>
+        <div class="sg-modal-title" id="modal-title">Safety Infraction Inspection</div>
+      </div>
+      <button class="sg-btn sg-btn--ghost sg-btn--icon" onclick="closeDetailModal()">&times;</button>
     </div>
-    <p class="fs-13 text-secondary mb-14">
-      Confirming this detection will formally register an active <strong>Safety Incident (INC)</strong> and assign it to the safety officer for root cause remediation.
-    </p>
-    <form id="confirm-form" onsubmit="submitConfirm(event)">
-      <input type="hidden" id="confirm-violation-id">
-      <div class="mb-12">
-        <label class="form-label" for="confirm-officer">Reviewing Officer</label>
-        <input type="text" id="confirm-officer" class="form-input" placeholder="Reviewing Officer Name" title="Reviewing Officer" aria-label="Reviewing Officer" value="{{ session.get('username', 'Safety Officer') }}" required>
-      </div>
-      <div class="mb-16">
-        <label class="form-label" for="confirm-notes">Investigation Notes / Directive</label>
-        <textarea id="confirm-notes" class="form-input" rows="3" placeholder="e.g. Worker was issued warning and given helmet at Gate 2." title="Investigation Notes" aria-label="Investigation Notes"></textarea>
-      </div>
-      <div class="flex-end-gap">
-        <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
-        <button type="submit" class="btn btn-danger">
-          Confirm & Create Incident
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<!-- False Positive Modal -->
-<div id="fp-modal" class="modal-backdrop">
-  <div class="modal-content max-w-440">
-    <div class="flex-between-center mb-16">
-      <h3 class="m-0 fs-14 text-orange">Flag as False Positive</h3>
-      <button class="modal-close-btn" onclick="closeModals()">&times;</button>
+    <!-- Modal Body: 2-Column Inspection Split -->
+    <div class="sg-modal-body" style="padding: 20px;">
+      <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px;">
+        <!-- Left 55%: Full-Size High-Res Evidence Frame -->
+        <div>
+          <div style="position: relative; background: #000000; border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden; min-height: 280px; display: flex; align-items: center; justify-content: center;">
+            <img id="modal-snapshot-img" src="" alt="Evidence Frame" style="max-width: 100%; max-height: 340px; object-fit: contain;">
+            <!-- Watermark Tag -->
+            <div style="position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.75); padding: 3px 8px; border-radius: 4px; font-family: var(--font-mono); font-size: 10.5px; color: #FFFFFF;" id="modal-watermark">
+              CAM-01 • TIMESTAMP
+            </div>
+          </div>
+          <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono);">FORMAT: HIGH-RES JPEG CROP</span>
+            <a id="modal-download-btn" href="#" download="siteguard_violation_evidence.jpg" class="sg-btn sg-btn--outline sg-btn--sm">
+              <i data-lucide="download" style="width: 12px; height: 12px;"></i>
+              <span>Download Image</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Right 45%: Safety Telemetry & Officer Actions -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Worker & Severity -->
+          <div style="background: rgba(0,0,0,0.25); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <strong id="modal-worker-label" style="font-size: 14px; color: #FFFFFF;">Worker Track #1</strong>
+              <span class="sg-severity-badge" id="modal-severity-badge">HIGH</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary);" id="modal-description">
+              Personnel observed without required protective safety equipment.
+            </div>
+          </div>
+
+          <!-- PPE Compliance Checklist -->
+          <div>
+            <div class="sg-label" style="margin-bottom: 6px;">Evaluated PPE Status</div>
+            <div class="sg-ppe-strip" style="width: 100%; justify-content: space-around; padding: 8px;">
+              <span class="sg-ppe-icon sg-ppe-icon--missing" title="Head Protection" id="chk-helmet">H</span>
+              <span class="sg-ppe-icon sg-ppe-icon--present" title="High-Visibility Vest" id="chk-vest">V</span>
+              <span class="sg-ppe-icon sg-ppe-icon--uncertain" title="Hand Gloves" id="chk-gloves">G</span>
+              <span class="sg-ppe-icon sg-ppe-icon--present" title="Safety Boots" id="chk-boots">B</span>
+              <span class="sg-ppe-icon sg-ppe-icon--uncertain" title="Eye Goggles" id="chk-goggles">E</span>
+            </div>
+          </div>
+
+          <!-- Telemetry Breakdown -->
+          <div style="font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span>Detection Confidence:</span>
+              <strong style="color: var(--safe);" id="modal-conf-val">89.4%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Recorded Site:</span>
+              <span style="color: #FFFFFF;" id="modal-site-val">Main Gate</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Audit Decision:</span>
+              <strong style="color: var(--accent);" id="modal-status-val">OPEN</strong>
+            </div>
+          </div>
+
+          <!-- Officer Notes -->
+          <div class="sg-form-group" style="margin-bottom: 0;">
+            <label class="sg-label" for="detail-officer-notes">Investigation Notes</label>
+            <textarea id="detail-officer-notes" class="sg-textarea" rows="2" placeholder="Add corrective directive or officer note..."></textarea>
+          </div>
+        </div>
+      </div>
     </div>
-    <p class="fs-13 text-secondary mb-14">
-      Marking as false positive will close associated alerts and adjust the AI model performance metrics.
-    </p>
-    <form id="fp-form" onsubmit="submitFalsePositive(event)">
-      <input type="hidden" id="fp-violation-id">
-      <div class="mb-12">
-        <label class="form-label" for="fp-officer">Reviewer</label>
-        <input type="text" id="fp-officer" class="form-input" placeholder="Reviewing Officer Name" title="Reviewing Officer" aria-label="Reviewing Officer" value="{{ session.get('username', 'Safety Officer') }}" required>
-      </div>
-      <div class="mb-16">
-        <label class="form-label" for="fp-reason">Reason for False Positive</label>
-        <select id="fp-reason" class="form-select" title="Reason for False Positive" aria-label="Reason for False Positive" required>
-          <option value="PPE partially occluded / lighting glare">PPE partially occluded / lighting glare</option>
-          <option value="Non-worker pedestrian / visitor">Non-worker pedestrian / visitor</option>
-          <option value="Reflective vest worn under jacket">Reflective vest worn under jacket</option>
-          <option value="Distance / resolution artifact">Distance / resolution artifact</option>
-          <option value="Other model misclassification">Other model misclassification</option>
-        </select>
-      </div>
-      <div class="flex-end-gap">
-        <button type="button" class="btn btn-secondary" onclick="closeModals()">Cancel</button>
-        <button type="submit" class="btn btn-primary">
-          Mark False Positive
-        </button>
-      </div>
-    </form>
+
+    <!-- Modal Footer Actions -->
+    <div class="sg-modal-footer">
+      <input type="hidden" id="modal-violation-id">
+      <button class="sg-btn sg-btn--outline sg-btn--sm" onclick="closeDetailModal()">Cancel</button>
+      <button class="sg-btn sg-btn--ghost sg-btn--sm" onclick="submitFpFromModal()">Mark False Positive</button>
+      <button class="sg-btn sg-btn--danger sg-btn--sm" onclick="submitConfirmFromModal()">Confirm & Create Incident</button>
+    </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-  document.addEventListener('click', (e) => {
-    const confirmBtn = e.target.closest('[data-confirm-id]');
-    if (confirmBtn) { openConfirmModal(confirmBtn.dataset.confirmId); return; }
-    const fpBtn = e.target.closest('[data-fp-id]');
-    if (fpBtn) openFpModal(fpBtn.dataset.fpId);
-  });
+  function openDetailModal(id, code, type, worker, conf, time, site, sev, imgUrl, desc, status) {
+    document.getElementById('modal-violation-id').value = id;
+    document.getElementById('modal-code-badge').innerText = code;
+    document.getElementById('modal-title').innerText = type.replace(/_/g, ' ');
+    document.getElementById('modal-worker-label').innerText = worker;
+    document.getElementById('modal-severity-badge').innerText = sev;
+    document.getElementById('modal-severity-badge').className = 'sg-severity-badge sg-severity-badge--' + sev;
+    document.getElementById('modal-description').innerText = desc || 'Personnel observed without compliant safety gear.';
+    document.getElementById('modal-conf-val').innerText = conf + '%';
+    document.getElementById('modal-site-val').innerText = site;
+    document.getElementById('modal-status-val').innerText = status;
+    document.getElementById('modal-watermark').innerText = site + ' • ' + time;
+    
+    if (imgUrl) {
+      document.getElementById('modal-snapshot-img').src = imgUrl;
+      document.getElementById('modal-download-btn').href = imgUrl;
+      document.getElementById('modal-snapshot-img').style.display = 'block';
+    } else {
+      document.getElementById('modal-snapshot-img').style.display = 'none';
+    }
 
-  function openConfirmModal(id) {
-    document.getElementById('confirm-violation-id').value = id;
-    document.getElementById('confirm-modal').style.display = 'flex';
+    document.getElementById('violation-detail-modal').classList.add('active');
   }
 
-  function openFpModal(id) {
-    document.getElementById('fp-violation-id').value = id;
-    document.getElementById('fp-modal').style.display = 'flex';
+  function closeDetailModal(e) {
+    document.getElementById('violation-detail-modal').classList.remove('active');
   }
 
-  function closeModals() {
-    document.getElementById('confirm-modal').style.display = 'none';
-    document.getElementById('fp-modal').style.display = 'none';
-  }
-
-  async function submitConfirm(e) {
-    e.preventDefault();
-    const id = document.getElementById('confirm-violation-id').value;
-    const notes = document.getElementById('confirm-notes').value;
-
+  async function submitConfirmFromModal() {
+    const id = document.getElementById('modal-violation-id').value;
+    const notes = document.getElementById('detail-officer-notes').value;
     try {
       await apiJSON(`/api/violations/${encodeURIComponent(id)}/confirm`, 'POST', { notes: notes });
       window.location.reload();
-    } catch (err) {
+    } catch(err) {
       alert('Error confirming violation: ' + err.message);
     }
   }
 
-  async function submitFalsePositive(e) {
-    e.preventDefault();
-    const id = document.getElementById('fp-violation-id').value;
-    const reason = document.getElementById('fp-reason').value;
-
+  async function submitFpFromModal() {
+    const id = document.getElementById('modal-violation-id').value;
+    const notes = document.getElementById('detail-officer-notes').value;
     try {
-      await apiJSON(`/api/violations/${encodeURIComponent(id)}/false-positive`, 'POST', { reason: reason });
+      await apiJSON(`/api/violations/${encodeURIComponent(id)}/false-positive`, 'POST', { reason: notes || 'Human reviewer flagged false positive' });
       window.location.reload();
-    } catch (err) {
+    } catch(err) {
       alert('Error updating false positive: ' + err.message);
+    }
+  }
+
+  function openConfirmDialog(id, code) {
+    if (confirm(`Confirm safety violation ${code} and escalate to formal Incident?`)) {
+      apiJSON(`/api/violations/${encodeURIComponent(id)}/confirm`, 'POST', {})
+        .then(() => window.location.reload())
+        .catch(err => alert(err.message));
     }
   }
 </script>

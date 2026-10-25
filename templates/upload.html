@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Media Analysis Studio — SiteGuard AI{% endblock %}
+{% block title %}Media Inspection Studios — SiteGuard AI{% endblock %}
 {% block page_title %}Media Inspection Studios{% endblock %}
 
 {% block content %}
@@ -14,21 +14,31 @@
           <svg class="icon text-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           <span>Single Image Inspection Studio</span>
         </div>
-        <span class="badge badge-blue">JPG, PNG, WEBP</span>
+        <span class="badge badge-info">JPG, PNG, WEBP</span>
       </div>
-      <p class="fs-13 text-secondary mb-16">
-        Perform immediate high-resolution object detection, 8-category PPE classification, and anatomical spatial association on construction site photos.
+      <p class="fs-13 text-secondary mb-16 leading-relaxed">
+        Execute immediate high-resolution object detection, 8-category PPE classification, and anatomical spatial association on construction site photos.
       </p>
       
-      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
-        <div class="mb-4 text-primary">&bull; Instant bounding box rendering with confidence scores</div>
-        <div class="mb-4 text-primary">&bull; 4-zone anatomical spatial PPE association (Head, Face, Torso, Limbs)</div>
-        <div class="text-primary">&bull; Automated violation logging and snapshot evidence archiving</div>
+      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
+        <div class="mb-6 flex flex-center gap-6 text-primary">
+          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Instant bounding box rendering with confidence telemetry</span>
+        </div>
+        <div class="mb-6 flex flex-center gap-6 text-primary">
+          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>4-zone anatomical spatial PPE association (Head, Face, Torso, Limbs)</span>
+        </div>
+        <div class="flex flex-center gap-6 text-primary">
+          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Automated violation logging and evidence crop archiving</span>
+        </div>
       </div>
     </div>
 
-    <a href="{{ url_for('image_analysis_view') }}" class="btn btn-primary w-full">
-      <span>Launch Image Inspection Studio &rarr;</span>
+    <a href="{{ url_for('image_analysis_view') }}" class="btn btn-primary w-full flex flex-center gap-6">
+      <span>Launch Image Inspection Studio</span>
+      <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
     </a>
   </div>
 
@@ -42,20 +52,31 @@
         </div>
         <span class="badge badge-purple">MP4, AVI, MOV</span>
       </div>
-      <p class="fs-13 text-secondary mb-16">
-        Process entire construction site video files frame-by-frame with persistent worker tracking, zone incursion checks, and temporal state machines.
+      <p class="fs-13 text-secondary mb-16 leading-relaxed">
+        Process entire construction site video footage frame-by-frame with persistent worker tracking, restricted zone checks, and temporal state machines.
       </p>
 
-      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border);">
-        <div class="mb-4 text-primary">&bull; Sequential frame extraction with ByteTrack worker trajectories</div>
-        <div class="mb-4 text-primary">&bull; Temporal hysteresis occlusion filter (10+ persistent violation frames)</div>
-        <div class="text-primary">&bull; Full annotated video export and automated shift compliance report</div>
+      <div class="p-14 rounded mb-20 fs-12 text-muted" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border);">
+        <div class="mb-6 flex flex-center gap-6 text-primary">
+          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Sequential frame inference with ByteTrack worker trajectories</span>
+        </div>
+        <div class="mb-6 flex flex-center gap-6 text-primary">
+          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Temporal hysteresis occlusion filtering (10+ persistent violation frames)</span>
+        </div>
+        <div class="flex flex-center gap-6 text-primary">
+          <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Full annotated video export and automated shift compliance statistics</span>
+        </div>
       </div>
     </div>
 
-    <a href="{{ url_for('video_analysis_view') }}" class="btn btn-primary w-full">
-      <span>Launch Video Analysis Studio &rarr;</span>
+    <a href="{{ url_for('video_analysis_view') }}" class="btn btn-primary w-full flex flex-center gap-6">
+      <span>Launch Video Processing Studio</span>
+      <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
     </a>
   </div>
+
 </div>
 {% endblock %}

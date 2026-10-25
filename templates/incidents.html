@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 
 {% block title %}Incidents — SiteGuard AI{% endblock %}
-{% block page_title %}Incidents{% endblock %}
+{% block page_title %}Safety Incidents Audit{% endblock %}
 
 {% block top_actions %}
   <a href="{{ url_for('export_incidents_csv') }}" class="btn btn-secondary">
+    <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Export CSV Audit Log
   </a>
 {% endblock %}
 
 {% block content %}
 <!-- Filter Controls -->
-<div class="card filter-card">
+<div class="card filter-card mb-20">
   <form id="incident-filter-form" method="GET" action="{{ url_for('incidents_view') }}">
     <div class="filter-row">
       <div>
-        <label class="form-label">Violation Type</label>
-        <select name="violation_type" class="form-select w-190" title="Violation Type" aria-label="Violation Type" onchange="document.getElementById('incident-filter-form').submit()">
+        <label class="form-label">Violation Category</label>
+        <select name="violation_type" class="form-select w-190" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_v_type == 'ALL' %}selected{% endif %}>All Violation Types</option>
           {% for vt in violation_types|default([]) %}
             <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
@@ -25,8 +26,8 @@
       </div>
 
       <div>
-        <label class="form-label">Severity</label>
-        <select name="severity" class="form-select w-140" title="Severity" aria-label="Severity" onchange="document.getElementById('incident-filter-form').submit()">
+        <label class="form-label">Severity Level</label>
+        <select name="severity" class="form-select w-140" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_sev == 'ALL' %}selected{% endif %}>All Severities</option>
           <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
           <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>HIGH</option>
@@ -37,25 +38,28 @@
 
       <div>
         <label class="form-label">Resolution Status</label>
-        <select name="status" class="form-select w-150" title="Resolution Status" aria-label="Resolution Status" onchange="document.getElementById('incident-filter-form').submit()">
+        <select name="status" class="form-select w-150" onchange="document.getElementById('incident-filter-form').submit()">
           <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
           <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
           <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>RESOLVED</option>
         </select>
       </div>
 
-      <div>
-        <label class="form-label" for="incident-search-input">Search</label>
-        <input type="text" id="incident-search-input" name="search" class="form-input w-200" placeholder="Search Incident ID, Worker..." title="Search Incident ID or Worker" aria-label="Search Incident ID or Worker" value="{{ current_search|default('') }}">
+      <div style="flex: 1; min-width: 180px;">
+        <label class="form-label" for="incident-search-input">Search Incidents</label>
+        <input type="text" id="incident-search-input" name="search" class="form-input" placeholder="Search Incident ID, Worker, Note..." value="{{ current_search|default('') }}">
       </div>
 
-      <div>
-        <button type="submit" class="btn btn-primary btn-sm h-38">Filter</button>
+      <div class="flex gap-8" style="align-self: flex-end;">
+        <button type="submit" class="btn btn-primary btn-sm h-38">
+          <svg class="icon icon-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Filter
+        </button>
         <a href="{{ url_for('incidents_view') }}" class="btn btn-secondary btn-sm h-38">Reset</a>
       </div>
 
-      <div class="filter-count">
-        Total Incidents: <strong class="text-primary">{{ incidents|length }}</strong>
+      <div class="filter-count" style="align-self: flex-end; padding-bottom: 8px;">
+        Total Records: <strong class="text-primary font-mono">{{ incidents|length }}</strong>
       </div>
     </div>
   </form>
@@ -69,13 +73,13 @@
         <tr>
           <th>Incident Code</th>
           <th>Worker Label</th>
-          <th>Violation Type</th>
+          <th>Violation Category</th>
           <th>Severity</th>
           <th>Confidence</th>
           <th>Source / Site</th>
           <th>Status</th>
           <th>Assigned Officer</th>
-          <th>Resolution / Action</th>
+          <th>Resolution Status</th>
           <th>Evidence</th>
         </tr>
       </thead>
@@ -88,9 +92,9 @@
                   {{ inc.incident_code }}
                 </strong>
               </td>
-              <td><strong>{{ inc.worker_label }}</strong></td>
+              <td><strong class="text-primary">{{ inc.worker_label }}</strong></td>
               <td>
-                <div class="fw-600">{{ inc.violation_type }}</div>
+                <div class="fw-600 text-primary">{{ inc.violation_type }}</div>
                 <div class="fs-11 text-muted max-w-220">{{ inc.description }}</div>
               </td>
               <td>
@@ -100,7 +104,7 @@
                 {{ (inc.confidence * 100)|round(1) }}%
               </td>
               <td>
-                <div class="fs-12">{{ inc.site_name|default('Default Site') }}</div>
+                <div class="fs-12 text-primary">{{ inc.site_name|default('Default Site') }}</div>
                 <div class="fs-11 text-muted">{{ inc.source }}</div>
               </td>
               <td>
@@ -108,16 +112,18 @@
                   {{ inc.status }}
                 </span>
               </td>
-              <td class="fs-12">
+              <td class="fs-12 text-secondary">
                 {{ inc.assigned_to|default('Unassigned', true) }}
               </td>
               <td>
                 {% if inc.status == 'RESOLVED' %}
-                  <div class="fs-11-5 text-compliant fw-600">
-                    ✓ Resolved: {{ inc.resolution_note|default('Completed') }}
+                  <div class="fs-12 text-compliant fw-600 flex flex-center gap-4">
+                    <svg class="icon icon-12 text-compliant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Resolved: {{ inc.resolution_note|default('Completed') }}</span>
                   </div>
                 {% else %}
                   <button class="btn btn-sm btn-primary" data-id="{{ inc.id }}" data-code="{{ inc.incident_code }}" data-type="{{ inc.violation_type }}" onclick="openIncidentActionModal(this.dataset.id, this.dataset.code, this.dataset.type)">
+                    <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                     Manage & Resolve
                   </button>
                 {% endif %}
@@ -125,10 +131,11 @@
               <td>
                 {% if inc.snapshot_path %}
                   <button class="btn btn-sm btn-secondary" data-src="{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}" data-code="{{ inc.incident_code }}" data-type="{{ inc.violation_type }}" onclick="viewSnapshot(this.dataset.src, this.dataset.code, this.dataset.type)">
+                    <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     View
                   </button>
                 {% else %}
-                  <span class="text-muted fs-12">No Frame</span>
+                  <span class="text-muted fs-11 font-mono">No Frame</span>
                 {% endif %}
               </td>
             </tr>
@@ -136,10 +143,12 @@
         {% else %}
           <tr>
             <td colspan="10">
-              <div class="empty-state-card">
-                <div class="empty-state-icon"></div>
-                <div class="empty-state-title">No safety incidents recorded</div>
-                <div class="empty-state-text">Incidents will appear here automatically when actual safety violations are confirmed by the AI detection engine.</div>
+              <div class="empty-state-card p-24">
+                <div class="empty-state-icon">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="empty-state-title">No safety incidents found</div>
+                <div class="empty-state-text">Incidents will appear here automatically when human-reviewed or AI-confirmed breaches are committed to the safety log.</div>
               </div>
             </td>
           </tr>
@@ -151,33 +160,57 @@
 
 <!-- Incident Review & Root Cause Modal -->
 <div id="incident-action-modal" class="modal-backdrop" onclick="closeIncidentModal(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <button class="modal-close-btn" onclick="closeIncidentModal()">&times;</button>
-    <h3 class="mb-14" id="incident-modal-title">Manage Safety Incident</h3>
+  <div class="modal-dialog" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="fs-16 fw-700 text-primary m-0" id="incident-modal-title">Manage Safety Incident</h3>
+      <button class="modal-close" onclick="closeIncidentModal()">&times;</button>
+    </div>
     
-    <div class="form-group">
-      <label class="form-label" for="inc-officer">Assigned Safety Officer</label>
-      <input type="text" id="inc-officer" class="form-input" placeholder="Officer Name (e.g. Inspector John Doe)" title="Assigned Safety Officer" aria-label="Assigned Safety Officer">
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="inc-officer">Assigned Safety Officer</label>
+        <input type="text" id="inc-officer" class="form-input" placeholder="e.g. Officer Marcus Vance">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inc-root-cause">Root Cause Analysis <span class="text-critical">*</span></label>
+        <textarea id="inc-root-cause" class="form-textarea" rows="3" placeholder="e.g. PPE supply locker empty in Zone B, worker failed to adhere to checkpoint protocol before entering scaffolding..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inc-action">Corrective & Preventive Action (CAPA)</label>
+        <textarea id="inc-action" class="form-textarea" rows="2" placeholder="e.g. Issued certified Class-E hardhat on site, performed 15-minute safety re-induction..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inc-resolution-note">Resolution Summary</label>
+        <input type="text" id="inc-resolution-note" class="form-input" placeholder="e.g. Corrective action completed and signed off.">
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label" for="inc-root-cause">Root Cause Analysis</label>
-      <textarea id="inc-root-cause" class="form-textarea" rows="2" placeholder="e.g. PPE supply shortage in Zone B, worker failed to adhere to entry checkpoint protocol..." title="Root Cause Analysis" aria-label="Root Cause Analysis"></textarea>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" for="inc-action">Corrective & Preventive Action</label>
-      <textarea id="inc-action" class="form-textarea" rows="2" placeholder="e.g. Replacement hardhat issued on site, safety briefing conducted..." title="Corrective & Preventive Action" aria-label="Corrective & Preventive Action"></textarea>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" for="inc-resolution-note">Resolution Note</label>
-      <input type="text" id="inc-resolution-note" class="form-input" placeholder="Final resolution note" title="Resolution Note" aria-label="Resolution Note">
-    </div>
-
-    <div class="flex-end-gap mt-20">
+    <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeIncidentModal()">Cancel</button>
       <button class="btn btn-success" onclick="submitIncidentUpdate()">Save & Mark Resolved</button>
+    </div>
+  </div>
+</div>
+
+<!-- Snapshot Modal -->
+<div id="snapshot-modal" class="modal-backdrop" onclick="closeSnapshotModal(event)">
+  <div class="modal-dialog modal-lg" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="fs-16 fw-700 text-primary m-0" id="snapshot-modal-title">Incident Evidence Snapshot</h3>
+      <button class="modal-close" onclick="closeSnapshotModal()">&times;</button>
+    </div>
+    <div class="modal-body text-center p-0" style="background: #000; overflow: hidden;">
+      <img id="snapshot-modal-img" src="" alt="Incident Snapshot" style="max-width: 100%; max-height: 520px; display: block; margin: 0 auto;">
+    </div>
+    <div class="modal-footer">
+      <a id="snapshot-download-btn" href="#" download="incident_snapshot.jpg" class="btn btn-sm btn-primary">
+        <svg class="icon icon-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Evidence
+      </a>
+      <button class="btn btn-sm btn-secondary" onclick="closeSnapshotModal()">Close</button>
     </div>
   </div>
 </div>
@@ -187,16 +220,9 @@
 <script>
 let activeIncidentId = null;
 
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-incident-id]');
-  if (btn) {
-    openIncidentActionModal(btn.dataset.incidentId, btn.dataset.incidentCode, btn.dataset.incidentType);
-  }
-});
-
 function openIncidentActionModal(id, code, vType) {
   activeIncidentId = id;
-  document.getElementById('incident-modal-title').textContent = `Incident Review: ${code} (${vType})`;
+  document.getElementById('incident-modal-title').textContent = `Manage Incident: ${code} (${vType})`;
   document.getElementById('incident-action-modal').style.display = 'flex';
 }
 
@@ -214,7 +240,7 @@ function submitIncidentUpdate() {
   const resolutionNote = document.getElementById('inc-resolution-note').value.trim();
 
   if (!rootCause) {
-    alert('A root cause is required before an incident can be marked RESOLVED.');
+    alert('A root cause analysis is mandatory before an incident can be marked RESOLVED.');
     document.getElementById('inc-root-cause').focus();
     return;
   }
@@ -230,6 +256,17 @@ function submitIncidentUpdate() {
   apiJSON(`/api/incidents/${encodeURIComponent(activeIncidentId)}/update`, 'POST', payload)
     .then(() => window.location.reload())
     .catch(err => alert('Error updating incident: ' + err.message));
+}
+
+function viewSnapshot(src, code, vType) {
+  document.getElementById('snapshot-modal-title').textContent = `Evidence Frame: ${code} - ${vType}`;
+  document.getElementById('snapshot-modal-img').src = src;
+  document.getElementById('snapshot-download-btn').href = src;
+  document.getElementById('snapshot-modal').style.display = 'flex';
+}
+
+function closeSnapshotModal() {
+  document.getElementById('snapshot-modal').style.display = 'none';
 }
 </script>
 {% endblock %}
