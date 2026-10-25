@@ -1123,6 +1123,21 @@ def api_violation_detail(v_id):
 def api_system_health_run():
     return jsonify({"success": True, "health": collect_health()})
 
+@app.route("/api/research/evaluation")
+def api_research_evaluation():
+    eval_file = os.path.join(config.OUTPUTS_DIR, "research_evaluation_metrics.json")
+    if os.path.exists(eval_file):
+        try:
+            with open(eval_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return jsonify({"success": True, "metrics": data})
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({
+        "success": False,
+        "message": "Evaluation benchmark not yet executed. Run python scripts/research_evaluation.py"
+    }), 404
+
 
 @app.route("/api/detections/frame")
 def get_detections_frame():

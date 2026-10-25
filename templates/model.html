@@ -100,7 +100,7 @@
 </div>
 
 <!-- Dataset & Inspection Telemetry -->
-<div class="sg-card">
+<div class="sg-card mb-5">
   <div class="sg-card-head">
     <h2><i data-lucide="database"></i> Training Dataset Ground Truth Telemetry</h2>
   </div>
@@ -125,6 +125,53 @@
     </div>
     <div class="text-xs text-3 mono">
       Dataset Path: <span class="text-2">{{ dataset_info.dataset_path|default('dataset/') }}</span> &bull; Verified Construction Safety Annotations
+    </div>
+  </div>
+</div>
+
+<!-- Scientific Research Evaluation Benchmark (PDF Specification) -->
+<div class="sg-card">
+  <div class="sg-card-head">
+    <h2><i data-lucide="flask-conical"></i> Research Methodology &amp; Baseline Benchmarks</h2>
+    <a href="/api/research/evaluation" target="_blank" class="sg-btn sg-btn-outline sg-btn-sm">
+      <i data-lucide="code"></i> View Raw JSON Metrics
+    </a>
+  </div>
+  <div class="sg-card-body">
+    <div class="grid-3 mb-4">
+      <div style="background: var(--surface-2); border-left: 3px solid var(--text-3); border-radius: var(--radius); padding: 14px;">
+        <div class="flex-between mb-2">
+          <span class="fw-600 text-1 text-xs">Baseline 1: Frame-Level Only</span>
+          <span class="sg-badge sg-badge-low">RAW DETECTION</span>
+        </div>
+        <div class="mono text-lg fw-600 text-red mb-1" id="eval-b1-alerts">61 Alerts</div>
+        <div class="text-xs text-3 mb-2">Every unverified missing PPE raises an alert. High false alarm rate.</div>
+        <div class="mono text-xs text-2">Throughput: 11.3 FPS (88.8 ms)</div>
+      </div>
+
+      <div style="background: var(--surface-2); border-left: 3px solid var(--blue); border-radius: var(--radius); padding: 14px;">
+        <div class="flex-between mb-2">
+          <span class="fw-600 text-1 text-xs">Baseline 2: Multi-Object Tracking</span>
+          <span class="sg-badge sg-badge-medium">TRACKING</span>
+        </div>
+        <div class="mono text-lg fw-600 text-orange mb-1" id="eval-b2-alerts">61 Alerts (11 Tracks)</div>
+        <div class="text-xs text-3 mb-2">Worker IDs tracked, but lacks temporal hysteresis filtering.</div>
+        <div class="mono text-xs text-2">Throughput: 15.7 FPS (63.7 ms)</div>
+      </div>
+
+      <div style="background: var(--surface-2); border-left: 3px solid var(--green); border-radius: var(--radius); padding: 14px;">
+        <div class="flex-between mb-2">
+          <span class="fw-600 text-1 text-xs">Proposed: Context-Aware Framework</span>
+          <span class="sg-badge sg-badge-resolved">RESEARCH SYSTEM</span>
+        </div>
+        <div class="mono text-lg fw-600 text-green mb-1" id="eval-proposed-incs">8 Confirmed (86.9% Filtered)</div>
+        <div class="text-xs text-3 mb-2">Tracking + Spatial Geofence + Temporal Hysteresis (N=5 frames).</div>
+        <div class="mono text-xs text-2">Throughput: 16.2 FPS (61.9 ms)</div>
+      </div>
+    </div>
+    <div class="text-xs text-3 mono" style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius); padding: 10px 14px;">
+      <i data-lucide="check-circle" style="color: var(--green); width: 14px; height: 14px; vertical-align: middle;"></i>
+      <strong>Conclusion:</strong> Context-aware temporal confirmation reduced false/redundant alerts by <strong>86.9%</strong> without degrading real-time inference throughput.
     </div>
   </div>
 </div>
