@@ -155,10 +155,15 @@ class SafetyPipeline:
 
         return annotated_frame, summary
 
-    def process_single_image(self, image_input, source="Image Upload"):
+    def process_single_image(self, image_input, source="Image Upload", style="full"):
         """
         Processes a single still image (without temporal tracking requirement).
         Immediate spatial association and rule checking applied.
+        
+        Args:
+            image_input: image numpy array or filepath string
+            source: Source metadata label
+            style: 'full' (rich HUD + checklist panels + zones) or 'plain' (clean per-class boxes)
         """
         if isinstance(image_input, str):
             frame = cv2.imread(image_input)
@@ -257,7 +262,9 @@ class SafetyPipeline:
             frame=frame,
             workers=annotated_workers,
             zones=self.zone_detector.zones,
-            fps=0
+            fps=0,
+            style=style,
+            raw_detections=detections
         )
 
         return annotated_frame, {

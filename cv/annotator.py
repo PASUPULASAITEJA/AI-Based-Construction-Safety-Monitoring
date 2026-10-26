@@ -18,6 +18,100 @@ COLOR_DARK_PANEL = (15, 20, 26)      # Slate Dark Panel
 COLOR_TEXT_WHITE = (255, 255, 255)
 COLOR_TEXT_MUTED = (160, 175, 190)
 
+# Paper Fig. 1/6 Stable per-class color palette (BGR)
+CLASS_COLORS = {
+    "person": (235, 130, 40),          # Vibrant Blue
+    "worker": (235, 130, 40),
+    "helmet": (46, 204, 113),          # Emerald Green
+    "no-helmet": (40, 40, 235),        # Crimson Red
+    "goggles": (220, 200, 30),         # Teal / Cyan
+    "no-goggles": (180, 20, 200),      # Magenta
+    "earmuff": (240, 220, 100),        # Light Sky
+    "no-earmuff": (40, 60, 180),       # Rust Red
+    "vest": (30, 144, 255),            # Amber / Deep Orange
+    "no-vest": (20, 20, 220),          # Bright Red
+    "safety-pants": (220, 100, 150),   # Purple
+    "no-safety-pants": (150, 50, 120), # Dark Violet
+    "gloves": (50, 215, 255),          # Gold Yellow
+    "no-gloves": (30, 30, 180),        # Dark Crimson
+    "boots": (80, 230, 120),           # Lime
+    "no-boots": (50, 20, 150),         # Maroon
+    "harness": (255, 180, 50),         # Electric Sky Blue
+    "no-harness": (60, 40, 210),       # Rose Red
+    "none": (120, 120, 120),
+}
+
+
+def get_class_color(class_name: str) -> tuple:
+    """Returns a stable BGR color tuple for a given class name."""
+    norm = str(class_name).strip().lower().replace("_", "-")
+    if norm in CLASS_COLORS:
+        return CLASS_COLORS[norm]
+    # Fallback deterministic color from string hash
+    h = abs(hash(norm))
+    b = (h & 0xFF) % 200 + 35
+    g = ((h >> 8) & 0xFF) % 200 + 35
+    r = ((h >> 16) & 0xFF) % 200 + 35
+    return (b, g, r)
+
+
+def plain_annotate(frame: np.ndarray, detections: List[Dict[str, Any]], draw_conf: bool = True) -> np.ndarray:
+    """
+    Renders clean, publication-grade annotated outputs (SH17 paper Fig. 1 & Fig. 6 style):
+    - Thin bounding box with fixed per-class color.
+    - Small filled label tag with class name (and confidence score).
+    - No HUD, no checklist panels, no zone polygons.
+    """
+    out_frame = frame.copy()
+    for det in detections:
+        bbox = det.get("bbox")
+        if not bbox or len(bbox) != 4:
+            continue
+        x1, y1, x2, y2 = [int(round(v)) for v in bbox]
+        # Ensure within frame bounds
+        h_f, w_f = out_frame.shape[:2]
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w_f - 1, x2), min(h_f - 1, y2)
+        if x2 <= x1 or y2 <= y1:
+            continue
+
+        cname = det.get("category", det.get("class_name", "object"))
+        conf = det.get("confidence", 0.0)
+        color = get_class_color(cname)
+
+        # 1. Thin bounding box
+        cv2.rectangle(out_frame, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
+
+        # 2. Filled label tag
+        label_text = f"{cname} {conf:.2f}" if (draw_conf and conf > 0) else str(cname)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        scale = 0.42
+        thickness = 1
+        (tw, th), baseline = cv2.getTextSize(label_text, font, scale, thickness)
+
+        # Place label above box, or inside if near top boundary
+        tag_y1 = max(0, y1 - th - baseline - 4)
+        tag_y2 = y1
+        if y1 - th - baseline - 4 < 0:
+            tag_y1 = y1
+            tag_y2 = y1 + th + baseline + 4
+
+        cv2.rectangle(out_frame, (x1, tag_y1), (x1 + tw + 6, tag_y2), color, -1)
+        text_y = tag_y2 - baseline - 2 if tag_y1 == y1 else y1 - baseline - 2
+        cv2.putText(
+            out_frame,
+            label_text,
+            (x1 + 3, text_y),
+            font,
+            scale,
+            (255, 255, 255),
+            thickness,
+            cv2.LINE_AA
+        )
+
+    return out_frame
+
+
 PPE_CHECKLIST_CONFIG = [
     {"key": "helmet", "abbr": "HLM", "icon": "H"},
     {"key": "goggles", "abbr": "GGL", "icon": "G"},
@@ -285,9 +379,44 @@ class FrameAnnotator:
         frame: np.ndarray,
         workers: List[Dict[str, Any]],
         zones: Optional[List[Dict[str, Any]]] = None,
-        fps: float = 0.0
+        fps: float = 0.0,
+        style: str = "full",
+        raw_detections: Optional[List[Dict[str, Any]]] = None
     ) -> np.ndarray:
-        """Master annotation pipeline."""
+        """
+        Master annotation pipeline.
+        
+        Args:
+            frame: Input video/image BGR frame
+            workers: List of worker dictionaries with spatial association and violations
+            zones: Optional geofence polygon zones
+            fps: Current system FPS
+            style: 'full' (rich HUD + checklist panels + zones) or 'plain' (clean per-class boxes + tags)
+            raw_detections: Optional list of raw YOLO detections for plain paper-style rendering
+        """
+        if style == "plain":
+            dets_to_draw = []
+            if raw_detections is not None:
+                dets_to_draw = raw_detections
+            else:
+                for w in workers:
+                    dets_to_draw.append({
+                        "bbox": w["bbox"],
+                        "category": "person",
+                        "class_name": "person",
+                        "confidence": w.get("confidence", 0.90)
+                    })
+                    for item in PPE_CHECKLIST_CONFIG:
+                        k = item["key"]
+                        if w.get(k) is True:
+                            dets_to_draw.append({
+                                "bbox": w["bbox"],
+                                "category": k,
+                                "class_name": k,
+                                "confidence": 0.85
+                            })
+            return plain_annotate(frame, dets_to_draw)
+
         out_frame = frame.copy()
         if zones:
             out_frame = self.draw_zones(out_frame, zones)
@@ -309,8 +438,9 @@ class FrameAnnotator:
         return out_frame
 
 
-def draw_hud_and_detections(frame, workers, zones=None, fps=0.0):
+def draw_hud_and_detections(frame, workers, zones=None, fps=0.0, style="full", raw_detections=None):
     """Functional wrapper for FrameAnnotator."""
     annotator = FrameAnnotator()
-    return annotator.annotate(frame, workers, zones=zones, fps=fps)
+    return annotator.annotate(frame, workers, zones=zones, fps=fps, style=style, raw_detections=raw_detections)
+
 

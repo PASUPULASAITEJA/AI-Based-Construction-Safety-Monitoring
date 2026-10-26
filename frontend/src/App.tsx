@@ -12,6 +12,7 @@ import { SitesZonesView } from './views/SitesZonesView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { ReportsView } from './views/ReportsView';
 import { ModelResearchView } from './views/ModelResearchView';
+import { ModelComparisonView } from './views/ModelComparisonView';
 import { SystemHealthView } from './views/SystemHealthView';
 import { KPIStats, Incident } from './types';
 
@@ -56,6 +57,7 @@ export function App() {
       case 'analytics': return 'Longitudinal Analytics';
       case 'reports': return 'Safety Audit Reports';
       case 'model-research': return 'AI Architecture & Benchmark';
+      case 'model-comparison': return 'SH17 Multi-Model Empirical Comparison (Fig. 5)';
       case 'system-health': return 'Diagnostics & Telemetry';
       default: return 'Safety Operations';
     }
@@ -97,6 +99,7 @@ export function App() {
           {currentView === 'analytics' && <AnalyticsView />}
           {currentView === 'reports' && <ReportsView />}
           {currentView === 'model-research' && <ModelResearchView />}
+          {currentView === 'model-comparison' && <ModelComparisonView />}
           {currentView === 'system-health' && <SystemHealthView />}
         </main>
       </div>

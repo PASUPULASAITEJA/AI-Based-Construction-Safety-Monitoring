@@ -47,8 +47,8 @@ class AlertManager:
             # Crop or save full annotated frame
             snap_img = frame.copy()
             bbox = incident_data.get("bbox")
-            if bbox:
-                x1, y1, x2, y2 = bbox
+            if bbox and len(bbox) == 4:
+                x1, y1, x2, y2 = [int(round(float(v))) for v in bbox]
                 # Highlight the worker with a red box in snapshot
                 cv2.rectangle(snap_img, (x1, y1), (x2, y2), (0, 0, 255), 3)
 

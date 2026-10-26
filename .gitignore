@@ -44,4 +44,11 @@ Thumbs.db
 
 # Frontend Dependencies & Build
 frontend/node_modules/
+frontend/dist/
+
+# Runtime evaluation & sampled files
+dataset_eval.yaml
+dataset_train.yaml
+val_sampled.txt
+*.log
 

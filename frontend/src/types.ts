@@ -94,3 +94,49 @@ export interface SystemHealth {
   total_disk_gb: number;
   cv_pipeline_ready: boolean;
 }
+
+export interface ComparableModel {
+  id: string;
+  name: string;
+  params_m: number;
+  weights_path: string;
+  weights_exist: boolean;
+  fallback_available: boolean;
+  fallback_weights?: string;
+  description: string;
+}
+
+export interface ModelComparisonTile {
+  model: string;
+  image_url: string;
+  detections: number;
+  inference_ms: number;
+  is_fallback?: boolean;
+}
+
+export interface ModelComparisonRow {
+  row_index: number;
+  filename: string;
+  tiles: ModelComparisonTile[];
+}
+
+export interface ModelComparisonStat {
+  model: string;
+  params_m: number;
+  avg_inference_ms: number;
+  avg_detections: number;
+  total_detections: number;
+  is_fallback?: boolean;
+}
+
+export interface ModelComparisonResponse {
+  success: boolean;
+  grid_image_url: string;
+  grid_image_path: string;
+  model_names: string[];
+  images_processed: number;
+  stats: ModelComparisonStat[];
+  rows: ModelComparisonRow[];
+  skipped_models: Array<{ model: string; reason: string }>;
+}
+
