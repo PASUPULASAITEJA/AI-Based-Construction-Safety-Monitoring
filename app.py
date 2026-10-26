@@ -120,6 +120,11 @@ class VideoCamera:
             if self.cap and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
+                    if frame.mean() < 1.5:
+                        cv2.putText(frame, "Webcam Lens is Covered or Shutter Closed", (60, 220),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 165, 255), 2, cv2.LINE_AA)
+                        cv2.putText(frame, "Open the slider above your HP screen, or switch to Simulator", (50, 260),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (220, 220, 220), 1, cv2.LINE_AA)
                     return frame
 
             # Retry open
@@ -127,6 +132,11 @@ class VideoCamera:
                 if self._open_hardware_camera():
                     ret, frame = self.cap.read()
                     if ret and frame is not None:
+                        if frame.mean() < 1.5:
+                            cv2.putText(frame, "Webcam Lens is Covered or Shutter Closed", (60, 220),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 165, 255), 2, cv2.LINE_AA)
+                            cv2.putText(frame, "Open the slider above your HP screen, or switch to Simulator", (50, 260),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.50, (220, 220, 220), 1, cv2.LINE_AA)
                         return frame
 
             if self.test_images:
