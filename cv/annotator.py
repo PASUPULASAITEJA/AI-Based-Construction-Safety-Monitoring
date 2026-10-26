@@ -271,8 +271,8 @@ class FrameAnnotator:
             )
             curr_y += item_h
 
-    def draw_worker(self, frame: np.ndarray, worker: Dict[str, Any]) -> np.ndarray:
-        """Renders corner-bracket worker box and triggers adjacent checklist panel."""
+    def draw_worker(self, frame: np.ndarray, worker: Dict[str, Any], show_panel: bool = True) -> np.ndarray:
+        """Renders corner-bracket worker box and triggers adjacent checklist panel if requested."""
         x1, y1, x2, y2 = [int(v) for v in worker["bbox"]]
         label = worker.get("label", worker.get("worker_id", "Worker"))
         score_val = worker.get("compliance_score", 0.0)
@@ -338,10 +338,11 @@ class FrameAnnotator:
                 cv2.LINE_AA
             )
 
-        # Render adjacent 8-item PPE checklist panel next to bounding box
-        panel_x = x2 + 6
-        panel_y = y1
-        self.draw_ppe_checklist_panel(frame, panel_x, panel_y, worker)
+        # Render adjacent 8-item PPE checklist panel next to bounding box if space allows
+        if show_panel:
+            panel_x = x2 + 6
+            panel_y = y1
+            self.draw_ppe_checklist_panel(frame, panel_x, panel_y, worker)
 
         return frame
 
@@ -427,7 +428,11 @@ class FrameAnnotator:
                 active_violations += len(w["violations"])
             elif w.get("compliance_score", 1.0) < 0.8:
                 active_violations += 1
-            out_frame = self.draw_worker(out_frame, w)
+
+        # Automatically avoid cluttering if multiple workers are present
+        show_panels = len(workers) <= 2
+        for w in workers:
+            out_frame = self.draw_worker(out_frame, w, show_panel=show_panels)
 
         out_frame = self.draw_dashboard_hud(
             out_frame,

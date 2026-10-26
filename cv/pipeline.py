@@ -78,8 +78,8 @@ class SafetyPipeline:
         person_detections = [d for d in detections if d["category"] == "person"]
         tracked_workers = self.tracker.update(person_detections)
 
-        # Optional second-pass zoomed crop inference for small PPE if model is available
-        if getattr(self.detector, 'model', None) and len(tracked_workers) > 0:
+        # Optional second-pass zoomed crop inference for small PPE (only on GPU to maintain real-time FPS)
+        if config.DEVICE == "cuda" and getattr(self.detector, 'model', None) and len(tracked_workers) > 0:
             for w in tracked_workers:
                 head_zone = self.ppe_associator.get_head_zone(w["bbox"])
                 zoomed_dets = self.high_res_zone_inference.run_zoomed_inference(
@@ -92,8 +92,8 @@ class SafetyPipeline:
 
         # 3. Spatial PPE Association with Temporal Verification
         enriched_workers = self.ppe_associator.associate(
-            detections=tracked_workers,
-            workers=detections,
+            detections=detections,
+            workers=tracked_workers,
             frame=frame,
             temporal_tracker=self.temporal_tracker
         )

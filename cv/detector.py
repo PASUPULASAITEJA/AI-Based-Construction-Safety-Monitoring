@@ -34,8 +34,11 @@ class ConstructionDetector:
         self._load_classes()
 
     def _load_classes(self):
-        # 1. Load Ground Truth class schema directly from Construction-PPE data.yaml
-        if os.path.exists(self.data_yaml):
+        # 1. Always prioritize the model's own internal names dictionary
+        # because the network's output logits directly correspond to model.names!
+        if hasattr(self.model, "names") and self.model.names:
+            self.classes = {int(k): v for k, v in self.model.names.items()}
+        elif os.path.exists(self.data_yaml):
             try:
                 with open(self.data_yaml, "r", encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
@@ -47,26 +50,55 @@ class ConstructionDetector:
             except Exception as e:
                 print(f"[-] Warning: Failed to parse data.yaml: {e}")
 
-        # Fallback if data.yaml missing
         if not self.classes:
-            if hasattr(self.model, "names") and self.model.names:
-                self.classes = {int(k): v for k, v in self.model.names.items()}
-            else:
-                self.classes = {i: name for i, name in enumerate(config.CLASSES_17)}
+            self.classes = {i: name for i, name in enumerate(config.CLASSES_17)}
 
         # Build canonical map (normalized lowercase name -> list of class ids)
         self.canonical_map = {}
         for cid, cname in self.classes.items():
-            norm = str(cname).strip().lower().replace("_", "-")
+            norm = self._normalize_category(cname)
             if norm not in self.canonical_map:
                 self.canonical_map[norm] = []
             self.canonical_map[norm].append(cid)
 
-        # In case base COCO weights are running before fine-tuning, also map COCO 0 (person)
-        if "person" not in self.canonical_map:
-            self.canonical_map["person"] = [0]
-        elif 0 not in self.canonical_map["person"] and len(getattr(self.model, "names", {})) == 80:
-            self.canonical_map["person"].append(0)
+    @staticmethod
+    def _normalize_category(raw_name: str) -> str:
+        s = str(raw_name).strip().lower().replace("_", "-")
+        if s in ["person", "worker"]:
+            return "person"
+        elif s in ["helmet"]:
+            return "helmet"
+        elif s in ["no-helmet", "no-head"]:
+            return "no-helmet"
+        elif s in ["vest", "safety-vest"]:
+            return "vest"
+        elif s in ["no-vest", "no-safety-vest"]:
+            return "no-vest"
+        elif s in ["goggles", "glasses"]:
+            return "goggles"
+        elif s in ["no-goggle", "no-goggles", "no-glasses"]:
+            return "no-goggles"
+        elif s in ["gloves", "glove"]:
+            return "gloves"
+        elif s in ["no-gloves", "no-glove"]:
+            return "no-gloves"
+        elif s in ["boots", "safety-boots", "shoes"]:
+            return "boots"
+        elif s in ["no-boots", "no-shoes"]:
+            return "no-boots"
+        elif s in ["safety-pants", "safety_pants", "safety-suit"]:
+            return "safety-pants"
+        elif s in ["no-safety-pants", "no_safety_pants"]:
+            return "no-safety-pants"
+        elif s in ["earmuff", "earmuffs", "ear-mufs"]:
+            return "earmuff"
+        elif s in ["no-earmuff", "no_earmuff"]:
+            return "no-earmuff"
+        elif s in ["harness", "safety-harness"]:
+            return "harness"
+        elif s in ["no-harness", "no_harness"]:
+            return "no-harness"
+        return s
 
     def detect(self, image_or_frame, conf=None, iou=None):
         """
@@ -96,23 +128,23 @@ class ConstructionDetector:
 
         # Class-specific confidence filtering thresholds
         min_thresholds = {
-            "person": 0.25,
+            "person": 0.20,
             "helmet": 0.15,
-            "no-helmet": 0.30,
+            "no-helmet": 0.25,
             "goggles": 0.15,
-            "no-goggles": 0.35,
+            "no-goggles": 0.30,
             "earmuff": 0.15,
-            "no-earmuff": 0.35,
+            "no-earmuff": 0.30,
             "vest": 0.15,
-            "no-vest": 0.30,
-            "safety-pants": 0.18,
-            "no-safety-pants": 0.35,
+            "no-vest": 0.25,
+            "safety-pants": 0.15,
+            "no-safety-pants": 0.30,
             "gloves": 0.15,
-            "no-gloves": 0.30,
-            "boots": 0.18,
-            "no-boots": 0.35,
+            "no-gloves": 0.25,
+            "boots": 0.15,
+            "no-boots": 0.30,
             "harness": 0.15,
-            "no-harness": 0.35,
+            "no-harness": 0.30,
             "other": 0.20
         }
 
@@ -122,10 +154,8 @@ class ConstructionDetector:
             x1, y1, x2, y2 = [int(v) for v in xyxy]
             confidence = float(box.conf[0].cpu().numpy())
             class_id = int(box.cls[0].cpu().numpy())
-            class_name = self.classes.get(class_id, self.model.names.get(class_id, f"class_{class_id}"))
-
-            norm_name = str(class_name).strip().lower().replace("_", "-")
-            category = norm_name
+            class_name = self.classes.get(class_id, f"class_{class_id}")
+            category = self._normalize_category(class_name)
 
             # Check threshold
             req_conf = min_thresholds.get(category, min_thresholds["other"])

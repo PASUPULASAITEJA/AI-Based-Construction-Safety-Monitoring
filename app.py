@@ -41,12 +41,21 @@ class VideoCamera:
         self.test_images = []
         self.test_img_idx = 0
         self._load_fallback_samples()
+        self._open_hardware_camera()
 
     def _load_fallback_samples(self):
-        test_dir = os.path.join(config.DATASET_DIR, "images", "test")
-        if os.path.exists(test_dir):
-            imgs = [os.path.join(test_dir, f) for f in os.listdir(test_dir) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
-            self.test_images = sorted(imgs)
+        candidates = [
+            os.path.join(config.BASE_DIR, "construction", "images", "val"),
+            os.path.join(config.BASE_DIR, "construction", "images", "test"),
+            os.path.join(config.BASE_DIR, "dataset", "images")
+        ]
+        self.test_images = []
+        for d in candidates:
+            if os.path.exists(d):
+                imgs = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
+                if imgs:
+                    self.test_images.extend(imgs)
+        self.test_images.sort()
 
     def set_mode(self, mode):
         with self.lock:
@@ -65,15 +74,20 @@ class VideoCamera:
         try:
             if self.cap is not None and self.cap.isOpened():
                 return True
-            # DirectShow on Windows for instant capture
-            self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-            if not self.cap or not self.cap.isOpened():
-                self.cap = cv2.VideoCapture(0)
+            for cam_idx in [0, 1]:
+                cap = cv2.VideoCapture(cam_idx, cv2.CAP_DSHOW)
+                if not cap or not cap.isOpened():
+                    cap = cv2.VideoCapture(cam_idx)
 
-            if self.cap and self.cap.isOpened():
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                return True
+                if cap and cap.isOpened():
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None:
+                        self.cap = cap
+                        return True
+                    else:
+                        cap.release()
         except Exception as e:
             print(f"[-] Hardware camera open error: {e}")
         return False
@@ -120,11 +134,6 @@ class VideoCamera:
             if self.cap and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
-                    if frame.mean() < 1.5:
-                        cv2.putText(frame, "Webcam Lens is Covered or Shutter Closed", (60, 220),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 165, 255), 2, cv2.LINE_AA)
-                        cv2.putText(frame, "Open the slider above your HP screen, or switch to Simulator", (50, 260),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (220, 220, 220), 1, cv2.LINE_AA)
                     return frame
 
             # Retry open
@@ -132,11 +141,6 @@ class VideoCamera:
                 if self._open_hardware_camera():
                     ret, frame = self.cap.read()
                     if ret and frame is not None:
-                        if frame.mean() < 1.5:
-                            cv2.putText(frame, "Webcam Lens is Covered or Shutter Closed", (60, 220),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 165, 255), 2, cv2.LINE_AA)
-                            cv2.putText(frame, "Open the slider above your HP screen, or switch to Simulator", (50, 260),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.50, (220, 220, 220), 1, cv2.LINE_AA)
                         return frame
 
             if self.test_images:
