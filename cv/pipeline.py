@@ -212,6 +212,8 @@ class SafetyPipeline:
 
         # 3. PPE Association
         enriched = self.ppe_associator.associate(instant_workers, detections, frame=frame)
+        if isinstance(enriched, dict):
+            enriched = list(enriched.values())
 
         # 4. Zone Analysis
         enriched = self.zone_detector.evaluate_workers(enriched)

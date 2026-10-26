@@ -90,5 +90,5 @@ MAX_VIDEO_PREVIEW_WIDTH = 1280
 # Web server
 HOST = "0.0.0.0"
 PORT = 5000
-DEBUG = False
+DEBUG = os.environ.get("FLASK_DEBUG", "True").lower() in ("true", "1")
 SECRET_KEY = "construction-safety-monitoring-secret-key-2026"

@@ -64,6 +64,9 @@ class ZoneDetector:
         """
         Enriches workers with their current zone status.
         """
+        if isinstance(workers, dict):
+            workers = list(workers.values())
+
         for w in workers:
             z_type, z_obj = self.check_worker_zone(w["bbox"])
             w["zone_type"] = z_type
