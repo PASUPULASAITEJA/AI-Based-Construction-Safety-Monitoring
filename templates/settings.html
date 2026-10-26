@@ -112,7 +112,6 @@
         </button>
       </div>
     </div>
-  </div>
 
   <!-- SECTION 3 — System Configuration -->
   <div class="sg-card">
@@ -141,10 +140,18 @@
           <input type="text" class="sg-input mono w-full" value="28,800 Seconds (8 Hours)" readonly>
         </div>
       </div>
-      <div class="text-xs text-3 mono">
-        SiteGuard AI Industrial Platform &bull; Production Security &amp; Audit Integrity Maintained
+
+      <div class="form-group">
+        <label class="form-label" for="min_zone_frames">Minimum Zone Incursion Frames: <span id="mz-val" style="color: var(--accent-cyan);">{{ settings.get('min_zone_frames', '8') }}</span> frames</label>
+        <input type="range" id="min_zone_frames" name="min_zone_frames" min="2" max="20" step="1" value="{{ settings.get('min_zone_frames', '8') }}" class="form-input" oninput="document.getElementById('mz-val').innerText = this.value">
+        <small style="color: var(--text-muted); font-size: 12px;">Frames inside restricted zone before triggering violation alert.</small>
       </div>
     </div>
-  </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" class="btn btn-secondary" onclick="window.location.reload()">Reset Defaults</button>
+      <button type="submit" class="btn btn-primary">💾 Save Configuration</button>
+    </div>
+  </form>
 </div>
 {% endblock %}

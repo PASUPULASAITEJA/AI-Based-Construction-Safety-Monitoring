@@ -7,37 +7,6 @@ let currentPoints = [];
 let savedZones = [];
 let canvas = null;
 let ctx = null;
-let lastFrameSize = '';
-
-// Zones are stored normalized to [0, 1] relative to the video frame, so they apply at any
-// resolution. The stream <img> uses object-fit: contain, so the frame occupies a letterboxed
-// rectangle inside the overlay canvas; all mapping goes through that rectangle.
-function getFrameRect() {
-  const img = document.getElementById('live-video-stream');
-  const iw = (img && img.naturalWidth) || 640;
-  const ih = (img && img.naturalHeight) || 480;
-  const scale = Math.min(canvas.width / iw, canvas.height / ih);
-  const w = iw * scale;
-  const h = ih * scale;
-  return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
-}
-
-function toCanvasPoint(pt) {
-  const r = getFrameRect();
-  return [r.x + pt[0] * r.w, r.y + pt[1] * r.h];
-}
-
-function toNormalizedPoint(x, y) {
-  const r = getFrameRect();
-  const clamp = v => Math.min(1, Math.max(0, v));
-  return [clamp((x - r.x) / r.w), clamp((y - r.y) / r.h)];
-}
-
-// Zones saved by older versions are in 640x480 pixel space
-function normalizeStoredCoords(coords) {
-  const isLegacyPixels = coords.some(pt => Math.abs(pt[0]) > 1 || Math.abs(pt[1]) > 1);
-  return isLegacyPixels ? coords.map(pt => [pt[0] / 640, pt[1] / 480]) : coords;
-}
 
 document.addEventListener('DOMContentLoaded', () => {
   canvas = document.getElementById('zone-drawing-canvas');
@@ -54,16 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resizeCanvas);
   setTimeout(resizeCanvas, 200);
 
-  // Frame size can change (simulator images, switching sources); keep the overlay aligned
-  setInterval(() => {
-    const img = document.getElementById('live-video-stream');
-    const size = img ? `${img.naturalWidth}x${img.naturalHeight}` : '';
-    if (size !== lastFrameSize) {
-      lastFrameSize = size;
-      redrawCanvas();
-    }
-  }, 500);
-
   canvas.addEventListener('click', handleCanvasClick);
   canvas.addEventListener('mousemove', handleCanvasMouseMove);
   loadSavedZones();
@@ -78,12 +37,12 @@ function toggleDrawMode() {
     currentPoints = [];
     btn.classList.remove('btn-secondary');
     btn.classList.add('btn-primary');
-    btn.innerText = 'Finish Polygon';
+    btn.innerText = '🛑 Finish Polygon';
     saveBtn.disabled = true;
   } else {
     btn.classList.remove('btn-primary');
     btn.classList.add('btn-secondary');
-    btn.innerText = 'New Polygon';
+    btn.innerText = '✏️ New Polygon';
     if (currentPoints.length >= 3) {
       saveBtn.disabled = false;
     }
@@ -94,7 +53,10 @@ function toggleDrawMode() {
 function handleCanvasClick(e) {
   if (!isDrawing) return;
   const rect = canvas.getBoundingClientRect();
-  currentPoints.push(toNormalizedPoint(e.clientX - rect.left, e.clientY - rect.top));
+  const x = Math.round(e.clientX - rect.left);
+  const y = Math.round(e.clientY - rect.top);
+
+  currentPoints.push([x, y]);
   if (currentPoints.length >= 3) {
     document.getElementById('btn-save-zone').disabled = false;
   }
@@ -110,7 +72,7 @@ function handleCanvasMouseMove(e) {
   redrawCanvas();
 
   // Draw guide line from last point to mouse
-  const lastPt = toCanvasPoint(currentPoints[currentPoints.length - 1]);
+  const lastPt = currentPoints[currentPoints.length - 1];
   ctx.strokeStyle = 'rgba(0, 210, 255, 0.7)';
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
@@ -123,7 +85,7 @@ function handleCanvasMouseMove(e) {
 function clearActiveDrawing() {
   isDrawing = false;
   currentPoints = [];
-  document.getElementById('btn-draw-mode').innerText = 'New Polygon';
+  document.getElementById('btn-draw-mode').innerText = '✏️ New Polygon';
   document.getElementById('btn-draw-mode').classList.remove('btn-primary');
   document.getElementById('btn-draw-mode').classList.add('btn-secondary');
   document.getElementById('btn-save-zone').disabled = true;
@@ -134,16 +96,19 @@ function redrawCanvas() {
   if (!ctx || !canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  const scaleX = canvas.width / 640;
+  const scaleY = canvas.height / 480;
+
   // Draw saved zones
   savedZones.forEach(z => {
     if (!z.coordinates || z.coordinates.length < 3) return;
 
-    const pts = normalizeStoredCoords(z.coordinates).map(toCanvasPoint);
     ctx.beginPath();
-    const [startX, startY] = pts[0];
+    const startX = z.coordinates[0][0] * scaleX;
+    const startY = z.coordinates[0][1] * scaleY;
     ctx.moveTo(startX, startY);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i][0], pts[i][1]);
+    for (let i = 1; i < z.coordinates.length; i++) {
+      ctx.lineTo(z.coordinates[i][0] * scaleX, z.coordinates[i][1] * scaleY);
     }
     ctx.closePath();
 
@@ -170,11 +135,10 @@ function redrawCanvas() {
 
   // Draw active drawing in-progress
   if (currentPoints.length > 0) {
-    const pts = currentPoints.map(toCanvasPoint);
     ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.moveTo(currentPoints[0][0], currentPoints[0][1]);
+    for (let i = 1; i < currentPoints.length; i++) {
+      ctx.lineTo(currentPoints[i][0], currentPoints[i][1]);
     }
 
     ctx.strokeStyle = '#00d2ff';
@@ -182,7 +146,7 @@ function redrawCanvas() {
     ctx.stroke();
 
     // Draw vertex dots
-    pts.forEach((pt, idx) => {
+    currentPoints.forEach((pt, idx) => {
       ctx.fillStyle = idx === 0 ? '#2ea043' : '#00d2ff';
       ctx.beginPath();
       ctx.arc(pt[0], pt[1], 5, 0, Math.PI * 2);
@@ -220,18 +184,10 @@ function renderActiveZoneBadges() {
     badge.style.display = 'inline-flex';
     badge.style.alignItems = 'center';
     badge.style.gap = '6px';
-    // Build with textContent / listeners - zone names are user input
-    const label = document.createElement('span');
-    label.textContent = `[${z.zone_type}] ${z.name}`;
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.title = 'Delete zone';
-    delBtn.setAttribute('aria-label', 'Delete zone');
-    delBtn.style.cssText = 'background:none; border:none; color:inherit; cursor:pointer; font-size:12px;';
-    delBtn.innerHTML = '&times;';
-    delBtn.addEventListener('click', () => deleteZone(z.id));
-    badge.appendChild(label);
-    badge.appendChild(delBtn);
+    badge.innerHTML = `
+      <span>[${z.zone_type}] ${z.name}</span>
+      <button onclick="deleteZone(${z.id})" style="background:none; border:none; color:inherit; cursor:pointer; font-size:12px;">&times;</button>
+    `;
     container.appendChild(badge);
   });
 }
@@ -243,9 +199,11 @@ async function saveCurrentZone() {
   const zNameInput = document.getElementById('zone-name-input');
   const zName = zNameInput.value.trim() || `${zType} Zone ${savedZones.length + 1}`;
 
+  const scaleX = 640 / canvas.width;
+  const scaleY = 480 / canvas.height;
   const normalizedCoords = currentPoints.map(pt => [
-    Math.round(pt[0] * 10000) / 10000,
-    Math.round(pt[1] * 10000) / 10000
+    Math.round(pt[0] * scaleX),
+    Math.round(pt[1] * scaleY)
   ]);
 
   const payload = {
@@ -261,34 +219,26 @@ async function saveCurrentZone() {
       body: JSON.stringify(payload)
     });
 
-    let data = null;
-    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
-    if (res.ok && (!data || data.success !== false)) {
+    if (res.ok) {
       zNameInput.value = '';
       clearActiveDrawing();
       await loadSavedZones();
     } else {
-      alert('Failed to save zone: ' + ((data && data.message) || `HTTP ${res.status}`));
+      alert('Failed to save zone.');
     }
   } catch (err) {
     console.error('Save zone error:', err);
-    alert('Failed to save zone: ' + err.message);
   }
 }
 
 async function deleteZone(zoneId) {
   if (!confirm('Are you sure you want to delete this zone?')) return;
   try {
-    const res = await fetch(`/zones/${encodeURIComponent(zoneId)}`, { method: 'DELETE' });
-    let data = null;
-    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
-    if (res.ok && (!data || data.success !== false)) {
+    const res = await fetch(`/zones/${zoneId}`, { method: 'DELETE' });
+    if (res.ok) {
       await loadSavedZones();
-    } else {
-      alert('Failed to delete zone: ' + ((data && data.message) || `HTTP ${res.status}`));
     }
   } catch (err) {
     console.error('Delete zone error:', err);
-    alert('Failed to delete zone: ' + err.message);
   }
 }

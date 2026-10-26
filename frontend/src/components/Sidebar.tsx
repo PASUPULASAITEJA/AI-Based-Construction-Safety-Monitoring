@@ -13,7 +13,8 @@ import {
   FileText, 
   Cpu, 
   Activity, 
-  Settings 
+  Settings,
+  Columns
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, openA
         { id: 'analytics', label: 'Safety Analytics', icon: BarChart3 },
         { id: 'reports', label: 'Audit Reports', icon: FileText },
         { id: 'model-research', label: 'AI Model & Research', icon: Cpu },
+        { id: 'model-comparison', label: 'Model Comparison', icon: Columns },
       ]
     },
     {

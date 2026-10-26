@@ -259,7 +259,10 @@ const TOOLTIP = {
   cornerRadius: 8
 };
 
-let chart1, chart2, chart3, chart4, chart5;
+// 1. Violations by Type Chart
+const typeCtx = document.getElementById('chart-violation-types').getContext('2d');
+const typeLabels = Object.keys(analyticsData.type_distribution || {});
+const typeValues = Object.values(analyticsData.type_distribution || {});
 
 async function loadAnalyticsCharts(range = '7d') {
   // Chart 1: Violations Over Time Line
@@ -302,6 +305,7 @@ async function loadAnalyticsCharts(range = '7d') {
       }
     });
   }
+});
 
   // Chart 2: Compliance Trend Area
   const ctx2 = document.getElementById('chart-compliance-area');
@@ -338,6 +342,7 @@ async function loadAnalyticsCharts(range = '7d') {
       }
     });
   }
+});
 
   // Chart 3: PPE Doughnut
   const ctx3 = document.getElementById('chart-analytics-ppe');

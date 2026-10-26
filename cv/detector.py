@@ -3,15 +3,11 @@ CV Module: YOLO Object Detector
 Handles YOLOv8 model loading, dynamic class resolution from data.yaml, and inference.
 """
 import os
-import threading
 import yaml
+import torch
+import numpy as np
 from ultralytics import YOLO
 import config
-from safety.ppe_config import PPE_CATEGORIES, NEGATIVE_CLASSES, canonical_class_name, set_model_classes
-from cv.ppe_association import validate_high_vis_vest
-
-# Canonical PPE class names the pipeline understands (positive and negative)
-KNOWN_PPE_CLASSES = {cls for cat in PPE_CATEGORIES for cls in cat["model_classes"]} | set(NEGATIVE_CLASSES)
 
 class ConstructionDetector:
     def __init__(self, model_path=None, data_yaml=config.DATA_YAML_PATH, conf=config.CONFIDENCE_THRESHOLD, iou=config.IOU_THRESHOLD):
@@ -19,9 +15,8 @@ class ConstructionDetector:
         self.iou = iou
         self.device = config.DEVICE
         self.data_yaml = data_yaml
-        # YOLO models are not safe to call from several threads at once
-        self._predict_lock = threading.Lock()
 
+        # Load class mappings dynamically from data.yaml
         # Determine model path
         if model_path is None or not os.path.exists(model_path):
             if os.path.exists(config.MODEL_PATH):
@@ -35,55 +30,92 @@ class ConstructionDetector:
         self.model = YOLO(self.model_path)
 
         self.classes = {}
+        self.canonical_map = {}
         self._load_classes()
 
     def _load_classes(self):
-        # 1. The class names embedded in the trained weights are what predictions index into
-        names = getattr(self.model, "names", None)
-        if names:
-            self.classes = {int(k): v for k, v in dict(names).items()}
-
-        # 2. Fallback: dataset data.yaml
-        if not self.classes and os.path.exists(self.data_yaml):
+        # 1. Always prioritize the model's own internal names dictionary
+        # because the network's output logits directly correspond to model.names!
+        if hasattr(self.model, "names") and self.model.names:
+            self.classes = {int(k): v for k, v in self.model.names.items()}
+        elif os.path.exists(self.data_yaml):
             try:
                 with open(self.data_yaml, "r", encoding="utf-8") as f:
-                    raw_names = (yaml.safe_load(f) or {}).get("names", {})
-                if isinstance(raw_names, list):
-                    self.classes = {i: name for i, name in enumerate(raw_names)}
-                elif isinstance(raw_names, dict):
-                    self.classes = {int(k): v for k, v in raw_names.items()}
+                    cfg = yaml.safe_load(f)
+                    raw_names = cfg.get("names", {})
+                    if isinstance(raw_names, list):
+                        self.classes = {i: name for i, name in enumerate(raw_names)}
+                    elif isinstance(raw_names, dict):
+                        self.classes = {int(k): v for k, v in raw_names.items()}
             except Exception as e:
                 print(f"[-] Warning: Failed to parse data.yaml: {e}")
 
-        # class id -> pipeline category ("person", a canonical PPE class, a no_* class, or "other")
-        self.category_map = {}
-        for cid, cname in self.classes.items():
-            canon = canonical_class_name(cname)
-            if canon == "person" or canon in KNOWN_PPE_CLASSES:
-                self.category_map[cid] = canon
-            else:
-                self.category_map[cid] = "other"
+        if not self.classes:
+            self.classes = {i: name for i, name in enumerate(config.CLASSES_17)}
 
-        self.person_cids = [cid for cid, cat in self.category_map.items() if cat == "person"]
-        set_model_classes(self.classes.values())
+        # Build canonical map (normalized lowercase name -> list of class ids)
+        self.canonical_map = {}
+        for cid, cname in self.classes.items():
+            norm = self._normalize_category(cname)
+            if norm not in self.canonical_map:
+                self.canonical_map[norm] = []
+            self.canonical_map[norm].append(cid)
+
+    @staticmethod
+    def _normalize_category(raw_name: str) -> str:
+        s = str(raw_name).strip().lower().replace("_", "-")
+        if s in ["person", "worker"]:
+            return "person"
+        elif s in ["helmet"]:
+            return "helmet"
+        elif s in ["no-helmet", "no-head"]:
+            return "no-helmet"
+        elif s in ["vest", "safety-vest"]:
+            return "vest"
+        elif s in ["no-vest", "no-safety-vest"]:
+            return "no-vest"
+        elif s in ["goggles", "glasses"]:
+            return "goggles"
+        elif s in ["no-goggle", "no-goggles", "no-glasses"]:
+            return "no-goggles"
+        elif s in ["gloves", "glove"]:
+            return "gloves"
+        elif s in ["no-gloves", "no-glove"]:
+            return "no-gloves"
+        elif s in ["boots", "safety-boots", "shoes"]:
+            return "boots"
+        elif s in ["no-boots", "no-shoes"]:
+            return "no-boots"
+        elif s in ["safety-pants", "safety_pants", "safety-suit"]:
+            return "safety-pants"
+        elif s in ["no-safety-pants", "no_safety_pants"]:
+            return "no-safety-pants"
+        elif s in ["earmuff", "earmuffs", "ear-mufs"]:
+            return "earmuff"
+        elif s in ["no-earmuff", "no_earmuff"]:
+            return "no-earmuff"
+        elif s in ["harness", "safety-harness"]:
+            return "harness"
+        elif s in ["no-harness", "no_harness"]:
+            return "no-harness"
+        return s
 
     def detect(self, image_or_frame, conf=None, iou=None):
         """
         Run inference on a single image (numpy array or filepath).
-        Returns a list of structured detection dictionaries with class-specific filtering.
+        Returns a list of structured detection dictionaries across all 17 classes.
         """
         c_thresh = conf if conf is not None else self.conf
         i_thresh = iou if iou is not None else self.iou
 
-        with self._predict_lock:
-            results = self.model.predict(
-                source=image_or_frame,
-                conf=c_thresh,
-                iou=i_thresh,
-                imgsz=config.IMG_SIZE,
-                device=self.device,
-                verbose=False
-            )
+        results = self.model.predict(
+            source=image_or_frame,
+            conf=c_thresh,
+            iou=i_thresh,
+            imgsz=config.IMG_SIZE,
+            device=self.device,
+            verbose=False
+        )
 
         if not results or len(results) == 0:
             return []
@@ -94,7 +126,28 @@ class ConstructionDetector:
         if boxes is None or len(boxes) == 0:
             return []
 
-        orig_h, orig_w = r.orig_shape
+        # Class-specific confidence filtering thresholds
+        min_thresholds = {
+            "person": 0.20,
+            "helmet": 0.15,
+            "no-helmet": 0.25,
+            "goggles": 0.15,
+            "no-goggles": 0.30,
+            "earmuff": 0.15,
+            "no-earmuff": 0.30,
+            "vest": 0.15,
+            "no-vest": 0.25,
+            "safety-pants": 0.15,
+            "no-safety-pants": 0.30,
+            "gloves": 0.15,
+            "no-gloves": 0.25,
+            "boots": 0.15,
+            "no-boots": 0.30,
+            "harness": 0.15,
+            "no-harness": 0.30,
+            "other": 0.20
+        }
+
         raw_candidates = []
         for box in boxes:
             xyxy = box.xyxy[0].cpu().numpy().tolist()
@@ -102,38 +155,23 @@ class ConstructionDetector:
             confidence = float(box.conf[0].cpu().numpy())
             class_id = int(box.cls[0].cpu().numpy())
             class_name = self.classes.get(class_id, f"class_{class_id}")
-            category = self.category_map.get(class_id, "other")
+            category = self._normalize_category(class_name)
 
-            raw_candidates.append({
-                "bbox": [x1, y1, x2, y2],
-                "confidence": round(confidence, 4),
-                "class_id": class_id,
-                "class_name": class_name,
-                "category": category
-            })
-
-        # Class-specific confidence filtering
-        min_thresholds = {
-            "person": 0.08,      # Sensitive for crouching, seated, and overhead workers
-            "helmet": 0.025,     # High recall for aerial/overhead hardhats (chromatic validator confirms)
-            "vest": 0.04,        # Sensitive for safety vests (chromatic validator confirms high-vis)
-            "other": 0.15
-        }
-        default_ppe_threshold = 0.10   # gloves, boots, goggles, ...
-        default_negative_threshold = 0.03  # no_helmet, no_gloves, ... (sensitive for bare heads/hands)
-
-        def passes_threshold(d):
-            cat = d["category"]
-            if cat in min_thresholds:
-                return d["confidence"] >= min_thresholds[cat]
-            if cat.startswith("no_"):
-                return d["confidence"] >= default_negative_threshold
-            return d["confidence"] >= default_ppe_threshold
+            # Check threshold
+            req_conf = min_thresholds.get(category, min_thresholds["other"])
+            if confidence >= req_conf:
+                raw_candidates.append({
+                    "bbox": [x1, y1, x2, y2],
+                    "confidence": round(confidence, 4),
+                    "class_id": class_id,
+                    "class_name": class_name,
+                    "category": category
+                })
 
         # 1. Filter PPE detections
         filtered_ppe = [
-            d for d in raw_candidates
-            if d["category"] != "person" and passes_threshold(d)
+            d for d in raw_candidates 
+            if d["category"] not in ["person", "worker"]
         ]
 
         # 2. Filter & Deduplicate Person boxes (NMS + Containment suppression)
@@ -141,28 +179,17 @@ class ConstructionDetector:
             d for d in raw_candidates 
             if d["category"] == "person" and d["confidence"] >= min_thresholds["person"]
         ]
-        
-        vests_list = [d for d in filtered_ppe if d["category"] == "vest"]
+        person_candidates = sorted(person_candidates, key=lambda x: x["confidence"], reverse=True)
 
         clean_persons = []
-        for cand in sorted(person_candidates, key=lambda x: x["confidence"], reverse=True):
+        for cand in person_candidates:
             b1 = cand["bbox"]
             w1 = b1[2] - b1[0]
             h1 = b1[3] - b1[1]
             cx1 = (b1[0] + b1[2]) / 2
             a1 = max(1, w1 * h1)
-
-            # Skip merged group box if it contains multiple horizontally separated vests
-            contained_vests = [
-                v for v in vests_list 
-                if b1[0] <= (v["bbox"][0] + v["bbox"][2]) / 2 <= b1[2] and b1[1] <= (v["bbox"][1] + v["bbox"][3]) / 2 <= b1[3]
-            ]
-            if len(contained_vests) >= 2:
-                v_cxs = [(v["bbox"][0] + v["bbox"][2]) / 2 for v in contained_vests]
-                if max(v_cxs) - min(v_cxs) > 0.25 * w1:
-                    continue  # Skip multi-person group merge box!
-
             keep = True
+
             for kept in clean_persons:
                 b2 = kept["bbox"]
                 w2 = b2[2] - b2[0]
@@ -180,43 +207,39 @@ class ConstructionDetector:
                 iou_val = inter / union if union > 0 else 0
                 containment = inter / min(a1, a2) if min(a1, a2) > 0 else 0
 
-                # Suppress if heavily nested (>65%) or high IoU (>0.40)
-                if containment > 0.65 or iou_val > 0.40:
+                # Suppress if heavily nested (>70%) or high IoU (>0.45)
+                if containment > 0.70 or iou_val > 0.45:
                     keep = False
                     break
 
                 # Suppress if moderate overlap in the same vertical column (dx < 25% width)
-                if (containment > 0.45 or iou_val > 0.25) and dx < 0.25 * min(w1, w2):
+                if (containment > 0.50 or iou_val > 0.30) and dx < 0.25 * min(w1, w2):
                     keep = False
                     break
 
             if keep:
                 clean_persons.append(cand)
 
-        # 3. Recover any partially occluded / background / lying worker wearing a confirmed vest
+        # 3. Recover any partially occluded / background worker wearing a confirmed vest
         for v in filtered_ppe:
-            if v["category"] == "vest" and v["confidence"] >= 0.04:
-                if not validate_high_vis_vest(image_or_frame, v["bbox"], v["confidence"]):
-                    continue
-
+            if v["category"] == "vest" and v["confidence"] >= 0.08:
                 vx1, vy1, vx2, vy2 = v["bbox"]
                 vw, vh = vx2 - vx1, vy2 - vy1
-                # Skip small corner debris artifacts
-                if vh < 90 or vw < 70 or vw > 1.6 * vh:
-                    continue
-
-                vc_x = (vx1 + vx2) / 2
-                vc_y = (vy1 + vy2) / 2
-                is_covered = any(p["bbox"][0] <= vc_x <= p["bbox"][2] and p["bbox"][1] <= vc_y <= p["bbox"][3] for p in clean_persons)
+                is_covered = False
+                for p in clean_persons:
+                    px1, py1, px2, py2 = p["bbox"]
+                    if not (vx2 < px1 or vx1 > px2 or vy2 < py1 or vy1 > py2):
+                        is_covered = True
+                        break
                 if not is_covered:
-                    px1 = max(0, vx1 - int(vw * 0.15))
-                    py1 = max(0, vy1 - int(vh * 0.30))
-                    px2 = min(orig_w, vx2 + int(vw * 0.80))
-                    py2 = min(orig_h, vy2 + int(vh * 0.90))
+                    px1 = max(0, vx1 - int(vw * 0.25))
+                    py1 = max(0, vy1 - int(vh * 0.45))
+                    px2 = vx2 + int(vw * 0.25)
+                    py2 = vy2 + int(vh * 0.85)
                     clean_persons.append({
                         "bbox": [px1, py1, px2, py2],
                         "confidence": v["confidence"],
-                        "class_id": self.person_cids[0] if self.person_cids else -1,
+                        "class_id": 6,
                         "class_name": "Person",
                         "category": "person"
                     })

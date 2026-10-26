@@ -22,6 +22,8 @@
       <i data-lucide="activity"></i>
       <span>{{ total_cameras_count if total_cameras_count is defined else 0 }} configured</span>
     </div>
+    <div class="metric-value" id="card-workers-count">{{ stats.workers_count|default(0) }}</div>
+    <div class="metric-footer">Active tracked site personnel</div>
   </div>
 
   <!-- 2. Workers -->
@@ -35,6 +37,8 @@
       <i data-lucide="user-check"></i>
       <span>Active Tracklets</span>
     </div>
+    <div class="metric-value" id="card-compliance-rate">{{ stats.compliance_rate|default(100) }}%</div>
+    <div class="metric-footer">Helmet & Vest spatial compliance</div>
   </div>
 
   <!-- 3. Violations -->
@@ -53,6 +57,8 @@
         <span>Zero Hazards</span>
       {% endif %}
     </div>
+    <div class="metric-value" id="card-violations-count">{{ stats.violations_count|default(0) }}</div>
+    <div class="metric-footer">Temporal buffer verified breaches</div>
   </div>
 
   <!-- 4. Alerts -->
@@ -106,6 +112,8 @@
       <i data-lucide="trending-up"></i>
       <span>OSHA Threshold 80%</span>
     </div>
+    <div class="metric-value" id="card-critical-count">{{ stats.critical_count|default(0) }}</div>
+    <div class="metric-footer">Hazard zone / compound violations</div>
   </div>
 </div>
 

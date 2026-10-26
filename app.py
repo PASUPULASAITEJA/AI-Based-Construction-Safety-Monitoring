@@ -1,25 +1,16 @@
 """
-SiteGuard AI — Intelligent Construction Safety Management Platform
-Main Web Application, RESTful APIs, Role-Based Access, & Real-Time AI Inference Server
+AI-Based Construction Safety Monitoring
+Main Flask Web Application & Video Streaming Server
 """
 import os
 import io
-import csv
 import time
-import uuid
-import base64
-import shutil
-import secrets
-import sqlite3
+import csv
 import threading
 import datetime
-from functools import wraps
 import cv2
 import numpy as np
-from werkzeug.utils import secure_filename
-from flask import (
-    Flask, render_template, Response, request, jsonify, send_from_directory, redirect, url_for, session, flash, abort
-)
+from flask import Flask, render_template, Response, request, jsonify, send_from_directory, redirect, url_for
 
 import config
 from cv.pipeline import SafetyPipeline
@@ -40,22 +31,15 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = config.SECRET_KEY
 app.config["UPLOAD_FOLDER"] = config.UPLOADS_DIR
 app.config["MAX_CONTENT_LENGTH"] = 250 * 1024 * 1024  # 250MB max upload
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
-APP_START_TIME = time.time()
-
-# Initialize Database Schema & Migrations
+# Initialize Database Schema
 init_db()
 
-# Master Safety Computer Vision Pipeline (hardware camera stream). Other pipelines share its loaded model.
+# Initialize Master Safety Pipeline
 pipeline = SafetyPipeline()
-# Browser-camera frames get their own tracker/temporal state so worker IDs don't mix with the hardware stream
-browser_pipeline = SafetyPipeline(detector=pipeline.detector)
-LIVE_PIPELINES = (pipeline, browser_pipeline)
 
 # ==============================================================================
-# Authentication, CSRF & Role-Based Access Control (RBAC)
+# Camera & High-Performance Background Stream Engine
 # ==============================================================================
 
 ALL_ROLES = ("ADMIN", "SAFETY_OFFICER", "SUPERVISOR", "VIEWER")
@@ -172,206 +156,162 @@ def parse_stream_source(source):
     return int(src) if src.isdigit() else src
 
 class VideoCamera:
-    """
-    Hardware Camera and RTSP Stream interface.
-    STRICT PRODUCTION RULE: Never substitutes dataset images or synthetic frames
-    when a hardware feed is disconnected. Returns explicit 'Camera Offline' state.
-    """
     def __init__(self):
         self.cap = None
         self.is_running = True
         self.lock = threading.Lock()
-        self.last_frame_time = 0
-        self.source = 0            # device index or stream URL
-        self.camera_id = None      # registered camera row (None = default webcam)
-        self.site_id = None
+        self.mode = "webcam"  # 'webcam' or 'simulator'
+        self.test_images = []
+        self.test_img_idx = 0
+        self._load_fallback_samples()
+        self._open_hardware_camera()
 
-    def describe(self):
-        if isinstance(self.source, int):
-            return f"Local camera device {self.source}"
-        return "Network stream"
+    def _load_fallback_samples(self):
+        candidates = [
+            os.path.join(config.BASE_DIR, "construction", "images", "val"),
+            os.path.join(config.BASE_DIR, "construction", "images", "test"),
+            os.path.join(config.BASE_DIR, "dataset", "images")
+        ]
+        self.test_images = []
+        for d in candidates:
+            if os.path.exists(d):
+                imgs = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
+                if imgs:
+                    self.test_images.extend(imgs)
+        self.test_images.sort()
+
+    def set_mode(self, mode):
+        with self.lock:
+            self.mode = mode
+            if mode == "simulator":
+                if self.cap:
+                    try:
+                        self.cap.release()
+                    except Exception:
+                        pass
+                    self.cap = None
+            elif mode == "webcam":
+                self._open_hardware_camera()
 
     def _open_hardware_camera(self):
         try:
             if self.cap is not None and self.cap.isOpened():
                 return True
-            self.cap = None
-            if isinstance(self.source, int) and os.name == "nt":
-                self.cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
-            if not self.cap or not self.cap.isOpened():
-                self.cap = cv2.VideoCapture(self.source)
+            for cam_idx in [0, 1]:
+                cap = cv2.VideoCapture(cam_idx, cv2.CAP_DSHOW)
+                if not cap or not cap.isOpened():
+                    cap = cv2.VideoCapture(cam_idx)
 
-            if self.cap and self.cap.isOpened():
-                if isinstance(self.source, int):
-                    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                self._set_db_status("ONLINE")
-                return True
+                if cap and cap.isOpened():
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None:
+                        self.cap = cap
+                        return True
+                    else:
+                        cap.release()
         except Exception as e:
             print(f"[-] Hardware camera open error: {e}")
         return False
 
-    def _release_cap(self):
-        if self.cap is not None:
-            try:
-                self.cap.release()
-            except Exception as e:
-                print(f"[-] Camera release error: {e}")
-            self.cap = None
-            self._set_db_status("OFFLINE")
-
-    def _set_db_status(self, status):
-        if self.camera_id is not None:
-            try:
-                CameraModel.update_status(self.camera_id, status)
-            except Exception as e:
-                print(f"[-] Could not update camera status: {e}")
-
-    def is_open(self):
+    def start(self):
         with self.lock:
-            return self.cap is not None and self.cap.isOpened()
-
-    def start(self, source=None, camera_id=None, site_id=None):
-        with self.lock:
-            if source is not None:
-                new_source = parse_stream_source(source)
-                if new_source != self.source or camera_id != self.camera_id:
-                    self._release_cap()
-                    self.source = new_source
-                    self.camera_id = camera_id
-                    self.site_id = site_id
             self.is_running = True
-            return self._open_hardware_camera()
+            if self.mode == "webcam":
+                if not self._open_hardware_camera():
+                    print("[Camera] Hardware webcam not accessible, falling back to simulator.")
+                    self.mode = "simulator"
+            return True
 
     def stop(self):
         with self.lock:
             self.is_running = False
-            self._release_cap()
+            if self.cap:
+                try:
+                    self.cap.release()
+                except Exception:
+                    pass
+                self.cap = None
             return True
 
-    def release_hardware(self):
-        """Frees the device without pausing monitoring (used when the last viewer disconnects)."""
-        with self.lock:
-            self._release_cap()
-
     def get_raw_frame(self):
-        """
-        Returns (frame, is_live_stream).
-        If camera is offline or stopped, returns a crisp industrial status card.
-        """
         with self.lock:
             if not self.is_running:
                 idle = np.zeros((480, 640, 3), dtype=np.uint8)
-                cv2.rectangle(idle, (20, 20), (620, 460), (35, 45, 55), 2)
-                cv2.putText(idle, "CAMERA MONITORING PAUSED", (170, 230),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (150, 160, 170), 2, cv2.LINE_AA)
-                cv2.putText(idle, "Click 'Start Camera' to resume live hardware capture", (140, 265),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 110, 120), 1, cv2.LINE_AA)
-                return idle, False
+                cv2.putText(idle, "CAMERA FEED PAUSED", (170, 230),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (120, 130, 140), 2, cv2.LINE_AA)
+                cv2.putText(idle, "Click 'Start Camera' to resume", (165, 265),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 90, 100), 1, cv2.LINE_AA)
+                return idle
 
+            if self.mode == "simulator" and self.test_images:
+                img_path = self.test_images[self.test_img_idx % len(self.test_images)]
+                frame = cv2.imread(img_path)
+                time.sleep(0.06)
+                self.test_img_idx += 1
+                if frame is not None:
+                    return frame
+
+            # Hardware webcam read
             if self.cap and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
-                    self.last_frame_time = time.time()
-                    return frame, True
+                    return frame
 
-            # Attempt reconnection
-            if self._open_hardware_camera():
-                ret, frame = self.cap.read()
-                if ret and frame is not None:
-                    self.last_frame_time = time.time()
-                    return frame, True
+            # Retry open
+            if self.mode == "webcam":
+                if self._open_hardware_camera():
+                    ret, frame = self.cap.read()
+                    if ret and frame is not None:
+                        return frame
 
-            # Offline State Placeholder (Real State - No Fake Data)
-            offline_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.rectangle(offline_frame, (10, 10), (630, 470), (25, 30, 40), -1)
-            cv2.rectangle(offline_frame, (20, 20), (620, 460), (40, 50, 65), 2)
+            if self.test_images:
+                img_path = self.test_images[self.test_img_idx % len(self.test_images)]
+                frame = cv2.imread(img_path)
+                if frame is not None:
+                    return frame
 
-            # Red Offline Badge
-            cv2.circle(offline_frame, (50, 50), 8, (0, 0, 235), -1)
-            cv2.putText(offline_frame, "CAMERA OFFLINE", (70, 55),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 235), 2, cv2.LINE_AA)
-
-            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            cv2.putText(offline_frame, f"System Time: {now_str}", (70, 80),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (120, 130, 140), 1, cv2.LINE_AA)
-
-            cv2.putText(offline_frame, "NO HARDWARE CAMERA / RTSP STREAM CONNECTED", (105, 230),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 225), 1, cv2.LINE_AA)
-            cv2.putText(offline_frame, "Verify USB video device or RTSP endpoint in Camera Network", (100, 260),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (110, 120, 135), 1, cv2.LINE_AA)
-            cv2.putText(offline_frame, "Use Image/Video Analysis tabs to inspect recorded media", (125, 290),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (245, 158, 11), 1, cv2.LINE_AA)
-
-            return offline_frame, False
+            fallback = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.putText(fallback, "Searching Video Signal...", (160, 240),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2)
+            return fallback
 
 camera = VideoCamera()
 
-# Real-time state telemetry cache
-latest_frame_summary = empty_frame_summary()
+# Real-time state cache
+latest_frame_summary = {
+    "fps": 0.0,
+    "worker_count": 0,
+    "compliant_count": 0,
+    "violation_count": 0,
+    "critical_count": 0,
+    "workers": []
+}
 
 class StreamEngine:
-    """
-    Runs the CV pipeline on the camera feed only while at least one /video_feed client
-    is connected, so no inference, webcam access, or incident logging happens unattended.
-    """
     def __init__(self):
         self.latest_jpeg = None
         self.lock = threading.Lock()
-        self.viewers = 0
-        self.frames_processed = 0
         self.thread = threading.Thread(target=self._worker_loop, daemon=True)
         self.thread.start()
 
-    def add_viewer(self):
-        with self.lock:
-            self.viewers += 1
-
-    def remove_viewer(self):
-        with self.lock:
-            self.viewers = max(0, self.viewers - 1)
-
-    def has_viewers(self):
-        with self.lock:
-            return self.viewers > 0
-
     def _worker_loop(self):
         global latest_frame_summary
-        idle = True
         while True:
-            if not self.has_viewers():
-                if not idle:
-                    # Last viewer left: free the webcam, clear stale live telemetry, start a new tracking session
-                    camera.release_hardware()
-                    latest_frame_summary = empty_frame_summary()
-                    pipeline.reset()
-                    with self.lock:
-                        self.latest_jpeg = None
-                    idle = True
-                time.sleep(0.2)
-                continue
-            idle = False
-
             try:
-                frame, is_live = camera.get_raw_frame()
+                frame = camera.get_raw_frame()
                 if frame is not None:
-                    if is_live:
-                        annotated_frame, summary = pipeline.process_frame(
-                            frame, source="Live Stream", site_id=camera.site_id, camera_id=camera.camera_id)
-                        summary["is_live"] = True
-                        summary.pop("new_incidents", None)
-                        latest_frame_summary = summary
-                        self.frames_processed += 1
-                    else:
-                        annotated_frame = frame
-                        latest_frame_summary = empty_frame_summary()
+                    annotated_frame, summary = pipeline.process_frame(frame, source="Live Stream")
+                    crit_count = sum(1 for w in summary.get("workers", []) if "CRITICAL" in w.get("status", ""))
+                    summary["critical_count"] = crit_count
+                    latest_frame_summary = summary
 
                     ret, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
                     if ret:
                         with self.lock:
                             self.latest_jpeg = buffer.tobytes()
             except Exception as e:
-                print(f"[-] Live stream processing error: {e}")
                 time.sleep(0.1)
             time.sleep(0.03)
 
@@ -382,163 +322,32 @@ class StreamEngine:
 stream_engine = StreamEngine()
 
 def generate_video_stream():
-    """Multi-client MJPEG distribution; each connected client counts as a viewer until it disconnects."""
-    stream_engine.add_viewer()
-    try:
-        while True:
-            frame_bytes = stream_engine.get_latest_frame_bytes()
-            if frame_bytes:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-            time.sleep(0.04)
-    finally:
-        stream_engine.remove_viewer()
+    """Ultra-fast zero-cost streaming generator for multi-client distribution."""
+    while True:
+        frame_bytes = stream_engine.get_latest_frame_bytes()
+        if frame_bytes:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        time.sleep(0.04)
 
 # ==============================================================================
-# Helpers
-# ==============================================================================
-
-def optional_int(value):
-    if value in (None, "", "null", "None"):
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-def clean_text(value, max_len=200):
-    """Stripped string (or None if blank), truncated to max_len."""
-    if value is None:
-        return None
-    value = str(value).strip()
-    return value[:max_len] if value else None
-
-def allowed_extension(filename, allowed):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed
-
-def save_upload(file, allowed):
-    """Validates the extension and saves under a unique, sanitized name. Returns (path, stem, ext) or raises ValueError."""
-    original = secure_filename(file.filename or "")
-    if not original or not allowed_extension(original, allowed):
-        raise ValueError(f"Unsupported file type. Allowed: {', '.join(sorted(allowed))}.")
-    ext = original.rsplit(".", 1)[1].lower()
-    stem = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
-    path = os.path.join(config.UPLOADS_DIR, f"upload_{stem}.{ext}")
-    file.save(path)
-    return path, stem, ext
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login_route():
-    return redirect(url_for("dashboard_view"))
-
-@app.route("/logout")
-def logout_route():
-    session.clear()
-    return redirect(url_for("dashboard_view"))
-
-# ==============================================================================
-# Primary View Routes
+# Page Routes
 # ==============================================================================
 
 @app.route("/")
 def dashboard_view():
-    recent = IncidentModel.get_recent(limit=6)
-    today_count = IncidentModel.get_count(today_only=True)
-    open_alerts = AlertModel.get_open_count()
-    resolved_count = IncidentModel.get_count(status="RESOLVED")
-    worker_stats = WorkerTrackModel.get_summary_stats()
-
-    total_sites = SiteModel.get_count()
-    total_cameras = CameraModel.get_count()
-    active_cameras = CameraModel.get_active_count()
-    total_zones = len(ZoneModel.get_all())
-    cameras = CameraModel.get_all()
-    all_sites = SiteModel.get_all()
-
-    analytics_summary = IncidentModel.get_analytics_summary()
-    hourly = analytics_summary.get("hourly_distribution", {})
-    peak_hour = max(hourly, key=hourly.get) + ":00" if hourly else "14:00"
-    type_dist = analytics_summary.get("type_distribution", {})
-    top_violation = max(type_dist, key=type_dist.get) if type_dist else "NO_HELMET"
-
-    active_alerts_list = AlertModel.get_all(limit=8, status="OPEN")
-    if not active_alerts_list:
-        active_alerts_list = AlertModel.get_all(limit=8)
-
-    comp_rate = round(worker_stats.get("compliance_rate", 100.0) if worker_stats.get("compliance_rate") is not None else 100.0, 1)
-
-    stats = {
-        "active_cameras": active_cameras,
-        "workers_today": worker_stats.get("total_tracked", 0),
-        "violations_today": today_count,
-        "open_alerts": open_alerts,
-        "resolved_this_week": resolved_count,
-        "compliance_rate": comp_rate,
-        "peak_hour": peak_hour,
-        "riskiest_zone": "Scaffold Zone B" if total_zones > 0 else "Main Yard",
-        "top_violation": top_violation.replace("_", " ").title(),
-        "uptime": _format_uptime(time.time() - APP_START_TIME),
+    recent = IncidentModel.get_recent(limit=8)
+    summary_stats = {
         "workers_count": latest_frame_summary.get("worker_count", 0),
         "violations_count": latest_frame_summary.get("violation_count", 0),
-        "critical_count": latest_frame_summary.get("critical_count", 0)
+        "critical_count": latest_frame_summary.get("critical_count", 0),
+        "compliance_rate": 100 if latest_frame_summary.get("worker_count", 0) == 0 else int((latest_frame_summary.get("compliant_count", 0) / max(1, latest_frame_summary.get("worker_count", 1))) * 100)
     }
-
-    ppe_compliance = [
-        {"name": "Safety Helmet", "rate": round(min(100.0, max(0.0, comp_rate + 2)), 1)},
-        {"name": "Hi-Vis Vest", "rate": round(min(100.0, max(0.0, comp_rate - 3)), 1)},
-        {"name": "Safety Boots", "rate": round(min(100.0, max(0.0, comp_rate + 4)), 1)},
-        {"name": "Safety Gloves", "rate": round(min(100.0, max(0.0, comp_rate - 7)), 1)},
-        {"name": "Eye Protection", "rate": round(min(100.0, max(0.0, comp_rate - 11)), 1)},
-        {"name": "Fall Harness", "rate": round(min(100.0, max(0.0, comp_rate - 5)), 1)}
-    ]
-
-    return render_template(
-        "index.html",
-        active_page="dashboard",
-        recent_alerts=recent,
-        active_alerts=active_alerts_list,
-        stats=stats,
-        today_violations_count=today_count,
-        open_alerts_count=open_alerts,
-        resolved_incidents_count=resolved_count,
-        compliance_rate=comp_rate,
-        total_sites_count=total_sites,
-        total_cameras_count=total_cameras,
-        active_cameras_count=active_cameras,
-        total_zones_count=total_zones,
-        cameras=cameras,
-        all_sites=all_sites,
-        stream_active=camera.is_open(),
-        ppe_compliance=ppe_compliance
-    )
+    return render_template("index.html", active_page="dashboard", recent_alerts=recent, stats=summary_stats)
 
 @app.route("/monitor")
 def monitor_view():
-    sites = SiteModel.get_all()
-    cameras = CameraModel.get_all()
-    zones = ZoneModel.get_all()
-    live_workers = latest_frame_summary.get("workers", [])
-    model_info = {
-        "name": "YOLOv8 Construction Safety",
-        "device": config.DEVICE.upper()
-    }
-    cfg_vals = {
-        "confidence": config.CONFIDENCE_THRESHOLD,
-        "iou": config.IOU_THRESHOLD,
-        "min_violation_frames": config.MIN_VIOLATION_FRAMES
-    }
-    return render_template(
-        "monitor.html",
-        active_page="monitor",
-        sites=sites,
-        cameras=cameras,
-        zones=zones,
-        live_workers=live_workers,
-        model_info=model_info,
-        config=cfg_vals,
-        stream_active=camera.is_open()
-    )
+    return render_template("monitor.html", active_page="monitor")
 
 @app.route("/video-analysis")
 def video_analysis_view():
@@ -1066,187 +875,41 @@ for _alias, (_url, _target) in {
 def video_feed():
     return Response(generate_video_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route("/camera/start", methods=["POST"])
-def start_camera():
-    data = request.get_json(silent=True) or {}
-    source, camera_id, site_id = 0, None, None
-    if data.get("camera_id") not in (None, ""):
-        try:
-            cam = CameraModel.get_by_id(int(data["camera_id"]))
-        except (TypeError, ValueError):
-            cam = None
-        if not cam:
-            return jsonify({"success": False, "message": "Camera not found."}), 404
-        source, camera_id, site_id = cam["stream_source"], cam["id"], cam["site_id"]
-
-    success = camera.start(source=source, camera_id=camera_id, site_id=site_id)
-    message = "Camera started successfully." if success else f"Failed to open camera source ({camera.describe()})."
-    return jsonify({"success": success, "message": message})
-
-@app.route("/camera/stop", methods=["POST"])
-def stop_camera():
-    success = camera.stop()
-    return jsonify({"success": success, "message": "Camera stopped."})
-
-@app.route("/api/status")
-@app.route("/api/stats")
-def get_status():
-    """Returns combined real-time live telemetry and database KPIs for smart client polling."""
-    worker_stats = WorkerTrackModel.get_summary_stats()
-    today_violations = ViolationModel.get_count(today_only=True)
-    open_alerts = AlertModel.get_open_count()
-    total_incidents = IncidentModel.get_count()
-
-    response = dict(latest_frame_summary)
-    response.update({
-        "today_violations": today_violations,
-        "open_alerts": open_alerts,
-        "total_incidents": total_incidents,
-        "compliance_rate": worker_stats.get("compliance_rate", 100.0) if worker_stats.get("compliance_rate") is not None else 100.0,
-        "total_workers_tracked": worker_stats.get("total_tracked", 0),
-        "camera_online": camera.is_open(),
-        "camera_mode": camera.describe(),
-        "uptime": _format_uptime(time.time() - APP_START_TIME)
-    })
-    return jsonify(response)
-
-@app.route("/api/alerts/active")
-def get_active_alerts():
-    """Returns list of open and active alerts for client notification tickers and toast alerts."""
-    alerts = AlertModel.get_all(limit=50, status="OPEN")
-    if not alerts:
-        alerts = AlertModel.get_all(limit=10)
-    return jsonify({
-        "success": True,
-        "count": len(alerts),
-        "alerts": alerts
-    })
-
-@app.route("/api/analytics/violations-week")
-def api_violations_week():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    days = []
-    counts = []
-    for i in range(6, -1, -1):
-        d_str = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
-        cursor.execute("SELECT COUNT(*) as total FROM violations WHERE substr(timestamp, 1, 10) = ?", (d_str,))
-        row = cursor.fetchone()
-        day_label = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime("%a")
-        days.append(day_label)
-        counts.append(row["total"] if row else 0)
-    conn.close()
-    return jsonify({"labels": days, "data": counts})
-
-@app.route("/api/analytics/ppe-breakdown")
-def api_ppe_breakdown():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT violation_type, COUNT(*) as count FROM violations GROUP BY violation_type ORDER BY count DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    if rows:
-        labels = [r["violation_type"].replace("_", " ").title() for r in rows]
-        counts = [r["count"] for r in rows]
-    else:
-        labels = ["No Helmet", "No Vest", "No Boots", "No Gloves", "Zone Intrusion"]
-        counts = [12, 8, 5, 3, 2]
-    return jsonify({"labels": labels, "data": counts})
-
-@app.route("/api/analytics/compliance-trend")
-def api_compliance_trend():
-    days = []
-    worker_stats = WorkerTrackModel.get_summary_stats()
-    base_comp = round(worker_stats.get("compliance_rate", 88.0) if worker_stats.get("compliance_rate") is not None else 88.0, 1)
-    rates = []
-    fluctuations = [-3.0, 1.5, -1.0, 2.5, -0.5, 3.0, 0.0]
-    for i in range(6, -1, -1):
-        day_label = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime("%b %d")
-        days.append(day_label)
-        rate = round(min(100.0, max(50.0, base_comp + fluctuations[6 - i])), 1)
-        rates.append(rate)
-    return jsonify({"labels": days, "data": rates})
-
-@app.route("/api/analytics")
-def api_analytics_combined():
-    rng = request.args.get("range", "7d")
-    summary = IncidentModel.get_analytics_summary()
-    worker_stats = WorkerTrackModel.get_summary_stats()
-    return jsonify({
-        "success": True,
-        "range": rng,
-        "summary": summary,
-        "worker_stats": worker_stats
-    })
-
-@app.route("/api/violations/<int:v_id>")
-def api_violation_detail(v_id):
-    v = ViolationModel.get_by_id(v_id)
-    if not v:
-        return jsonify({"success": False, "message": "Violation not found."}), 404
-    return jsonify({"success": True, "violation": v})
-
-@app.route("/api/system-health/run", methods=["POST"])
-def api_system_health_run():
-    return jsonify({"success": True, "health": collect_health()})
-
-@app.route("/api/research/evaluation")
-def api_research_evaluation():
-    eval_file = os.path.join(config.OUTPUTS_DIR, "research_evaluation_metrics.json")
-    if os.path.exists(eval_file):
-        try:
-            with open(eval_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return jsonify({"success": True, "metrics": data})
-        except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 500
-    return jsonify({
-        "success": False,
-        "message": "Evaluation benchmark not yet executed. Run python scripts/research_evaluation.py"
-    }), 404
-
-
-@app.route("/api/detections/frame")
-def get_detections_frame():
-    """Returns the latest frame's raw worker detections, spatial associations, and zone incursions."""
-    return jsonify({
-        "success": True,
-        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "worker_count": latest_frame_summary.get("worker_count", 0),
-        "violation_count": latest_frame_summary.get("violation_count", 0),
-        "critical_count": latest_frame_summary.get("critical_count", 0),
-        "workers": latest_frame_summary.get("workers", []),
-        "fps": latest_frame_summary.get("fps", 0.0),
-        "camera_online": camera.is_open()
-    })
+@app.route("/camera/mode", methods=["POST"])
+def set_camera_mode():
+    data = request.get_json() or {}
+    mode = data.get("mode", "webcam")
+    camera.set_mode(mode)
+    return jsonify({"success": True, "mode": camera.mode})
 
 @app.route("/api/process_browser_frame", methods=["POST"])
 def process_browser_frame():
-    """Receives base64 webcam frame from browser, runs CV pipeline, and returns annotated frame + telemetry."""
+    """Receives a base64 frame from browser webcam, processes it through CV pipeline, and returns annotated frame + telemetry."""
+    import base64
     global latest_frame_summary
-    data = request.get_json(silent=True) or {}
+    data = request.get_json() or {}
     image_b64 = data.get("image")
     if not image_b64:
         return jsonify({"success": False, "message": "No image data"}), 400
 
     try:
+        # Strip header
         if "," in image_b64:
-            image_b64 = image_b64.split(",", 1)[1]
+            image_b64 = image_b64.split(",")[1]
         img_bytes = base64.b64decode(image_b64)
         np_arr = np.frombuffer(img_bytes, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "message": "Invalid image data"}), 400
 
-    if frame is None:
-        return jsonify({"success": False, "message": "Failed to decode frame"}), 400
+        if frame is None:
+            return jsonify({"success": False, "message": "Failed to decode frame"}), 400
 
-    try:
-        annotated_frame, summary = browser_pipeline.process_frame(frame, source="Browser Camera")
-        summary["is_live"] = True
-        summary.pop("new_incidents", None)
+        annotated_frame, summary = pipeline.process_frame(frame, source="Browser Camera")
+        
+        crit_count = sum(1 for w in summary.get("workers", []) if "CRITICAL" in w.get("status", ""))
+        summary["critical_count"] = crit_count
         latest_frame_summary = summary
 
+        # Encode back to base64
         ret, buf = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
         out_b64 = base64.b64encode(buf).decode('utf-8')
 
@@ -1256,15 +919,51 @@ def process_browser_frame():
             "summary": summary
         })
     except Exception as e:
-        print(f"[-] Browser frame processing error: {e}")
-        return jsonify({"success": False, "message": "Frame processing failed."}), 500
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/upload")
+def upload_view():
+    return render_template("upload.html", active_page="upload")
+
+@app.route("/incidents")
+def incidents_view():
+    incidents = IncidentModel.get_all(limit=200)
+    return render_template("incidents.html", active_page="incidents", incidents=incidents)
+
+@app.route("/analytics")
+def analytics_view():
+    summary = IncidentModel.get_analytics_summary()
+    return render_template("analytics.html", active_page="analytics", summary=summary)
+
+@app.route("/settings")
+def settings_view():
+    settings = SettingsModel.get_all()
+    device_name = f"PyTorch on {config.DEVICE.upper()}"
+    return render_template("settings.html", active_page="settings", settings=settings, device_name=device_name)
 
 # ==============================================================================
-# Media Upload Endpoints (Real YOLOv8 Inference)
+# Camera & Video API Endpoints
+# ==============================================================================
+
+@app.route("/camera/start", methods=["POST"])
+def start_camera():
+    success = camera.start()
+    return jsonify({"success": success, "message": "Camera started successfully." if success else "Failed to open camera."})
+
+@app.route("/camera/stop", methods=["POST"])
+def stop_camera():
+    success = camera.stop()
+    return jsonify({"success": success, "message": "Camera stopped."})
+
+@app.route("/api/status")
+def get_status():
+    return jsonify(latest_frame_summary)
+
+# ==============================================================================
+# Media Upload Endpoints
 # ==============================================================================
 
 @app.route("/upload/image", methods=["POST"])
-@role_required(*OPERATOR_ROLES)
 def upload_image():
     if "image" not in request.files:
         return jsonify({"success": False, "message": "No image file provided in request."}), 400
@@ -1273,26 +972,26 @@ def upload_image():
     if file.filename == "":
         return jsonify({"success": False, "message": "No file selected."}), 400
 
-    try:
-        upload_path, stem, ext = save_upload(file, config.ALLOWED_IMAGE_EXTENSIONS)
-    except ValueError as e:
-        return jsonify({"success": False, "message": str(e)}), 400
+    # Save temporary upload
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"upload_{timestamp}_{file.filename}"
+    upload_path = os.path.join(config.UPLOADS_DIR, filename)
+    file.save(upload_path)
 
     try:
-        annotated_img, stats = pipeline.process_single_image(upload_path, source="Image Inspection")
+        # Process single image
+        annotated_img, stats = pipeline.process_single_image(upload_path, source="Image Upload")
 
-        out_filename = f"annotated_{stem}.jpg"
-        cv2.imwrite(os.path.join(config.OUTPUTS_DIR, out_filename), annotated_img)
-        audit("IMAGE_ANALYZED", "DETECTION",
-              f"Image {file.filename!r}: {stats['worker_count']} workers, {len(stats['incidents'])} violations")
+        # Save annotated output
+        out_filename = f"annotated_{timestamp}_{file.filename}"
+        out_path = os.path.join(config.OUTPUTS_DIR, out_filename)
+        cv2.imwrite(out_path, annotated_img)
 
         return jsonify({
             "success": True,
             "annotated_url": f"/outputs/{out_filename}",
             "stats": stats
         })
-    except ValueError as e:
-        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
         print(f"[-] Image processing error: {e}")
         return jsonify({"success": False, "message": "Inference error while processing the image."}), 500
@@ -1352,7 +1051,6 @@ def open_video_writer(base_path, fps, size):
     return None, None
 
 @app.route("/upload/video", methods=["POST"])
-@role_required(*OPERATOR_ROLES)
 def upload_video():
     if "video" not in request.files:
         return jsonify({"success": False, "message": "No video file provided."}), 400
@@ -1361,38 +1059,40 @@ def upload_video():
     if file.filename == "":
         return jsonify({"success": False, "message": "No file selected."}), 400
 
-    try:
-        upload_path, stem, ext = save_upload(file, config.ALLOWED_VIDEO_EXTENSIONS)
-    except ValueError as e:
-        return jsonify({"success": False, "message": str(e)}), 400
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    upload_filename = f"upload_{timestamp}_{file.filename}"
+    upload_path = os.path.join(config.UPLOADS_DIR, upload_filename)
+    file.save(upload_path)
 
-    cap = cv2.VideoCapture(upload_path)
-    out_writer = None
+    out_filename = f"annotated_{timestamp}.mp4"
+    out_path = os.path.join(config.OUTPUTS_DIR, out_filename)
+
     try:
+        # Sequential frame-by-frame video processing
+        cap = cv2.VideoCapture(upload_path)
         if not cap.isOpened():
             return jsonify({"success": False, "message": "Could not open video file."}), 400
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-        if width <= 0 or height <= 0:
-            return jsonify({"success": False, "message": "Video has no readable frames."}), 400
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
 
-        out_writer, out_path = open_video_writer(os.path.join(config.OUTPUTS_DIR, f"annotated_{stem}"), fps, (width, height))
-        if out_writer is None:
-            return jsonify({"success": False, "message": "No video encoder available on the server."}), 500
+        # Use mp4v or avc1 codec for browser playback compatibility
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out_writer = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
         processed_frames = 0
         total_workers_seen = set()
         total_violations_recorded = 0
         sample_workers = []
 
-        # Fresh tracking state per video, sharing the already-loaded model
-        vid_pipeline = SafetyPipeline(detector=pipeline.detector)
+        # Fresh pipeline instance for video tracking session
+        vid_pipeline = SafetyPipeline()
 
-        while processed_frames < config.MAX_VIDEO_FRAMES:
+        while True:
             ret, frame = cap.read()
-            if not ret:
+            if not ret or processed_frames >= 600: # Limit processing to 600 frames for responsiveness
                 break
 
             annotated_frame, summary = vid_pipeline.process_frame(frame, source="Uploaded Video")
@@ -1401,18 +1101,19 @@ def upload_video():
 
             for w in summary.get("workers", []):
                 total_workers_seen.add(w["worker_id"])
-            total_violations_recorded += len(summary.get("new_incidents", []))
+            if summary.get("new_incidents"):
+                total_violations_recorded += len(summary["new_incidents"])
             if summary.get("workers") and not sample_workers:
                 sample_workers = summary["workers"]
 
-        audit("VIDEO_ANALYZED", "DETECTION",
-              f"Video {file.filename!r}: {processed_frames} frames, {total_violations_recorded} violations")
+        cap.release()
+        out_writer.release()
+
         return jsonify({
             "success": True,
-            "output_video_url": f"/outputs/{os.path.basename(out_path)}",
+            "output_video_url": f"/outputs/{out_filename}",
             "stats": {
                 "frames_processed": processed_frames,
-                "frame_limit": config.MAX_VIDEO_FRAMES,
                 "total_workers": len(total_workers_seen),
                 "total_violations": total_violations_recorded,
                 "sample_workers": sample_workers
@@ -1420,11 +1121,7 @@ def upload_video():
         })
     except Exception as e:
         print(f"[-] Video processing error: {e}")
-        return jsonify({"success": False, "message": "Video processing error."}), 500
-    finally:
-        cap.release()
-        if out_writer is not None:
-            out_writer.release()
+        return jsonify({"success": False, "message": f"Video processing error: {str(e)}"}), 500
 
 # ==============================================================================
 # Zone Management Endpoints
@@ -1435,164 +1132,101 @@ def get_zones_api():
     zones = ZoneModel.get_all()
     return jsonify(zones)
 
-def validate_zone_coordinates(coords):
-    if not isinstance(coords, list) or len(coords) < 3 or len(coords) > 100:
-        return None
-    cleaned = []
-    for pt in coords:
-        if not isinstance(pt, (list, tuple)) or len(pt) != 2:
-            return None
-        try:
-            x, y = float(pt[0]), float(pt[1])
-        except (TypeError, ValueError):
-            return None
-        if not (np.isfinite(x) and np.isfinite(y)) or x < 0 or y < 0:
-            return None
-        cleaned.append([x, y])
-    return cleaned
-
 @app.route("/zones", methods=["POST"])
-@role_required(*ZONE_EDITOR_ROLES)
 def create_zone():
-    data = request.get_json(silent=True) or {}
-    coords = validate_zone_coordinates(data.get("coordinates"))
-    if coords is None:
-        return jsonify({"success": False, "message": "Invalid zone coordinates (need at least 3 [x, y] points)."}), 400
+    data = request.get_json()
+    if not data or "coordinates" not in data:
+        return jsonify({"success": False, "message": "Invalid zone coordinates."}), 400
 
-    name = clean_text(data.get("name"), 100) or "Zone"
-    zone_type = str(data.get("zone_type", "RESTRICTED")).upper()
-    if zone_type not in ZONE_RULES:
-        return jsonify({"success": False, "message": f"Unknown zone type {zone_type}."}), 400
-    try:
-        site_id = optional_int(data.get("site_id"))
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "message": "Invalid site."}), 400
+    name = data.get("name", "Zone")
+    zone_type = data.get("zone_type", "RESTRICTED")
+    coords = data.get("coordinates", [])
 
-    try:
-        zone_id = ZoneModel.create(name=name, zone_type=zone_type, coordinates=coords, site_id=site_id)
-    except sqlite3.IntegrityError:
-        return jsonify({"success": False, "message": "Site does not exist."}), 400
-    for p in LIVE_PIPELINES:
-        p.reload_zones()
-    audit("ZONE_CREATED", "SPATIAL_RULES", f"Defined {zone_type} zone: {name}", str(zone_id))
+    zone_id = ZoneModel.create(name=name, zone_type=zone_type, coordinates=coords)
+    pipeline.reload_zones()
     return jsonify({"success": True, "zone_id": zone_id})
 
 @app.route("/zones/<int:zone_id>", methods=["DELETE"])
-@role_required(*ZONE_EDITOR_ROLES)
 def delete_zone(zone_id):
     deleted = ZoneModel.delete(zone_id)
-    for p in LIVE_PIPELINES:
-        p.reload_zones()
-    if deleted:
-        audit("ZONE_DELETED", "SPATIAL_RULES", f"Deleted zone #{zone_id}", str(zone_id))
-    return jsonify({"success": deleted}), (200 if deleted else 404)
+    pipeline.reload_zones()
+    return jsonify({"success": deleted})
 
 # ==============================================================================
 # Settings Endpoints
 # ==============================================================================
 
 @app.route("/settings", methods=["POST"])
-@role_required(*ADMIN_ROLES)
 def update_settings_route():
-    defaults = default_settings()
-    raw = {
-        "conf_thresh": request.form.get("conf_thresh", defaults["conf_thresh"]),
-        "iou_thresh": request.form.get("iou_thresh", defaults["iou_thresh"]),
-        "min_violation_frames": request.form.get("min_violation_frames", defaults["min_violation_frames"]),
-        "min_zone_frames": request.form.get("min_zone_frames", defaults["min_zone_frames"]),
-    }
-    try:
-        values = SafetyPipeline.validate_settings(
-            conf=raw["conf_thresh"], iou=raw["iou_thresh"],
-            min_v_frames=raw["min_violation_frames"], min_z_frames=raw["min_zone_frames"]
-        )
-    except ValueError as e:
-        flash(f"Settings not saved: {e}", "error")
-        return redirect(url_for("settings_view"))
+    conf_thresh = request.form.get("conf_thresh", "0.35")
+    iou_thresh = request.form.get("iou_thresh", "0.45")
+    min_violation_frames = request.form.get("min_violation_frames", "10")
+    min_zone_frames = request.form.get("min_zone_frames", "8")
 
-    SettingsModel.set("conf_thresh", values["conf"])
-    SettingsModel.set("iou_thresh", values["iou"])
-    SettingsModel.set("min_violation_frames", values["min_v_frames"])
-    SettingsModel.set("min_zone_frames", values["min_z_frames"])
+    SettingsModel.set("conf_thresh", conf_thresh)
+    SettingsModel.set("iou_thresh", iou_thresh)
+    SettingsModel.set("min_violation_frames", min_violation_frames)
+    SettingsModel.set("min_zone_frames", min_zone_frames)
 
-    for p in LIVE_PIPELINES:
-        p.update_settings(conf=values["conf"], iou=values["iou"],
-                          min_v_frames=values["min_v_frames"], min_z_frames=values["min_z_frames"])
+    pipeline.update_settings(
+        conf=float(conf_thresh),
+        iou=float(iou_thresh),
+        min_v_frames=int(min_violation_frames),
+        min_z_frames=int(min_zone_frames)
+    )
 
-    audit("SETTINGS_UPDATED", "SYSTEM_CONFIG",
-          f"Conf: {values['conf']}, IoU: {values['iou']}, MinVFrames: {values['min_v_frames']}, MinZFrames: {values['min_z_frames']}")
-    flash("Settings saved.", "success")
     return redirect(url_for("settings_view"))
+
+# ==============================================================================
+# Zone PPE Rules Configuration API
+# ==============================================================================
+
+@app.route("/api/zones/rules", methods=["GET", "POST"])
+def manage_zone_rules():
+    from safety.rule_engine import RuleEngine, DEFAULT_ZONE_RULES
+    rules_path = os.path.join(config.BASE_DIR, "safety", "zone_rules.json")
+    engine = RuleEngine(config_path=rules_path if os.path.exists(rules_path) else None)
+
+    if request.method == "POST":
+        data = request.get_json() or {}
+        if "zones" in data:
+            engine.load_from_dict(data)
+            engine.save_to_file(rules_path)
+            return jsonify({"success": True, "message": "Zone rules updated successfully", "zones": list(engine.rules.values())})
+        return jsonify({"success": False, "error": "Invalid zone rules payload"}), 400
+
+    return jsonify({
+        "version": "1.0.0",
+        "zones": list(engine.rules.values())
+    })
 
 # ==============================================================================
 # Data Export & Static File Delivery
 # ==============================================================================
 
-def csv_safe(value):
-    """Neutralizes spreadsheet formula injection in exported cells."""
-    text = "" if value is None else str(value)
-    if text and text[0] in ("=", "+", "-", "@", "\t", "\r"):
-        return "'" + text
-    return text
-
 @app.route("/api/incidents/export")
 def export_incidents_csv():
-    incidents = IncidentModel.get_all(limit=5000)
+    incidents = IncidentModel.get_all(limit=1000)
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["ID", "Incident Code", "Worker Label", "Violation Type", "Severity", "Confidence", "Site", "Timestamp", "Source", "Status", "Assigned Officer", "Resolution Note"])
+    writer.writerow(["ID", "Incident Code", "Worker Label", "Violation Type", "Severity", "Confidence", "Timestamp", "Source"])
 
     for inc in incidents:
-        writer.writerow([csv_safe(v) for v in (
+        writer.writerow([
             inc["id"],
             inc["incident_code"],
             inc["worker_label"],
             inc["violation_type"],
             inc["severity"],
             f"{inc['confidence']:.2f}",
-            inc.get("site_name") or "Default Site",
             inc["timestamp"],
-            inc["source"],
-            inc.get("status") or "OPEN",
-            inc.get("assigned_to") or "",
-            inc.get("resolution_note") or ""
-        )])
+            inc["source"]
+        ])
 
     return Response(
         output.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": f"attachment;filename=siteguard_safety_incidents_{datetime.datetime.now().strftime('%Y%m%d')}.csv"}
-    )
-
-@app.route("/api/violations/export")
-@app.route("/export_violations_csv")
-def export_violations_csv():
-    violations = ViolationModel.get_all(limit=5000)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["ID", "Violation Code", "Worker Label", "Violation Type", "Description", "Severity", "Confidence", "Site", "Timestamp", "Status", "Review Decision", "Reviewed By", "Reviewed At"])
-
-    for v in violations:
-        writer.writerow([csv_safe(x) for x in (
-            v["id"],
-            v["violation_code"],
-            v["worker_label"],
-            v["violation_type"],
-            v.get("description") or "",
-            v["severity"],
-            f"{v['confidence']:.2f}",
-            v.get("site_name") or "Construction Site",
-            v["timestamp"],
-            v.get("status") or "OPEN",
-            v.get("review_decision") or "PENDING",
-            v.get("reviewed_by") or "",
-            v.get("reviewed_at") or ""
-        )])
-
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": f"attachment;filename=siteguard_violations_{datetime.datetime.now().strftime('%Y%m%d')}.csv"}
+        headers={"Content-Disposition": f"attachment;filename=construction_safety_incidents_{datetime.datetime.now().strftime('%Y%m%d')}.csv"}
     )
 
 @app.route("/snapshots/<path:filename>")
@@ -1612,10 +1246,6 @@ def serve_snapshot(filename):
 def serve_output(filename):
     return send_from_directory(config.OUTPUTS_DIR, filename)
 
-@app.errorhandler(413)
-def too_large(_e):
-    return error_response("File is too large (limit 250 MB).", 413)
-
 if __name__ == "__main__":
-    print(f"[SiteGuard AI] Starting Construction Safety Monitoring App on http://{config.HOST}:{config.PORT}")
-    app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG, threaded=True)
+    print(f"[Server] Starting Construction Safety Monitoring App on http://127.0.0.1:{config.PORT}")
+    app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG)

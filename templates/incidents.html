@@ -57,15 +57,14 @@
       <thead>
         <tr>
           <th>Incident Code</th>
-          <th>Date &amp; Time</th>
-          <th>Severity</th>
-          <th>Type</th>
           <th>Worker</th>
-          <th>Zone</th>
-          <th>Root Cause</th>
-          <th>Status</th>
-          <th>Officer Assigned</th>
-          <th style="text-align: right;">Action</th>
+          <th>Violation Type</th>
+          <th>Description</th>
+          <th>Severity</th>
+          <th>Confidence</th>
+          <th>Source</th>
+          <th>Timestamp</th>
+          <th>Snapshot</th>
         </tr>
       </thead>
       <tbody>
@@ -139,7 +138,7 @@
               </div>
             </td>
           </tr>
-        {% endfor %}
+        {% endif %}
       </tbody>
     </table>
   </div>
@@ -148,16 +147,36 @@
 
 {% block scripts %}
 <script>
-function toggleIncidentDetails(id) {
-  const row = document.getElementById('details-row-' + id);
-  const chevron = document.getElementById('chevron-' + id);
-  if (!row) return;
-  const isHidden = (row.style.display === 'none');
-  row.style.display = isHidden ? 'table-row' : 'none';
-  if (chevron) {
-    chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-    chevron.style.transition = 'transform 0.15s ease';
-  }
+function applyFilters() {
+  const vType = document.getElementById('filter-violation-type').value;
+  const sev = document.getElementById('filter-severity').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+
+  const rows = document.querySelectorAll('#incidents-table-body tr');
+  let matchCount = 0;
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    const typeCell = row.children[2] ? row.children[2].innerText.trim() : '';
+    const sevCell = row.children[4] ? row.children[4].innerText.trim() : '';
+
+    const matchType = (vType === 'ALL' || typeCell === vType);
+    const matchSev = (sev === 'ALL' || sevCell.includes(sev));
+    const matchSearch = (!search || text.includes(search));
+
+    if (matchType && matchSev && matchSearch) {
+      row.style.display = '';
+      matchCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  document.getElementById('incidents-count-label').innerText = `Showing ${matchCount} matching incidents`;
+}
+
+function exportIncidentsCSV() {
+  window.location.href = '/api/incidents/export';
 }
 </script>
 {% endblock %}
