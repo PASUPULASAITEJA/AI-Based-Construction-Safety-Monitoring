@@ -1,180 +1,87 @@
 {% extends "base.html" %}
 
-{% block title %}Live Monitor{% endblock %}
-{% block page_title %}Live Monitor{% endblock %}
-{% block page_subtitle %}Real-time CV inference &amp; spatial zone monitoring{% endblock %}
-{% block page_body_class %}page-body-flush{% endblock %}
+{% block title %}Live Monitor | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}📹 Real-Time Live Monitoring Workstation{% endblock %}
+
+{% block top_actions %}
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <select id="camera-source-select" class="form-select" style="width: 210px; padding: 7px 12px; font-size: 13px;" onchange="switchCameraSource(this.value)">
+      <option value="webcam">📸 Hardware Webcam</option>
+      <option value="browser">🌐 Browser Camera (WebRTC)</option>
+      <option value="simulator">🏗️ Construction-PPE Simulator</option>
+    </select>
+    <button id="btn-camera-start" class="btn btn-primary" onclick="startCamera()">
+      ▶ Start Camera
+    </button>
+    <button id="btn-camera-stop" class="btn btn-danger" onclick="stopCamera()">
+      ⏹ Stop Camera
+    </button>
+  </div>
+{% endblock %}
 
 {% block content %}
-<div style="display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h)); overflow: hidden;">
-  <!-- Monitor Control Strip -->
-  <div style="height: 48px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;">
-    <!-- Left: Source Tabs -->
-    <div style="display: flex; align-items: center; gap: 6px;">
-      <button class="sg-btn sg-btn-sm sg-btn-primary" id="tab-hardware" onclick="switchSource('hardware')">
-        <i data-lucide="video"></i> Hardware Stream
-      </button>
-      <button class="sg-btn sg-btn-sm sg-btn-outline" id="tab-browser" onclick="switchSource('browser')">
-        <i data-lucide="camera"></i> Browser Camera
-      </button>
-      <button class="sg-btn sg-btn-sm sg-btn-outline" id="tab-simulator" onclick="switchSource('simulator')">
-        <i data-lucide="play-circle"></i> Simulator
-      </button>
+<div class="monitor-layout">
+  <!-- Left Column: Video Stream & Interactive Zone Canvas -->
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div class="card" style="padding: 12px; margin-bottom: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+          LIVE AI INFERENCE STREAM (YOLO + BYTETRACK + SPATIAL PPE)
+        </div>
+        <div id="live-stream-badge" class="badge badge-compliant">Camera Online</div>
+      </div>
+
+      <div class="video-feed-container" id="stream-wrapper">
+        <img id="live-video-stream" src="{{ url_for('video_feed') }}" alt="Live Monitoring Feed" class="video-stream-img">
+        <video id="browser-webcam-element" autoplay playsinline muted style="display: none;"></video>
+        <canvas id="browser-capture-canvas" style="display: none;"></canvas>
+        <canvas id="zone-drawing-canvas" class="zone-canvas-overlay"></canvas>
+      </div>
     </div>
 
-    <!-- Right: Zone & Inference Controls -->
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <select class="sg-select" id="monitor-cam-select" style="width: 180px; padding: 5px 8px; font-size: 11px;" onchange="changeCameraSource(this.value)">
-        {% for cam in cameras %}
-          <option value="{{ cam.id }}" {% if cam.status == 'ONLINE' %}selected{% endif %}>{{ cam.name }}</option>
-        {% else %}
-          <option value="0">Default Primary Camera</option>
-        {% endfor %}
-      </select>
+    <!-- Zone Drawing Control Bar -->
+    <div class="card" style="padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <strong style="font-size: 13px; color: var(--text-primary);">Zone Drawing:</strong>
+          <select id="zone-type-select" class="form-select" style="width: 140px; padding: 6px 10px; font-size: 12px;">
+            <option value="RESTRICTED">RESTRICTED</option>
+            <option value="HAZARD">HAZARD</option>
+            <option value="SAFE">SAFE</option>
+          </select>
+          <input type="text" id="zone-name-input" class="form-input" placeholder="Zone Name (e.g. Scaffolding)" style="width: 180px; padding: 6px 10px; font-size: 12px;">
+        </div>
 
-      <button class="sg-btn sg-btn-sm sg-btn-outline" id="btn-toggle-draw" onclick="toggleZoneDrawing()">
-        <i data-lucide="edit-3"></i> <span>Draw Zone</span>
-      </button>
+        <div style="display: flex; gap: 8px;">
+          <button id="btn-draw-mode" class="btn btn-sm btn-secondary" onclick="toggleDrawMode()">
+            ✏️ New Polygon
+          </button>
+          <button id="btn-save-zone" class="btn btn-sm btn-primary" onclick="saveCurrentZone()" disabled>
+            💾 Save Zone
+          </button>
+          <button id="btn-clear-draw" class="btn btn-sm btn-secondary" onclick="clearActiveDrawing()">
+            ❌ Cancel
+          </button>
+        </div>
+      </div>
 
-      {% if stream_active %}
-        <button class="sg-btn sg-btn-sm sg-btn-danger" id="btn-inference" onclick="toggleInference(false)">
-          <i data-lucide="square"></i> Stop Inference
-        </button>
-      {% else %}
-        <button class="sg-btn sg-btn-sm sg-btn-primary" id="btn-inference" onclick="toggleInference(true)">
-          <i data-lucide="play"></i> Start Inference
-        </button>
-      {% endif %}
+      <!-- Active Zones List -->
+      <div id="active-zones-container" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <!-- Dynamically rendered zones badges -->
+      </div>
     </div>
   </div>
 
-  <!-- Main Workstation Layout (3 Columns) -->
-  <div style="display: flex; flex: 1; min-height: 0; background: #000; position: relative;">
-    <!-- Left Panel: Zone Controls (Hidden by default, shown when Draw Zone active) -->
-    <div id="zone-panel" style="width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: none; flex-direction: column; padding: 14px; overflow-y: auto;">
-      <div style="font-size: 12px; font-weight: 600; color: var(--text-1); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-        <i data-lucide="shield"></i> Safety Zone Editor
-      </div>
-      <div class="sg-form-group">
-        <label class="sg-form-label">Zone Name</label>
-        <input type="text" class="sg-input text-xs" id="zone-name-input" placeholder="e.g. Scaffolding Hazard Zone">
-      </div>
-      <div class="sg-form-group">
-        <label class="sg-form-label">Zone Severity Type</label>
-        <select class="sg-select text-xs" id="zone-type-select">
-          <option value="RESTRICTED">RESTRICTED (Red)</option>
-          <option value="HAZARD">HAZARD (Yellow)</option>
-          <option value="SAFE">SAFE (Green)</option>
-        </select>
-      </div>
-      <div style="display: flex; gap: 6px; margin-bottom: 16px;">
-        <button class="sg-btn sg-btn-primary sg-btn-sm" style="flex: 1;" onclick="saveCurrentZone()">Save</button>
-        <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="clearZonePoints()">Clear</button>
-      </div>
-      <hr style="border: none; border-top: 1px solid var(--border); margin-bottom: 12px;">
-      <div style="font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 8px;">Existing Zones</div>
-      <div id="zone-list-container" style="display: flex; flex-direction: column; gap: 6px;">
-        {% for z in zones %}
-          <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-              <span class="sg-dot" style="background: {{ 'var(--red)' if z.zone_type == 'RESTRICTED' else 'var(--yellow)' if z.zone_type == 'HAZARD' else 'var(--green)' }};"></span>
-              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-1); font-weight: 500;">{{ z.name }}</span>
-            </div>
-            <button class="sg-btn sg-btn-ghost sg-btn-sm" style="padding: 2px 4px; color: var(--red);" onclick="deleteZone({{ z.id }})">
-              <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
-            </button>
-          </div>
-        {% else %}
-          <div class="text-xs text-3" style="text-align: center; padding: 12px 0;">No zones defined</div>
-        {% endfor %}
-      </div>
+  <!-- Right Column: Real-Time Worker Status Roster -->
+  <div class="card" style="padding: 18px; display: flex; flex-direction: column;">
+    <div class="card-title">
+      <span>👷 Tracked Personnel</span>
+      <span class="badge badge-low" id="worker-count-badge">0 Active</span>
     </div>
 
-    <!-- Center Panel: Video Feed & Real-time Canvas Overlay -->
-    <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #000;">
-      <div class="sg-feed-wrap" style="width: 100%; height: 100%; max-height: calc(100vh - 120px); border: none; border-radius: 0;">
-        <!-- Live Hardware Feed -->
-        <img id="monitor-feed" class="sg-feed-img" src="{{ url_for('video_feed') }}" alt="Live Feed" style="display: block;">
-        <!-- Browser WebRTC Video (Hidden by default) -->
-        <video id="browser-webcam" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
-        <!-- Overlay Canvas for BBoxes & Zones -->
-        <canvas id="cv-canvas" class="sg-feed-canvas"></canvas>
-
-        <!-- Live HUD Chips -->
-        <div class="sg-feed-hud">
-          <div class="sg-hud-chip"><i data-lucide="zap"></i>FPS: <span id="monitor-fps">24.5</span></div>
-          <div class="sg-hud-chip"><i data-lucide="users"></i>Workers: <span id="monitor-workers">{{ live_workers|length }}</span></div>
-          <div class="sg-hud-chip" style="color: var(--red);"><i data-lucide="alert-triangle"></i>Violations: <span id="monitor-violations">0</span></div>
-        </div>
-
-        <div class="sg-feed-live-badge" id="monitor-live-badge">
-          <span class="sg-dot sg-dot-pulse-red" style="width: 6px; height: 6px;"></span>
-          <span>LIVE CV STREAM</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Panel: Telemetry & Active Workers (260px) -->
-    <div style="width: 270px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
-      <!-- Active Workers Tab -->
-      <div style="padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-        <div style="font-size: 12px; font-weight: 600; color: var(--text-1); display: flex; align-items: center; gap: 6px;">
-          <i data-lucide="users"></i> Active Workers
-        </div>
-        <span class="sg-badge sg-badge-medium" id="workers-count-badge">{{ live_workers|length }}</span>
-      </div>
-
-      <div style="flex: 1; overflow-y: auto; padding: 12px;" id="live-workers-list">
-        {% for worker in live_workers %}
-          <div class="sg-card mb-2" style="padding: 10px; background: var(--surface-2);">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-              <span class="sg-worker-id">W-{{ worker.worker_id|default('01') }}</span>
-              <span class="sg-badge {{ 'sg-badge-resolved' if worker.compliance_rate|default(100) >= 80 else 'sg-badge-critical' }}">
-                {{ worker.compliance_rate|default(100) }}%
-              </span>
-            </div>
-            <div class="text-xs text-3 mono" style="margin-bottom: 6px;">
-              Zone: <span class="text-2">{{ worker.current_zone or 'General Yard' }}</span>
-            </div>
-            <div style="display: flex; gap: 4px; font-size: 10px; flex-wrap: wrap;">
-              <span class="sg-badge sg-badge-low" title="Helmet"><i data-lucide="check" style="color: var(--green);"></i> Helmet</span>
-              <span class="sg-badge sg-badge-low" title="Vest"><i data-lucide="check" style="color: var(--green);"></i> Vest</span>
-              <span class="sg-badge sg-badge-low" title="Boots"><i data-lucide="check" style="color: var(--green);"></i> Boots</span>
-            </div>
-          </div>
-        {% else %}
-          <div class="sg-empty" style="padding: 40px 10px;">
-            <i data-lucide="user-x" style="width: 32px; height: 32px; opacity: 0.35;"></i>
-            <p style="font-size: 11px; color: var(--text-3);">Awaiting worker observations in camera frame</p>
-          </div>
-        {% endfor %}
-      </div>
-
-      <!-- Detection Info Section -->
-      <div style="padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2);">
-        <div style="font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 8px;">Detection Telemetry</div>
-        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;" class="mono">
-          <div class="flex-between">
-            <span class="text-3">Model:</span>
-            <span class="text-1">{{ model_info.name }}</span>
-          </div>
-          <div class="flex-between">
-            <span class="text-3">Hardware:</span>
-            <span class="text-orange">{{ model_info.device }}</span>
-          </div>
-          <div class="flex-between">
-            <span class="text-3">Confidence:</span>
-            <span class="text-1">{{ config.confidence }}</span>
-          </div>
-          <div class="flex-between">
-            <span class="text-3">IoU Thresh:</span>
-            <span class="text-1">{{ config.iou }}</span>
-          </div>
-          <div class="flex-between">
-            <span class="text-3">Inference FPS:</span>
-            <span class="text-green" id="fps-display">24.5</span>
-          </div>
-        </div>
+    <div class="worker-status-panel" id="worker-roster-list">
+      <div style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
+        No workers currently detected in camera view.
       </div>
     </div>
   </div>
@@ -182,179 +89,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-let isDrawingZone = false;
-let zonePoints = [];
-let browserStream = null;
-let currentSource = 'hardware';
-
-// Toggle zone drawing panel & canvas interaction
-function toggleZoneDrawing() {
-  isDrawingZone = !isDrawingZone;
-  const panel = document.getElementById('zone-panel');
-  const btn = document.getElementById('btn-toggle-draw');
-  if (panel) panel.style.display = isDrawingZone ? 'flex' : 'none';
-  if (btn) {
-    btn.classList.toggle('sg-btn-primary', isDrawingZone);
-    btn.classList.toggle('sg-btn-outline', !isDrawingZone);
-  }
-  if (!isDrawingZone) clearZonePoints();
-}
-
-function clearZonePoints() {
-  zonePoints = [];
-  redrawCanvas();
-}
-
-// Canvas interaction for drawing polygons
-const canvas = document.getElementById('cv-canvas');
-if (canvas) {
-  canvas.addEventListener('click', (e) => {
-    if (!isDrawingZone) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
-    zonePoints.push([Math.round(x), Math.round(y)]);
-    redrawCanvas();
-  });
-}
-
-function redrawCanvas() {
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (zonePoints.length > 0) {
-    ctx.strokeStyle = '#F97316';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.2)';
-    ctx.beginPath();
-    ctx.moveTo(zonePoints[0][0], zonePoints[0][1]);
-    for (let i = 1; i < zonePoints.length; i++) {
-      ctx.lineTo(zonePoints[i][0], zonePoints[i][1]);
-    }
-    if (zonePoints.length >= 3) {
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.stroke();
-
-    // Draw handles
-    ctx.fillStyle = '#FFFFFF';
-    zonePoints.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-}
-
-// Save zone via API
-async function saveCurrentZone() {
-  if (zonePoints.length < 3) {
-    alert('Please click at least 3 points on the video to define a zone polygon.');
-    return;
-  }
-  const name = document.getElementById('zone-name-input').value.trim() || 'Zone ' + (new Date().toLocaleTimeString());
-  const zoneType = document.getElementById('zone-type-select').value;
-  try {
-    const res = await fetch('/zones', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, zone_type: zoneType, coordinates: zonePoints })
-    });
-    const json = await res.json();
-    if (json.success) {
-      alert('Zone saved successfully.');
-      window.location.reload();
-    } else {
-      alert('Error: ' + json.message);
-    }
-  } catch (e) {
-    alert('Error saving zone: ' + e);
-  }
-}
-
-// Delete zone via API
-async function deleteZone(zoneId) {
-  if (!confirm('Are you sure you want to delete this zone?')) return;
-  try {
-    const res = await fetch('/zones/' + zoneId, { method: 'DELETE' });
-    const json = await res.json();
-    if (json.success) window.location.reload();
-  } catch (e) {
-    alert('Delete error: ' + e);
-  }
-}
-
-// Switch video source
-async function switchSource(source) {
-  currentSource = source;
-  document.getElementById('tab-hardware').className = (source === 'hardware') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-outline';
-  document.getElementById('tab-browser').className = (source === 'browser') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-outline';
-  document.getElementById('tab-simulator').className = (source === 'simulator') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-outline';
-
-  const feedImg = document.getElementById('monitor-feed');
-  const webCam = document.getElementById('browser-webcam');
-
-  if (source === 'browser') {
-    feedImg.style.display = 'none';
-    webCam.style.display = 'block';
-    try {
-      browserStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      webCam.srcObject = browserStream;
-    } catch (e) {
-      alert('Could not access browser camera: ' + e);
-    }
-  } else {
-    if (browserStream) {
-      browserStream.getTracks().forEach(t => t.stop());
-      browserStream = null;
-    }
-    webCam.style.display = 'none';
-    feedImg.style.display = 'block';
-  }
-}
-
-// Start / Stop inference
-async function toggleInference(start) {
-  const url = start ? '/camera/start' : '/camera/stop';
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source: 0 })
-    });
-    const json = await res.json();
-    if (json.success) {
-      window.location.reload();
-    } else {
-      alert('Inference toggle error: ' + json.message);
-    }
-  } catch (e) {
-    alert('Inference error: ' + e);
-  }
-}
-
-// Polling telemetry
-setInterval(async () => {
-  try {
-    const res = await fetch('/api/detections/frame');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.fps !== undefined) {
-      const fpsStr = Number(data.fps).toFixed(1);
-      document.getElementById('monitor-fps').textContent = fpsStr;
-      document.getElementById('fps-display').textContent = fpsStr;
-    }
-    if (data.worker_count !== undefined) {
-      document.getElementById('monitor-workers').textContent = data.worker_count;
-      document.getElementById('workers-count-badge').textContent = data.worker_count;
-    }
-    if (data.violation_count !== undefined) {
-      document.getElementById('monitor-violations').textContent = data.violation_count;
-    }
-  } catch (e) {}
-}, 2000);
-</script>
+<script src="{{ url_for('static', filename='js/zones.js') }}"></script>
+<script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
 {% endblock %}

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SiteZonePPERulesConfig",
+  "description": "JSON schema for site-configurable per-zone PPE safety compliance rules",
+  "type": "object",
+  "required": ["version", "zones"],
+  "properties": {
+    "version": { "type": "string", "default": "1.0.0" },
+    "last_updated": { "type": "string" },
+    "zones": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ZoneRule"
+      }
+    }
+  },
+  "definitions": {
+    "ZoneRule": {
+      "type": "object",
+      "required": ["zone_id", "zone_name", "risk_level", "mandatory_ppe"],
+      "properties": {
+        "zone_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+        "zone_name": { "type": "string" },
+        "description": { "type": "string" },
+        "risk_level": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "polygon_coords": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "mandatory_ppe": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "helmet",
+              "goggles",
+              "earmuff",
+              "vest",
+              "safety_pants",
+              "gloves",
+              "boots",
+              "harness"
+            ]
+          }
+        },
+        "alert_cooldown_seconds": { "type": "integer", "default": 30 },
+        "grace_period_seconds": { "type": "integer", "default": 3 }
+      }
+    }
+  }
+}

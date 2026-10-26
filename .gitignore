@@ -16,7 +16,11 @@ runs/
 yolov8*.pt
 
 # Local dataset (13.5 GB)
-dataset/
+dataset/*
+!dataset/*.yaml
+!dataset/data_17classes.yaml
+construction/images/
+construction/labels/
 dataset_tools/inspection_report.txt
 
 # Media & Storage (ignore runtime artifacts)

@@ -1,197 +1,316 @@
 """
 CV Module: Visual Frame Annotator
-Renders high-visibility bounding boxes, PPE status badges, zones, and alert banners over OpenCV frames.
+=================================
+Renders high-visibility bounding boxes, 8-category PPE checklist panels,
+temporal compliance badges (green check, red X, grey ?), zones, and dashboard HUDs.
 """
+
 import cv2
 import numpy as np
+from typing import Dict, List, Any, Optional
 
-# BGR Color Palette
-COLOR_COMPLIANT = (46, 204, 113)    # Emerald Green
-COLOR_WARNING = (243, 156, 18)      # Amber / Orange
-COLOR_VIOLATION = (40, 40, 235)     # Crimson Red
-COLOR_RESTRICTED = (255, 120, 0)    # Azure Blue / Cyan
-COLOR_HAZARD = (0, 69, 255)         # Bright Orange-Red
-COLOR_TEXT = (255, 255, 255)
-COLOR_DARK_BG = (20, 24, 30)
+# Color Palette (BGR)
+COLOR_COMPLIANT = (46, 204, 113)     # Emerald Green
+COLOR_WARNING = (243, 156, 18)       # Amber / Orange
+COLOR_VIOLATION = (40, 40, 235)      # Crimson Red
+COLOR_UNCERTAIN = (140, 150, 160)    # Cool Grey
+COLOR_DARK_PANEL = (15, 20, 26)      # Slate Dark Panel
+COLOR_TEXT_WHITE = (255, 255, 255)
+COLOR_TEXT_MUTED = (160, 175, 190)
 
-def _violation_field(v, key):
-    """Violations are rule dicts ({"type", "severity", ...}); tolerate plain description strings too."""
-    if isinstance(v, dict):
-        return str(v.get(key, ""))
-    return str(v)
+PPE_CHECKLIST_CONFIG = [
+    {"key": "helmet", "abbr": "HLM", "icon": "H"},
+    {"key": "goggles", "abbr": "GGL", "icon": "G"},
+    {"key": "earmuff", "abbr": "EAR", "icon": "E"},
+    {"key": "vest", "abbr": "VST", "icon": "V"},
+    {"key": "harness", "abbr": "HAR", "icon": "R"},
+    {"key": "safety_pants", "abbr": "PNT", "icon": "P"},
+    {"key": "gloves", "abbr": "GLV", "icon": "L"},
+    {"key": "boots", "abbr": "BOT", "icon": "B"}
+]
+
 
 class FrameAnnotator:
     def __init__(self):
         pass
 
-    def draw_zones(self, frame, zones):
-        """Draws semi-transparent polygon zones."""
+    def draw_zones(self, frame: np.ndarray, zones: List[Dict[str, Any]]) -> np.ndarray:
+        """Draws semi-transparent polygon zones with styled borders."""
         overlay = frame.copy()
         for z in zones:
             pts = z["points"]
-            z_type = z["type"]
-            z_name = z["name"]
+            z_type = z.get("type", "SAFE")
+            z_name = z.get("name", "Zone")
 
-            if z_type == "HAZARD":
+            if z_type in ["HAZARD", "CRITICAL"]:
                 fill_color = (0, 0, 180)
                 border_color = (0, 50, 255)
-            elif z_type == "RESTRICTED":
+            elif z_type in ["RESTRICTED", "HIGH"]:
                 fill_color = (180, 80, 0)
                 border_color = (255, 140, 0)
             else:
                 fill_color = (40, 140, 40)
                 border_color = (50, 220, 50)
 
-            # Fill polygon
             cv2.fillPoly(overlay, [pts], fill_color)
-            # Outline
             cv2.polylines(frame, [pts], isClosed=True, color=border_color, thickness=2)
 
-            # Draw zone label at first vertex
             p1 = tuple(pts[0][0])
             cv2.putText(frame, f"[{z_type}] {z_name}", (p1[0] + 5, p1[1] - 8),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, border_color, 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, border_color, 2, cv2.LINE_AA)
 
-        # Blend overlay
-        cv2.addWeighted(overlay, 0.25, frame, 0.75, 0, frame)
+        cv2.addWeighted(overlay, 0.22, frame, 0.78, 0, frame)
         return frame
 
-    def draw_worker(self, frame, worker):
-        """Draws worker bounding box, associated PPE item boxes, and status badges."""
-        x1, y1, x2, y2 = worker["bbox"]
-        label = worker.get("label", f"Worker #{worker.get('worker_id', 1)}")
-        has_helmet = worker.get("helmet", False)
-        has_vest = worker.get("vest", False)
-        violations = worker.get("violations", [])
-        status = worker.get("status", "COMPLIANT")
-        zone_type = worker.get("zone_type", "SAFE")
-        associated_items = worker.get("associated_items", {})
+    def draw_ppe_checklist_panel(
+        self,
+        frame: np.ndarray,
+        panel_x: int,
+        panel_y: int,
+        worker: Dict[str, Any]
+    ) -> None:
+        """
+        Renders a compact, sleek 8-category PPE checklist panel next to the worker:
+        - 8 items: [HLM, GGL, EAR, VST, HAR, PNT, GLV, BOT]
+        - Green checkmark (v) = detected
+        - Red cross (x) = missing
+        - Grey question mark (?) = uncertain
+        - Compliance score % badge
+        """
+        h_frame, w_frame = frame.shape[:2]
+        panel_w = 110
+        item_h = 16
+        header_h = 24
+        panel_h = header_h + (len(PPE_CHECKLIST_CONFIG) * item_h) + 6
 
-        # Determine box color
-        if "CRITICAL" in status or any("CRITICAL" in _violation_field(v, "severity") for v in violations):
-            box_color = (0, 0, 255)
-        elif violations:
+        # Keep panel inside frame boundaries
+        if panel_x + panel_w > w_frame - 5:
+            panel_x = max(5, panel_x - panel_w - int(worker["bbox"][2] - worker["bbox"][0]) - 10)
+        panel_y = max(5, min(h_frame - panel_h - 5, panel_y))
+
+        # 1. Semi-transparent dark glass background
+        overlay = frame.copy()
+        cv2.rectangle(
+            overlay,
+            (panel_x, panel_y),
+            (panel_x + panel_w, panel_y + panel_h),
+            COLOR_DARK_PANEL,
+            -1
+        )
+        cv2.addWeighted(overlay, 0.85, frame, 0.15, 0, frame)
+        cv2.rectangle(
+            frame,
+            (panel_x, panel_y),
+            (panel_x + panel_w, panel_y + panel_h),
+            (50, 65, 80),
+            1
+        )
+
+        # 2. Header: Compliance Score Badge
+        score_val = worker.get("compliance_score", 0.0)
+        score_pct = int(round(score_val * 100)) if score_val <= 1.0 else int(score_val)
+
+        if score_pct >= 80:
+            badge_color = COLOR_COMPLIANT
+        elif score_pct >= 50:
+            badge_color = COLOR_WARNING
+        else:
+            badge_color = COLOR_VIOLATION
+
+        # Header background
+        cv2.rectangle(
+            frame,
+            (panel_x, panel_y),
+            (panel_x + panel_w, panel_y + header_h),
+            (25, 33, 44),
+            -1
+        )
+        cv2.putText(
+            frame,
+            f"PPE {score_pct}%",
+            (panel_x + 8, panel_y + 16),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            badge_color,
+            1,
+            cv2.LINE_AA
+        )
+
+        # 3. 8 PPE checklist items
+        curr_y = panel_y + header_h + 12
+        for item in PPE_CHECKLIST_CONFIG:
+            key = item["key"]
+            abbr = item["abbr"]
+            val = worker.get(key, False)
+
+            if val is True or val == "compliant":
+                mark = "[v]"
+                mark_color = COLOR_COMPLIANT
+            elif val == "uncertain" or val == "?":
+                mark = "[?]"
+                mark_color = COLOR_UNCERTAIN
+            else:
+                mark = "[x]"
+                mark_color = COLOR_VIOLATION
+
+            # Item abbreviation label
+            cv2.putText(
+                frame,
+                abbr,
+                (panel_x + 8, curr_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.33,
+                COLOR_TEXT_MUTED,
+                1,
+                cv2.LINE_AA
+            )
+            # Status mark
+            cv2.putText(
+                frame,
+                mark,
+                (panel_x + 65, curr_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.35,
+                mark_color,
+                1,
+                cv2.LINE_AA
+            )
+            curr_y += item_h
+
+    def draw_worker(self, frame: np.ndarray, worker: Dict[str, Any]) -> np.ndarray:
+        """Renders corner-bracket worker box and triggers adjacent checklist panel."""
+        x1, y1, x2, y2 = [int(v) for v in worker["bbox"]]
+        label = worker.get("label", worker.get("worker_id", "Worker"))
+        score_val = worker.get("compliance_score", 0.0)
+        score_pct = int(round(score_val * 100)) if score_val <= 1.0 else int(score_val)
+        violations = worker.get("violations", [])
+
+        # Color based on compliance & violations
+        if violations or score_pct < 50:
             box_color = COLOR_VIOLATION
-        elif not has_helmet or not has_vest or zone_type != "SAFE":
+        elif score_pct < 80:
             box_color = COLOR_WARNING
         else:
             box_color = COLOR_COMPLIANT
 
-        # 1. Main Worker Bounding Box with corner highlights
+        # Main bounding box
         cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
-        corner_len = min(20, (x2 - x1) // 4, (y2 - y1) // 4)
-        thickness = 4
+
+        # Corner brackets
+        c_len = min(18, (x2 - x1) // 4, (y2 - y1) // 4)
+        th = 3
         # Top-left
-        cv2.line(frame, (x1, y1), (x1 + corner_len, y1), box_color, thickness)
-        cv2.line(frame, (x1, y1), (x1, y1 + corner_len), box_color, thickness)
+        cv2.line(frame, (x1, y1), (x1 + c_len, y1), box_color, th)
+        cv2.line(frame, (x1, y1), (x1, y1 + c_len), box_color, th)
         # Top-right
-        cv2.line(frame, (x2, y1), (x2 - corner_len, y1), box_color, thickness)
-        cv2.line(frame, (x2, y1), (x2, y1 + corner_len), box_color, thickness)
+        cv2.line(frame, (x2, y1), (x2 - c_len, y1), box_color, th)
+        cv2.line(frame, (x2, y1), (x2, y1 + c_len), box_color, th)
         # Bottom-left
-        cv2.line(frame, (x1, y2), (x1 + corner_len, y2), box_color, thickness)
-        cv2.line(frame, (x1, y2), (x1, y2 - corner_len), box_color, thickness)
+        cv2.line(frame, (x1, y2), (x1 + c_len, y2), box_color, th)
+        cv2.line(frame, (x1, y2), (x1, y2 - c_len), box_color, th)
         # Bottom-right
-        cv2.line(frame, (x2, y2), (x2 - corner_len, y2), box_color, thickness)
-        cv2.line(frame, (x2, y2), (x2, y2 - corner_len), box_color, thickness)
+        cv2.line(frame, (x2, y2), (x2 - c_len, y2), box_color, th)
+        cv2.line(frame, (x2, y2), (x2, y2 - c_len), box_color, th)
 
-        # 2. Draw Associated PPE item boxes (Helmet / Vest)
-        if associated_items:
-            h_box = associated_items.get("HEAD_box")
-            if h_box and has_helmet:
-                hx1, hy1, hx2, hy2 = h_box
-                cv2.rectangle(frame, (hx1, hy1), (hx2, hy2), (50, 220, 50), 1)
-                cv2.putText(frame, "Helmet", (hx1, max(12, hy1 - 3)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (50, 220, 50), 1, cv2.LINE_AA)
+        # Worker Label Header Banner
+        header_text = f"{label} ({score_pct}%)"
+        text_sz, _ = cv2.getTextSize(header_text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+        tw, th_sz = text_sz
+        by1 = max(0, y1 - th_sz - 10)
+        cv2.rectangle(frame, (x1, by1), (x1 + tw + 14, y1), box_color, -1)
+        cv2.putText(
+            frame,
+            header_text,
+            (x1 + 6, y1 - 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            COLOR_TEXT_WHITE,
+            1,
+            cv2.LINE_AA
+        )
 
-            v_box = associated_items.get("VISIBILITY_box")
-            if v_box and has_vest:
-                vx1, vy1, vx2, vy2 = v_box
-                cv2.rectangle(frame, (vx1, vy1), (vx2, vy2), (0, 240, 255), 1)
-                cv2.putText(frame, "Vest", (vx1, max(12, vy1 - 3)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 240, 255), 1, cv2.LINE_AA)
-
-        # 3. Worker Label Header
-        h_icon = "H:OK" if has_helmet else "H:NO"
-        v_icon = "V:OK" if has_vest else "V:NO"
-        badge_str = f"{label} | {h_icon} {v_icon}"
-        if zone_type != "SAFE":
-            badge_str += f" | {zone_type}"
-
-        badge_w = max(180, len(badge_str) * 9)
-        badge_h = 24
-        by1 = max(0, y1 - badge_h)
-        by2 = y1
-
-        cv2.rectangle(frame, (x1, by1), (x1 + badge_w, by2), box_color, -1)
-        cv2.putText(frame, badge_str, (x1 + 6, by2 - 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
-
-        # 4. Violation Banner if active
+        # Violation banner under box if any
         if violations:
-            v_desc = ", ".join(_violation_field(v, "type") for v in violations)
-            v_h = 20
-            cv2.rectangle(frame, (x1, y2), (x1 + badge_w, y2 + v_h), (0, 0, 200), -1)
-            cv2.putText(frame, f"! {v_desc}", (x1 + 4, y2 + v_h - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+            v_desc = ", ".join([v.get("missing_item", "Violation") for v in violations[:2]])
+            cv2.rectangle(frame, (x1, y2), (x1 + tw + 14, y2 + 18), (0, 0, 200), -1)
+            cv2.putText(
+                frame,
+                f"! {v_desc}",
+                (x1 + 4, y2 + 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.38,
+                COLOR_TEXT_WHITE,
+                1,
+                cv2.LINE_AA
+            )
+
+        # Render adjacent 8-item PPE checklist panel next to bounding box
+        panel_x = x2 + 6
+        panel_y = y1
+        self.draw_ppe_checklist_panel(frame, panel_x, panel_y, worker)
 
         return frame
 
-    def draw_dashboard_hud(self, frame, fps=0, worker_count=0, violation_count=0):
-        """Draws a sleek status HUD in the top-left of the stream."""
-        h, w, _ = frame.shape
-        hud_w = 340
+    def draw_dashboard_hud(
+        self,
+        frame: np.ndarray,
+        fps: float = 0.0,
+        worker_count: int = 0,
+        violation_count: int = 0
+    ) -> np.ndarray:
+        """Top-left HUD statistics display."""
+        hud_w = 360
         hud_h = 36
         overlay = frame.copy()
-        cv2.rectangle(overlay, (10, 10), (10 + hud_w, 10 + hud_h), (15, 20, 26), -1)
-        cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
-        cv2.rectangle(frame, (10, 10), (10 + hud_w, 10 + hud_h), (60, 75, 90), 1)
+        cv2.rectangle(overlay, (10, 10), (10 + hud_w, 10 + hud_h), COLOR_DARK_PANEL, -1)
+        cv2.addWeighted(overlay, 0.80, frame, 0.20, 0, frame)
+        cv2.rectangle(frame, (10, 10), (10 + hud_w, 10 + hud_h), (55, 70, 85), 1)
 
-        if fps > 0:
-            hud_text = f"FPS: {fps:.1f} | Workers: {worker_count} | Violations: {violation_count}"
-        else:
-            hud_text = f"SAFETY AUDIT | Workers: {worker_count} | Violations: {violation_count}"
-
-        cv2.putText(frame, hud_text, (20, 34),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 240, 255), 1, cv2.LINE_AA)
+        fps_str = f"FPS: {fps:.1f} | " if fps > 0 else ""
+        hud_text = f"{fps_str}Workers: {worker_count} | Violations: {violation_count}"
+        cv2.putText(
+            frame,
+            hud_text,
+            (20, 34),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.46,
+            (0, 230, 255),
+            1,
+            cv2.LINE_AA
+        )
         return frame
 
-    def annotate(self, frame, workers, zones=None, fps=0, violations_summary=None):
-        """
-        Master annotation pipeline.
-        """
+    def annotate(
+        self,
+        frame: np.ndarray,
+        workers: List[Dict[str, Any]],
+        zones: Optional[List[Dict[str, Any]]] = None,
+        fps: float = 0.0
+    ) -> np.ndarray:
+        """Master annotation pipeline."""
         out_frame = frame.copy()
         if zones:
             out_frame = self.draw_zones(out_frame, zones)
 
-        active_violations_count = 0
+        active_violations = 0
         for w in workers:
             if w.get("violations"):
-                active_violations_count += len(w["violations"])
+                active_violations += len(w["violations"])
+            elif w.get("compliance_score", 1.0) < 0.8:
+                active_violations += 1
             out_frame = self.draw_worker(out_frame, w)
 
         out_frame = self.draw_dashboard_hud(
             out_frame,
             fps=fps,
             worker_count=len(workers),
-            violation_count=active_violations_count
+            violation_count=active_violations
         )
         return out_frame
 
-# Module-level convenience singleton and helper
-_default_annotator = FrameAnnotator()
 
-def draw_hud_and_detections(frame, workers, zones=None, fps=0.0, frame_num=0):
-    """Convenience functional wrapper around FrameAnnotator."""
-    formatted_zones = []
-    if zones:
-        for z in zones:
-            coords = z.get("coordinates") or z.get("points")
-            if coords:
-                pts = np.array(coords, np.int32).reshape((-1, 1, 2))
-                formatted_zones.append({
-                    "points": pts,
-                    "type": z.get("zone_type") or z.get("type", "RESTRICTED"),
-                    "name": z.get("name", "Zone")
-                })
-    return _default_annotator.annotate(frame, workers, zones=formatted_zones, fps=fps)
+def draw_hud_and_detections(frame, workers, zones=None, fps=0.0):
+    """Functional wrapper for FrameAnnotator."""
+    annotator = FrameAnnotator()
+    return annotator.annotate(frame, workers, zones=zones, fps=fps)
 

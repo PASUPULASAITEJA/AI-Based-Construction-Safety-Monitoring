@@ -1,7 +1,4 @@
 flask>=3.0.0
-fastapi>=0.110.0
-uvicorn>=0.28.0
-python-multipart>=0.0.9
 ultralytics>=8.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
@@ -9,4 +6,6 @@ pillow>=9.5.0
 torch>=2.0.0
 torchvision>=0.15.0
 pyyaml>=6.0
-pytest>=8.0.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+scikit-learn>=1.2.0

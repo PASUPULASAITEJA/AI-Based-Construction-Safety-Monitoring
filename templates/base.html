@@ -3,220 +3,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Operations Overview{% endblock %} — SiteGuard AI</title>
-  
-  <!-- Typography: Inter & JetBrains Mono -->
+  <title>{% block title %}AI Construction Safety Monitor{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  
-  <!-- Page-specific Head Scripts (e.g. Chart.js) -->
-  {% block head_scripts %}{% endblock %}
-  
-  <!-- SiteGuard Industrial Design System CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/siteguard.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <a href="{{ url_for('dashboard_view') }}" class="sg-logo">
-        <div class="sg-logo-icon">
-          <i data-lucide="hard-hat"></i>
-        </div>
-        <div class="sg-logo-text">
-          <div class="sg-brand-name">SiteGuard <span>AI</span></div>
-          <div class="sg-brand-sub">Safety Intelligence Platform</div>
-        </div>
-      </a>
 
-      <nav class="sg-nav">
-        <!-- MONITORING -->
-        <div class="sg-nav-section">
-          <div class="sg-nav-label">Monitoring</div>
-          <a href="{{ url_for('dashboard_view') }}" class="sg-nav-item {% if request.path == '/' %}active{% endif %}">
-            <i data-lucide="layout-dashboard"></i>
-            <span>Overview</span>
-          </a>
-          <a href="{{ url_for('monitor_view') }}" class="sg-nav-item {% if '/monitor' in request.path %}active{% endif %}">
-            <i data-lucide="video"></i>
-            <span>Live Monitor</span>
-          </a>
-          <a href="{{ url_for('video_analysis_view') }}" class="sg-nav-item {% if '/video-analysis' in request.path %}active{% endif %}">
-            <i data-lucide="film"></i>
-            <span>Video Analysis</span>
-          </a>
-          <a href="{{ url_for('image_analysis_view') }}" class="sg-nav-item {% if '/image-analysis' in request.path %}active{% endif %}">
-            <i data-lucide="image"></i>
-            <span>Image Inspect</span>
-          </a>
-        </div>
-
-        <!-- SAFETY -->
-        <div class="sg-nav-section">
-          <div class="sg-nav-label">Safety</div>
-          <a href="{{ url_for('violations_view') }}" class="sg-nav-item {% if '/violations' in request.path %}active{% endif %}">
-            <i data-lucide="alert-triangle"></i>
-            <span>Violations</span>
-            {% set v_cnt = violation_count if violation_count is defined else (today_violations_count if today_violations_count is defined else (stats.violations_today if stats is defined and stats.violations_today is defined else 0)) %}
-            {% if v_cnt and v_cnt > 0 %}
-              <span class="sg-nav-badge danger">{{ v_cnt }}</span>
-            {% endif %}
-          </a>
-          <a href="{{ url_for('alerts_view') }}" class="sg-nav-item {% if '/alerts' in request.path %}active{% endif %}">
-            <i data-lucide="bell"></i>
-            <span>Alerts</span>
-            {% set a_cnt = alert_count if alert_count is defined else (open_alerts_count if open_alerts_count is defined else (stats.open_alerts if stats is defined and stats.open_alerts is defined else 0)) %}
-            {% if a_cnt and a_cnt > 0 %}
-              <span class="sg-nav-badge warning">{{ a_cnt }}</span>
-            {% endif %}
-          </a>
-          <a href="{{ url_for('incidents_view') }}" class="sg-nav-item {% if '/incidents' in request.path %}active{% endif %}">
-            <i data-lucide="clipboard-list"></i>
-            <span>Incidents</span>
-          </a>
-          <a href="{{ url_for('workers_view') }}" class="sg-nav-item {% if '/workers' in request.path %}active{% endif %}">
-            <i data-lucide="users"></i>
-            <span>Workers</span>
-          </a>
-        </div>
-
-        <!-- INFRASTRUCTURE -->
-        <div class="sg-nav-section">
-          <div class="sg-nav-label">Infrastructure</div>
-          <a href="{{ url_for('sites_view') }}" class="sg-nav-item {% if '/sites' in request.path %}active{% endif %}">
-            <i data-lucide="map-pin"></i>
-            <span>Sites &amp; Zones</span>
-          </a>
-          <a href="{{ url_for('cameras_view') }}" class="sg-nav-item {% if '/cameras' in request.path %}active{% endif %}">
-            <i data-lucide="camera"></i>
-            <span>Cameras</span>
-          </a>
-          <a href="{{ url_for('analytics_view') }}" class="sg-nav-item {% if '/analytics' in request.path %}active{% endif %}">
-            <i data-lucide="bar-chart-2"></i>
-            <span>Analytics</span>
-          </a>
-          <a href="{{ url_for('reports_view') }}" class="sg-nav-item {% if '/reports' in request.path %}active{% endif %}">
-            <i data-lucide="file-text"></i>
-            <span>Reports</span>
-          </a>
-        </div>
-
-        <!-- SYSTEM -->
-        <div class="sg-nav-section">
-          <div class="sg-nav-label">System</div>
-          <a href="{{ url_for('model_view') }}" class="sg-nav-item {% if '/model' in request.path %}active{% endif %}">
-            <i data-lucide="cpu"></i>
-            <span>AI Model</span>
-          </a>
-          <a href="{{ url_for('insights_view') }}" class="sg-nav-item {% if '/insights' in request.path %}active{% endif %}">
-            <i data-lucide="lightbulb"></i>
-            <span>AI Insights</span>
-          </a>
-          <a href="{{ url_for('notifications_view') }}" class="sg-nav-item {% if '/notifications' in request.path %}active{% endif %}">
-            <i data-lucide="bell-dot"></i>
-            <span>Notifications</span>
-            {% set n_cnt = notif_count if notif_count is defined else (unread_notifs_count if unread_notifs_count is defined else 0) %}
-            {% if n_cnt and n_cnt > 0 %}
-              <span class="sg-nav-badge info">{{ n_cnt }}</span>
-            {% endif %}
-          </a>
-          <a href="{{ url_for('audit_logs_view') }}" class="sg-nav-item {% if '/audit-logs' in request.path %}active{% endif %}">
-            <i data-lucide="shield-check"></i>
-            <span>Audit Trail</span>
-          </a>
-          <a href="{{ url_for('system_health_view') }}" class="sg-nav-item {% if '/system-health' in request.path %}active{% endif %}">
-            <i data-lucide="activity"></i>
-            <span>System Health</span>
-          </a>
-          <a href="{{ url_for('settings_view') }}" class="sg-nav-item {% if '/settings' in request.path %}active{% endif %}">
-            <i data-lucide="settings"></i>
-            <span>Settings</span>
-          </a>
-        </div>
-      </nav>
-
-      <!-- Sidebar User Profile -->
-      <div class="sg-user-area">
-        <div class="sg-avatar">
-          {{ (session.get('user', 'SA') if session is defined else 'SA')[:2]|upper }}
-        </div>
-        <div class="sg-user-info">
-          <div class="sg-user-name">{{ session.get('user_name', 'Safety Officer') if session is defined else 'Safety Officer' }}</div>
-          <div class="sg-user-role">Operations Lead</div>
-        </div>
-        <a href="#" class="sg-logout-btn" title="Logout" onclick="return false;">
-          <i data-lucide="log-out"></i>
-        </a>
+  <!-- Left Navigation Sidebar -->
+  <aside class="app-sidebar">
+    <div class="brand-header">
+      <div class="brand-icon">🛡️</div>
+      <div>
+        <div class="brand-title">MindGuard AI</div>
+        <div class="brand-subtitle">Construction Safety</div>
       </div>
-    </aside>
+    </div>
 
-    <!-- Topbar -->
-    <header class="topbar">
-      <div class="sg-page-title">
-        <h1>{% block page_title %}Operations Overview{% endblock %}</h1>
-        <p>{% block page_subtitle %}Real-time construction site safety monitoring{% endblock %}</p>
-      </div>
-
-      <div class="sg-topbar-right">
-        <!-- Site Selector -->
-        <select class="sg-site-select" id="global-site-selector" onchange="window.location.search = '?site_id=' + this.value">
-          <option value="">All Sites (Global)</option>
-          {% if all_sites is defined %}
-            {% for s in all_sites %}
-              <option value="{{ s.id }}" {% if request.args.get('site_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
-            {% endfor %}
-          {% elif sites is defined %}
-            {% for s in sites %}
-              <option value="{{ s.id }}" {% if request.args.get('site_id')|string == s.id|string %}selected{% endif %}>{{ s.name }}</option>
-            {% endfor %}
-          {% endif %}
-        </select>
-
-        <!-- System Online Status Chip -->
-        <div class="sg-status-chip online" id="global-status-chip">
-          <span class="sg-dot sg-dot-pulse-green"></span>
-          <span>System Online</span>
-        </div>
-
-        <!-- Notification Bell -->
-        <a href="{{ url_for('notifications_view') }}" class="sg-btn sg-btn-outline sg-btn-icon" title="Notifications" style="position: relative;">
-          <i data-lucide="bell"></i>
-          {% set n_cnt = notif_count if notif_count is defined else (unread_notifs_count if unread_notifs_count is defined else 0) %}
-          {% if n_cnt and n_cnt > 0 %}
-            <span style="position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; background: var(--orange); border-radius: 50%;"></span>
-          {% endif %}
+    <ul class="nav-links">
+      <li class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+        <a href="{{ url_for('dashboard_view') }}" id="nav-dashboard">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
         </a>
+      </li>
+      <li class="nav-item {% if active_page == 'monitor' %}active{% endif %}">
+        <a href="{{ url_for('monitor_view') }}" id="nav-monitor">
+          <span class="nav-icon">📹</span>
+          <span>Live Monitor</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'upload' %}active{% endif %}">
+        <a href="{{ url_for('upload_view') }}" id="nav-upload">
+          <span class="nav-icon">📁</span>
+          <span>Upload Studio</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'incidents' %}active{% endif %}">
+        <a href="{{ url_for('incidents_view') }}" id="nav-incidents">
+          <span class="nav-icon">🚨</span>
+          <span>Incident Log</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'analytics' %}active{% endif %}">
+        <a href="{{ url_for('analytics_view') }}" id="nav-analytics">
+          <span class="nav-icon">📈</span>
+          <span>Analytics</span>
+        </a>
+      </li>
+      <li class="nav-item {% if active_page == 'settings' %}active{% endif %}">
+        <a href="{{ url_for('settings_view') }}" id="nav-settings">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </a>
+      </li>
+    </ul>
 
-        <!-- User Chip -->
-        <div class="sg-avatar" style="width: 32px; height: 32px; font-size: 11px;">
-          {{ (session.get('user', 'SA') if session is defined else 'SA')[:2]|upper }}
-        </div>
+    <div class="sidebar-footer">
+      <span>AI Engine Active</span>
+      <div class="status-dot" title="YOLO + ByteTrack Online"></div>
+    </div>
+  </aside>
+
+  <!-- Main Wrapper -->
+  <div class="main-wrapper">
+    <header class="top-navbar">
+      <div class="page-header-title">
+        {% block page_title %}Safety Monitoring Dashboard{% endblock %}
+      </div>
+      <div class="top-actions">
+        {% block top_actions %}{% endblock %}
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="main-content">
-      <div class="page-body {% block page_body_class %}{% endblock %}">
-        {% block content %}{% endblock %}
-      </div>
+    <main class="content-container">
+      {% block content %}{% endblock %}
     </main>
   </div>
 
-  <!-- Lucide Icon Initialization -->
-  <script>
-    if (window.lucide) {
-      lucide.createIcons();
-    }
-  </script>
+  <!-- Snapshot Viewer Modal -->
+  <div id="snapshot-modal" class="modal-backdrop" onclick="closeSnapshotModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeSnapshotModal()">&times;</button>
+      <h3 id="modal-incident-title" style="margin-bottom: 16px;">Incident Snapshot</h3>
+      <div style="text-align: center; max-height: 480px; overflow: hidden; border-radius: 8px;">
+        <img id="modal-snapshot-img" src="" alt="Snapshot" style="max-width: 100%; max-height: 450px; object-fit: contain;">
+      </div>
+      <div id="modal-incident-meta" style="margin-top: 14px; font-size: 13px; color: var(--text-secondary);"></div>
+    </div>
+  </div>
 
-  <!-- Global Toast Container -->
-  <div class="sg-toast-container" id="toast-container"></div>
-
-  <!-- Page Scripts -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

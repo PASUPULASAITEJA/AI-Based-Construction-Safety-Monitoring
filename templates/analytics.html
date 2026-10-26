@@ -1,422 +1,161 @@
 {% extends "base.html" %}
 
-{% block title %}Safety Analytics{% endblock %}
-{% block page_title %}Safety Analytics{% endblock %}
-{% block page_subtitle %}High-dimensional telemetry, trends &amp; risk factors derived from real detections{% endblock %}
-
-{% block head_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-{% endblock %}
+{% block title %}Analytics | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}📈 Safety Compliance & Trend Analytics{% endblock %}
 
 {% block content %}
-<!-- Time Range Filter Bar -->
-<div class="sg-card mb-5">
-  <div class="sg-card-body" style="padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-    <div style="display: flex; gap: 6px;" id="range-tabs">
-      <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="changeRange('today', this)">Today</button>
-      <button class="sg-btn sg-btn-sm sg-btn-primary" onclick="changeRange('7d', this)">Last 7 Days</button>
-      <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="changeRange('30d', this)">Last 30 Days</button>
-      <button class="sg-btn sg-btn-sm sg-btn-outline" onclick="changeRange('all', this)">All Time</button>
+<!-- Analytics Summary KPI Cards -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-header"><span>Total Incidents</span><span class="metric-icon">🚨</span></div>
+    <div class="metric-value">{{ summary.total_incidents|default(0) }}</div>
+    <div class="metric-footer">Lifetime logged violations</div>
+  </div>
+
+  <div class="metric-card warning">
+    <div class="metric-header"><span>Missing Helmets</span><span class="metric-icon">🪖</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('NO_HELMET', 0) }}</div>
+    <div class="metric-footer">Rule 1 breaches</div>
+  </div>
+
+  <div class="metric-card warning">
+    <div class="metric-header"><span>Missing Vests</span><span class="metric-icon">🦺</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('NO_VEST', 0) }}</div>
+    <div class="metric-footer">Rule 2 inferred breaches</div>
+  </div>
+
+  <div class="metric-card danger">
+    <div class="metric-header"><span>Zone Incursions</span><span class="metric-icon">⛔</span></div>
+    <div class="metric-value">{{ summary.type_distribution.get('RESTRICTED_ZONE_BREACH', 0) + summary.type_distribution.get('HAZARD_ZONE_ENTRY', 0) }}</div>
+    <div class="metric-footer">Restricted area entries</div>
+  </div>
+
+  <div class="metric-card critical">
+    <div class="metric-header"><span>Critical Breaches</span><span class="metric-icon">🔥</span></div>
+    <div class="metric-value">{{ summary.severity_distribution.get('CRITICAL', 0) }}</div>
+    <div class="metric-footer">High hazard without PPE</div>
+  </div>
+</div>
+
+<!-- Charts Grid -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+  <!-- Chart 1: Violations by Type -->
+  <div class="card">
+    <div class="card-title">
+      <span>Violation Distribution by Type</span>
     </div>
-    <div class="text-xs text-3 mono">
-      <i data-lucide="refresh-cw" style="width: 12px; height: 12px; vertical-align: middle;"></i> Real-time DB Analytics Aggregation
+    <div style="height: 280px; position: relative;">
+      <canvas id="chart-violation-types"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 2: Severity Distribution -->
+  <div class="card">
+    <div class="card-title">
+      <span>Incident Severity Classification</span>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="chart-severity-dist"></canvas>
     </div>
   </div>
 </div>
 
-<!-- KPI Row (4 Cards) -->
-<div class="grid-4 mb-5">
-  <div class="sg-kpi" style="--kpi-accent: var(--red);">
-    <div class="sg-kpi-icon" style="background: var(--red-dim); color: var(--red);">
-      <i data-lucide="alert-triangle"></i>
-    </div>
-    <div class="sg-kpi-num" id="kpi-total-violations">{{ summary.total_incidents|default(0) }}</div>
-    <div class="sg-kpi-label">Violations in Range</div>
-    <div class="sg-kpi-trend trend-down"><i data-lucide="trending-down"></i> -4.2% vs previous period</div>
+<!-- Chart 3: Incident Timeline -->
+<div class="card">
+  <div class="card-title">
+    <span>Safety Violations Frequency Timeline (Last 7 Days)</span>
   </div>
-
-  <div class="sg-kpi" style="--kpi-accent: var(--green);">
-    <div class="sg-kpi-icon" style="background: var(--green-dim); color: var(--green);">
-      <i data-lucide="shield-check"></i>
-    </div>
-    <div class="sg-kpi-num" id="kpi-avg-compliance">89.4%</div>
-    <div class="sg-kpi-label">Average Compliance Rate</div>
-    <div class="sg-kpi-trend trend-up"><i data-lucide="trending-up"></i> +2.1% improvement</div>
-  </div>
-
-  <div class="sg-kpi" style="--kpi-accent: var(--blue);">
-    <div class="sg-kpi-icon" style="background: var(--blue-dim); color: var(--blue);">
-      <i data-lucide="check-circle-2"></i>
-    </div>
-    <div class="sg-kpi-num" id="kpi-resolved-count">{{ summary.resolved_incidents|default(0) }}</div>
-    <div class="sg-kpi-label">Resolved &amp; Closed</div>
-    <div class="sg-kpi-trend trend-up"><i data-lucide="award"></i> Verified by safety officers</div>
-  </div>
-
-  <div class="sg-kpi" style="--kpi-accent: var(--yellow);">
-    <div class="sg-kpi-icon" style="background: var(--yellow-dim); color: var(--yellow);">
-      <i data-lucide="clock"></i>
-    </div>
-    <div class="sg-kpi-num" id="kpi-peak-hour">14:00</div>
-    <div class="sg-kpi-label">Peak Violation Window</div>
-    <div class="sg-kpi-trend trend-flat"><i data-lucide="activity"></i> Afternoon shift handover</div>
-  </div>
-</div>
-
-<!-- Charts Row 1: Violations Over Time & Compliance Trend (Grid 2) -->
-<div class="grid-2 mb-5">
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h3><i data-lucide="bar-chart"></i> Violations Over Time by Category</h3>
-    </div>
-    <div class="sg-card-body">
-      <div style="height: 240px; position: relative;">
-        <canvas id="chart-violations-over-time"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h3><i data-lucide="trending-up"></i> Compliance Rate Trend (Target &ge; 80%)</h3>
-    </div>
-    <div class="sg-card-body">
-      <div style="height: 240px; position: relative;">
-        <canvas id="chart-compliance-area"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Charts Row 2: Breakdown, Hourly, Worker Compliance (Grid 3) -->
-<div class="grid-3 mb-5">
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h3><i data-lucide="pie-chart"></i> PPE Item Breakdown</h3>
-    </div>
-    <div class="sg-card-body">
-      <div style="height: 220px; position: relative;">
-        <canvas id="chart-analytics-ppe"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h3><i data-lucide="clock"></i> Violations by Hour of Day</h3>
-    </div>
-    <div class="sg-card-body">
-      <div style="height: 220px; position: relative;">
-        <canvas id="chart-hourly"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h3><i data-lucide="users"></i> Worker Track Safety Scores</h3>
-    </div>
-    <div class="sg-card-body">
-      <div style="height: 220px; position: relative;">
-        <canvas id="chart-worker-scores"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Summary Table & Zone Risk Section -->
-<div class="grid-2">
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h2><i data-lucide="shield"></i> PPE Compliance Audit Summary</h2>
-    </div>
-    <div class="sg-table-wrap">
-      <table class="sg-table">
-        <thead>
-          <tr>
-            <th>PPE Item</th>
-            <th>Observations</th>
-            <th>Violations</th>
-            <th>Compliance Rate</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="fw-500 text-1">Safety Helmet</td>
-            <td class="mono">1,420</td>
-            <td class="mono text-red">48</td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <div class="sg-ppe-track" style="width: 60px;"><div class="sg-ppe-fill good" style="width: 96%;"></div></div>
-                <span class="mono text-green text-xs">96.6%</span>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-500 text-1">High-Vis Vest</td>
-            <td class="mono">1,390</td>
-            <td class="mono text-red">112</td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <div class="sg-ppe-track" style="width: 60px;"><div class="sg-ppe-fill good" style="width: 91%;"></div></div>
-                <span class="mono text-green text-xs">91.9%</span>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-500 text-1">Safety Boots</td>
-            <td class="mono">1,280</td>
-            <td class="mono text-red">65</td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <div class="sg-ppe-track" style="width: 60px;"><div class="sg-ppe-fill good" style="width: 94%;"></div></div>
-                <span class="mono text-green text-xs">94.9%</span>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-500 text-1">Safety Gloves</td>
-            <td class="mono">890</td>
-            <td class="mono text-red">190</td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <div class="sg-ppe-track" style="width: 60px;"><div class="sg-ppe-fill warn" style="width: 78%;"></div></div>
-                <span class="mono text-yellow text-xs">78.6%</span>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-500 text-1">Eye Protection</td>
-            <td class="mono">640</td>
-            <td class="mono text-red">145</td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <div class="sg-ppe-track" style="width: 60px;"><div class="sg-ppe-fill warn" style="width: 77%;"></div></div>
-                <span class="mono text-yellow text-xs">77.3%</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <h2><i data-lucide="map-pin"></i> Safety Zone Risk Distribution</h2>
-    </div>
-    <div class="sg-card-body" style="display: flex; flex-direction: column; gap: 14px;">
-      <div>
-        <div class="flex-between text-xs mb-1">
-          <span class="fw-600 text-1">Scaffold Loading Deck B</span>
-          <span class="sg-badge sg-badge-critical">HIGH RISK (C-)</span>
-        </div>
-        <div class="sg-ppe-track"><div class="sg-ppe-fill bad" style="width: 82%;"></div></div>
-        <div class="flex-between text-3 mono text-xs mt-1"><span>42 Violations</span><span>Target: &lt; 10</span></div>
-      </div>
-
-      <div>
-        <div class="flex-between text-xs mb-1">
-          <span class="fw-600 text-1">Excavation &amp; Crane Perimeter</span>
-          <span class="sg-badge sg-badge-high">MODERATE RISK (B)</span>
-        </div>
-        <div class="sg-ppe-track"><div class="sg-ppe-fill warn" style="width: 45%;"></div></div>
-        <div class="flex-between text-3 mono text-xs mt-1"><span>18 Violations</span><span>Target: &lt; 10</span></div>
-      </div>
-
-      <div>
-        <div class="flex-between text-xs mb-1">
-          <span class="fw-600 text-1">Main Staging &amp; Pedestrian Walkway</span>
-          <span class="sg-badge sg-badge-resolved">LOW RISK (A)</span>
-        </div>
-        <div class="sg-ppe-track"><div class="sg-ppe-fill good" style="width: 15%;"></div></div>
-        <div class="flex-between text-3 mono text-xs mt-1"><span>4 Violations</span><span>Compliant zone</span></div>
-      </div>
-    </div>
+  <div style="height: 260px; position: relative;">
+    <canvas id="chart-timeline"></canvas>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-Chart.defaults.color = '#484F58';
-Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.04)';
-Chart.defaults.font.family = 'Inter';
-Chart.defaults.font.size = 11;
-const TOOLTIP = {
-  backgroundColor: '#131920',
-  borderColor: 'rgba(249, 115, 22, 0.25)',
-  borderWidth: 1,
-  titleColor: '#E6EDF3',
-  bodyColor: '#8B949E',
-  padding: 10,
-  cornerRadius: 8
-};
+const analyticsData = {{ summary|tojson }};
 
-let chart1, chart2, chart3, chart4, chart5;
+// 1. Violations by Type Chart
+const typeCtx = document.getElementById('chart-violation-types').getContext('2d');
+const typeLabels = Object.keys(analyticsData.type_distribution || {});
+const typeValues = Object.values(analyticsData.type_distribution || {});
 
-async function loadAnalyticsCharts(range = '7d') {
-  // Chart 1: Violations Over Time
-  const ctx1 = document.getElementById('chart-violations-over-time');
-  if (ctx1) {
-    if (chart1) chart1.destroy();
-    chart1 = new Chart(ctx1, {
-      type: 'line',
-      data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [
-          {
-            label: 'No Helmet',
-            data: [6, 4, 8, 3, 5, 2, 4],
-            borderColor: '#EF4444',
-            tension: 0.3
-          },
-          {
-            label: 'No Vest',
-            data: [3, 5, 2, 6, 4, 1, 3],
-            borderColor: '#F97316',
-            tension: 0.3
-          },
-          {
-            label: 'Zone Breach',
-            data: [1, 2, 0, 3, 1, 0, 1],
-            borderColor: '#8B5CF6',
-            tension: 0.3
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10, padding: 8 } }, tooltip: TOOLTIP },
-        scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
-      }
-    });
+new Chart(typeCtx, {
+  type: 'doughnut',
+  data: {
+    labels: typeLabels.length > 0 ? typeLabels : ['No Violations'],
+    datasets: [{
+      data: typeValues.length > 0 ? typeValues : [1],
+      backgroundColor: ['#d29922', '#e36209', '#f85149', '#388bfd', '#8957e5', '#ff2a51'],
+      borderWidth: 1,
+      borderColor: '#161b22'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#8b949e', font: { family: 'Inter', size: 12 } } }
+    }
   }
+});
 
-  // Chart 2: Compliance Trend Area
-  const ctx2 = document.getElementById('chart-compliance-area');
-  if (ctx2) {
-    if (chart2) chart2.destroy();
-    chart2 = new Chart(ctx2, {
-      type: 'line',
-      data: {
-        labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
-        datasets: [
-          {
-            label: 'Observed Compliance',
-            data: [84, 86, 83, 89, 91, 88, 92],
-            borderColor: '#10B981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            fill: true,
-            tension: 0.35
-          },
-          {
-            label: 'Safety Threshold (80%)',
-            data: [80, 80, 80, 80, 80, 80, 80],
-            borderColor: 'rgba(234, 179, 8, 0.6)',
-            borderDash: [5, 5],
-            fill: false,
-            pointRadius: 0
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 10, padding: 8 } }, tooltip: TOOLTIP },
-        scales: { y: { min: 60, max: 100, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } }
-      }
-    });
+// 2. Severity Chart
+const sevCtx = document.getElementById('chart-severity-dist').getContext('2d');
+const sevLabels = Object.keys(analyticsData.severity_distribution || {});
+const sevValues = Object.values(analyticsData.severity_distribution || {});
+
+new Chart(sevCtx, {
+  type: 'pie',
+  data: {
+    labels: sevLabels.length > 0 ? sevLabels : ['None'],
+    datasets: [{
+      data: sevValues.length > 0 ? sevValues : [1],
+      backgroundColor: ['#388bfd', '#d29922', '#e36209', '#f85149'],
+      borderWidth: 1,
+      borderColor: '#161b22'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#8b949e', font: { family: 'Inter', size: 12 } } }
+    }
   }
+});
 
-  // Chart 3: PPE Doughnut
-  const ctx3 = document.getElementById('chart-analytics-ppe');
-  if (ctx3) {
-    if (chart3) chart3.destroy();
-    chart3 = new Chart(ctx3, {
-      type: 'doughnut',
-      data: {
-        labels: ['Helmet', 'Vest', 'Boots', 'Gloves', 'Zone Breach'],
-        datasets: [{
-          data: [45, 28, 15, 12, 8],
-          backgroundColor: ['#EF4444', '#F97316', '#EAB308', '#3B82F6', '#8B5CF6'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 6 } }, tooltip: TOOLTIP },
-        cutout: '65%'
-      }
-    });
+// 3. Timeline Chart
+const timeCtx = document.getElementById('chart-timeline').getContext('2d');
+const timeLabels = Object.keys(analyticsData.timeline || {});
+const timeValues = Object.values(analyticsData.timeline || {});
+
+new Chart(timeCtx, {
+  type: 'line',
+  data: {
+    labels: timeLabels.length > 0 ? timeLabels : ['Today'],
+    datasets: [{
+      label: 'Violations Logged',
+      data: timeValues.length > 0 ? timeValues : [0],
+      borderColor: '#00d2ff',
+      backgroundColor: 'rgba(0, 210, 255, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.35,
+      pointRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } },
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
   }
-
-  // Chart 4: Hourly Distribution
-  const ctx4 = document.getElementById('chart-hourly');
-  if (ctx4) {
-    if (chart4) chart4.destroy();
-    const hours = Array.from({ length: 24 }, (_, i) => i + ':00');
-    const counts = [0, 0, 0, 0, 0, 0, 2, 5, 12, 18, 14, 16, 19, 15, 22, 17, 11, 6, 2, 0, 0, 0, 0, 0];
-    chart4 = new Chart(ctx4, {
-      type: 'bar',
-      data: {
-        labels: hours,
-        datasets: [{
-          label: 'Violations',
-          data: counts,
-          backgroundColor: counts.map(c => c > 18 ? '#EF4444' : '#F97316'),
-          borderRadius: 3
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: TOOLTIP },
-        scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
-      }
-    });
-  }
-
-  // Chart 5: Worker Scores Horizontal Bar
-  const ctx5 = document.getElementById('chart-worker-scores');
-  if (ctx5) {
-    if (chart5) chart5.destroy();
-    chart5 = new Chart(ctx5, {
-      type: 'bar',
-      data: {
-        labels: ['W-01', 'W-02', 'W-03', 'W-04', 'W-05'],
-        datasets: [{
-          label: 'Compliance %',
-          data: [98, 94, 91, 88, 79],
-          backgroundColor: [
-            '#10B981', '#10B981', '#10B981', '#3B82F6', '#EF4444'
-          ],
-          borderRadius: 4
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: TOOLTIP },
-        scales: { x: { min: 50, max: 100, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } }
-      }
-    });
-  }
-}
-
-function changeRange(range, btn) {
-  document.querySelectorAll('#range-tabs button').forEach(b => {
-    b.className = 'sg-btn sg-btn-sm sg-btn-outline';
-  });
-  btn.className = 'sg-btn sg-btn-sm sg-btn-primary';
-  loadAnalyticsCharts(range);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  loadAnalyticsCharts('7d');
 });
 </script>
 {% endblock %}

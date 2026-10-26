@@ -1,142 +1,105 @@
 {% extends "base.html" %}
 
-{% block title %}Incident Management{% endblock %}
-{% block page_title %}Incident Management{% endblock %}
-{% block page_subtitle %}Formal safety incident records, investigation trails &amp; corrective actions{% endblock %}
+{% block title %}Incident History | AI Construction Safety Monitoring{% endblock %}
+{% block page_title %}🚨 Safety Incident Audit Log{% endblock %}
+
+{% block top_actions %}
+  <button class="btn btn-secondary" onclick="exportIncidentsCSV()">
+    📥 Export CSV Log
+  </button>
+{% endblock %}
 
 {% block content %}
-<!-- Filter Toolbar -->
-<div class="sg-card mb-5">
-  <div class="sg-card-body" style="padding: 14px 18px;">
-    <form method="GET" action="{{ url_for('incidents_view') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-      <select name="violation_type" class="sg-select" style="width: auto; min-width: 150px;">
-        <option value="ALL">All Incident Types</option>
-        {% for vt in violation_types %}
-          <option value="{{ vt }}" {% if current_v_type == vt %}selected{% endif %}>{{ vt|replace('_', ' ')|title }}</option>
-        {% endfor %}
-      </select>
-
-      <select name="severity" class="sg-select" style="width: auto; min-width: 130px;">
-        <option value="ALL">All Severities</option>
-        <option value="CRITICAL" {% if current_sev == 'CRITICAL' %}selected{% endif %}>Critical</option>
-        <option value="HIGH" {% if current_sev == 'HIGH' %}selected{% endif %}>High</option>
-        <option value="MEDIUM" {% if current_sev == 'MEDIUM' %}selected{% endif %}>Medium</option>
-        <option value="LOW" {% if current_sev == 'LOW' %}selected{% endif %}>Low</option>
-      </select>
-
-      <select name="status" class="sg-select" style="width: auto; min-width: 130px;">
-        <option value="ALL">All Statuses</option>
-        <option value="OPEN" {% if current_status == 'OPEN' %}selected{% endif %}>Open</option>
-        <option value="UNDER_REVIEW" {% if current_status == 'UNDER_REVIEW' %}selected{% endif %}>Under Review</option>
-        <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
-        <option value="CLOSED" {% if current_status == 'CLOSED' %}selected{% endif %}>Closed</option>
-      </select>
-
-      <div style="flex: 1; min-width: 180px;">
-        <input type="text" name="search" class="sg-input" placeholder="Search Code, Root Cause, Worker..." value="{{ current_search|default('') }}">
+<div class="card" style="padding: 16px; margin-bottom: 20px;">
+  <!-- Filter Controls -->
+  <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <div>
+        <label class="form-label" style="margin-bottom: 4px;">Violation Type</label>
+        <select id="filter-violation-type" class="form-select" style="width: 200px;" onchange="applyFilters()">
+          <option value="ALL">All Violation Types</option>
+          <option value="NO_HELMET">Missing Helmet</option>
+          <option value="NO_VEST">Missing Safety Vest</option>
+          <option value="RESTRICTED_ZONE_BREACH">Restricted Zone</option>
+          <option value="HAZARD_NO_HELMET">Hazard Zone (No Helmet)</option>
+          <option value="HAZARD_NO_VEST">Hazard Zone (No Vest)</option>
+          <option value="HAZARD_NO_PPE">Hazard Zone (No PPE)</option>
+        </select>
       </div>
 
-      <button type="submit" class="sg-btn sg-btn-primary sg-btn-sm"><i data-lucide="filter"></i> Filter</button>
-      <a href="{{ url_for('incidents_view') }}" class="sg-btn sg-btn-ghost sg-btn-sm">Reset</a>
+      <div>
+        <label class="form-label" style="margin-bottom: 4px;">Severity</label>
+        <select id="filter-severity" class="form-select" style="width: 150px;" onchange="applyFilters()">
+          <option value="ALL">All Severities</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+          <option value="CRITICAL">CRITICAL</option>
+        </select>
+      </div>
 
-      <a href="{{ url_for('export_incidents_csv') }}" class="sg-btn sg-btn-outline sg-btn-sm" style="margin-left: auto;">
-        <i data-lucide="download"></i> Export Incidents CSV
-      </a>
-    </form>
+      <div>
+        <label class="form-label" style="margin-bottom: 4px;">Search</label>
+        <input type="text" id="filter-search" class="form-input" placeholder="Search Code or Worker..." style="width: 220px;" oninput="applyFilters()">
+      </div>
+    </div>
+
+    <div>
+      <span style="font-size: 13px; color: var(--text-secondary);" id="incidents-count-label">
+        Showing {{ incidents|length }} recorded incidents
+      </span>
+    </div>
   </div>
 </div>
 
-<!-- Incidents Table -->
-<div class="sg-card">
-  <div class="sg-card-head">
-    <h2><i data-lucide="clipboard-list"></i> Incident Audit Registry ({{ incidents|length }} records)</h2>
-  </div>
-  <div class="sg-table-wrap">
-    <table class="sg-table">
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="data-table" id="incidents-master-table">
       <thead>
         <tr>
           <th>Incident Code</th>
-          <th>Date &amp; Time</th>
-          <th>Severity</th>
-          <th>Type</th>
           <th>Worker</th>
-          <th>Zone</th>
-          <th>Root Cause</th>
-          <th>Status</th>
-          <th>Officer Assigned</th>
-          <th style="text-align: right;">Action</th>
+          <th>Violation Type</th>
+          <th>Description</th>
+          <th>Severity</th>
+          <th>Confidence</th>
+          <th>Source</th>
+          <th>Timestamp</th>
+          <th>Snapshot</th>
         </tr>
       </thead>
-      <tbody>
-        {% for inc in incidents %}
-          <tr class="row-{{ inc.severity|lower }}" onclick="toggleIncidentDetails({{ inc.id }})">
-            <td class="mono fw-600 text-1">{{ inc.incident_code or ('INC-' ~ inc.id) }}</td>
-            <td class="mono text-xs">{{ inc.timestamp }}</td>
-            <td><span class="sg-badge sg-badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
-            <td class="fw-500 text-1">{{ inc.violation_type|replace('_', ' ')|title }}</td>
-            <td><span class="sg-worker-id">W-{{ inc.worker_id or inc.worker_label or '01' }}</span></td>
-            <td>{{ inc.zone_name or 'Scaffold Deck' }}</td>
-            <td class="text-xs" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              {{ inc.root_cause or 'Under investigation' }}
-            </td>
-            <td>
-              <span class="sg-badge {{ 'sg-badge-open' if inc.status == 'OPEN' else 'sg-badge-review' if inc.status == 'UNDER_REVIEW' else 'sg-badge-resolved' }}">
-                {{ inc.status or 'OPEN' }}
-              </span>
-            </td>
-            <td class="text-xs text-2">{{ inc.assigned_to or 'Unassigned' }}</td>
-            <td style="text-align: right;" onclick="event.stopPropagation()">
-              <button class="sg-btn sg-btn-outline sg-btn-sm" onclick="toggleIncidentDetails({{ inc.id }})">
-                <i data-lucide="chevron-down" id="chevron-{{ inc.id }}"></i> Expand
-              </button>
-            </td>
-          </tr>
-          <!-- Expandable Detail Row -->
-          <tr id="details-row-{{ inc.id }}" style="display: none; background: var(--surface-2); cursor: default;">
-            <td colspan="10" style="padding: 16px 20px;">
-              <div class="grid-2">
-                <div>
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Description &amp; Incident Findings</div>
-                  <p class="text-xs text-1 mb-3" style="line-height: 1.6;">{{ inc.description or 'Automatic incident opened following verified safety non-compliance on site.' }}</p>
-
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Root Cause &amp; Corrective Action</div>
-                  <p class="text-xs text-2 mb-3"><strong class="text-1">Root Cause:</strong> {{ inc.root_cause or 'Worker failed to equip safety helmet upon entering active loading perimeter.' }}</p>
-                  <p class="text-xs text-2 mb-3"><strong class="text-1">Corrective Action:</strong> {{ inc.corrective_action or 'Supervisor issued verbal warning and provided standard helmet replacement.' }}</p>
-                  
-                  {% if inc.resolution_note %}
-                    <p class="text-xs text-green"><strong class="text-1">Resolution Note:</strong> {{ inc.resolution_note }}</p>
-                  {% endif %}
-                </div>
-
-                <div>
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px;">Evidence Snapshot &amp; Metadata</div>
-                  <div style="display: flex; gap: 14px; align-items: flex-start;">
-                    {% if inc.snapshot_path %}
-                      <div class="sg-thumb" style="width: 120px; height: 90px; border-radius: var(--radius); flex-shrink: 0;">
-                        <img src="/{{ inc.snapshot_path }}" alt="Incident Photo">
-                      </div>
-                    {% endif %}
-                    <div class="text-xs text-3 mono" style="display: flex; flex-direction: column; gap: 4px;">
-                      <div>Camera: <span class="text-1">{{ inc.camera_name or 'Cam 01' }}</span></div>
-                      <div>Source: <span class="text-1">{{ inc.source or 'Hardware Video Stream' }}</span></div>
-                      <div>Confidence: <span class="text-orange">{{ (inc.confidence * 100)|round(1) }}%</span></div>
-                      <div>Closed by: <span class="text-1">{{ inc.closed_by or 'Pending resolution' }}</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </td>
-          </tr>
+      <tbody id="incidents-table-body">
+        {% if incidents %}
+          {% for inc in incidents %}
+            <tr>
+              <td><strong style="color: var(--accent-cyan);">{{ inc.incident_code }}</strong></td>
+              <td>{{ inc.worker_label }}</td>
+              <td><strong>{{ inc.violation_type }}</strong></td>
+              <td style="color: var(--text-secondary); max-width: 260px;">{{ inc.description }}</td>
+              <td>
+                <span class="badge badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
+              </td>
+              <td style="font-family: monospace;">{{ (inc.confidence * 100)|round(1) }}%</td>
+              <td><span class="ppe-pill">{{ inc.source }}</span></td>
+              <td style="color: var(--text-muted); font-size: 12px;">{{ inc.timestamp }}</td>
+              <td>
+                {% if inc.snapshot_path %}
+                  <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('{{ url_for('serve_snapshot', filename=inc.snapshot_path.split('/')[-1]) }}', '{{ inc.incident_code }}', '{{ inc.violation_type }}')">
+                    📸 View
+                  </button>
+                {% else %}
+                  <span style="color: var(--text-muted);">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
         {% else %}
           <tr>
-            <td colspan="10">
-              <div class="sg-empty" style="padding: 48px;">
-                <i data-lucide="check-circle" style="color: var(--green);"></i>
-                <p>No safety incidents recorded for the selected parameters.</p>
-              </div>
+            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 40px;">
+              No incidents logged matching criteria.
             </td>
           </tr>
-        {% endfor %}
+        {% endif %}
       </tbody>
     </table>
   </div>
@@ -145,16 +108,36 @@
 
 {% block scripts %}
 <script>
-function toggleIncidentDetails(id) {
-  const row = document.getElementById('details-row-' + id);
-  const chevron = document.getElementById('chevron-' + id);
-  if (!row) return;
-  const isHidden = (row.style.display === 'none');
-  row.style.display = isHidden ? 'table-row' : 'none';
-  if (chevron) {
-    chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-    chevron.style.transition = 'transform 0.15s ease';
-  }
+function applyFilters() {
+  const vType = document.getElementById('filter-violation-type').value;
+  const sev = document.getElementById('filter-severity').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+
+  const rows = document.querySelectorAll('#incidents-table-body tr');
+  let matchCount = 0;
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    const typeCell = row.children[2] ? row.children[2].innerText.trim() : '';
+    const sevCell = row.children[4] ? row.children[4].innerText.trim() : '';
+
+    const matchType = (vType === 'ALL' || typeCell === vType);
+    const matchSev = (sev === 'ALL' || sevCell.includes(sev));
+    const matchSearch = (!search || text.includes(search));
+
+    if (matchType && matchSev && matchSearch) {
+      row.style.display = '';
+      matchCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  document.getElementById('incidents-count-label').innerText = `Showing ${matchCount} matching incidents`;
+}
+
+function exportIncidentsCSV() {
+  window.location.href = '/api/incidents/export';
 }
 </script>
 {% endblock %}
