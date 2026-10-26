@@ -1,132 +1,372 @@
 {% extends "base.html" %}
 
-{% block title %}AI Model &amp; Architecture — SiteGuard AI{% endblock %}
-{% block page_title %}AI Neural Architecture &amp; Weights{% endblock %}
-{% block page_subtitle %}Deep learning object detection configuration, dataset telemetry, and temporal inference hyperparameters{% endblock %}
+{% block title %}AI Model Architecture &amp; Benchmark — SiteGuard AI{% endblock %}
+{% block page_title %}AI Neural Architecture &amp; SH17 Benchmark{% endblock %}
+{% block breadcrumb %}AI Model Benchmark{% endblock %}
+{% block page_subtitle %}Deep learning object detection configuration, dataset telemetry, and multi-model visual representation (arXiv:2407.04590v1){% endblock %}
 
 {% block content %}
-<div class="grid-2 mb-5">
-  <!-- LEFT: Model Specification Card -->
-  <div class="sg-card">
-    <div class="sg-card-head">
-      <i data-lucide="cpu" style="color: var(--orange); width: 16px; height: 16px;"></i>
-      <h2>Model Weights &amp; Architecture</h2>
-      <span class="sg-badge {{ 'sg-badge-resolved' if model_info.loaded else 'sg-badge-critical' }}">
-        {{ 'ACTIVE INFERENCE' if model_info.loaded else 'NOT LOADED' }}
-      </span>
-    </div>
-    <div class="sg-card-body">
-      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;" class="mono mb-4">
-        <div class="flex-between">
-          <span class="text-3">Architecture:</span>
-          <span class="text-1 fw-600">YOLOv8 Construction Safety Custom Head</span>
+<div style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Research Paper Citation Banner -->
+  <div class="sg-card mb-4" style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(5, 150, 105, 0.08)); border-left: 4px solid var(--orange);">
+    <div class="sg-card-body" style="padding: 16px 20px;">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span class="sg-badge sg-badge-orange mono">RESEARCH PAPER BENCHMARK</span>
+            <span class="text-xs text-3 mono">arXiv:2407.04590v1 [cs.CV]</span>
+          </div>
+          <h2 style="font-size: 15px; font-weight: 700; color: var(--text-1); margin-bottom: 4px;">
+            SH17: A Dataset for Human Safety and Personal Protective Equipment Detection in Manufacturing Industry
+          </h2>
+          <div class="text-xs text-2">
+            Hafiz Mughees Ahmad &amp; Afshin Rahimi &bull; Department of Mechanical, Automotive and Materials Engineering, University of Windsor, Canada
+          </div>
         </div>
-        <div class="flex-between">
-          <span class="text-3">Weights File:</span>
-          <span class="text-xs" style="color: var(--orange); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ model_info.model_path }}</span>
-        </div>
-        <div class="flex-between">
-          <span class="text-3">Compute Device:</span>
-          <span class="text-1">{{ model_info.device }}</span>
-        </div>
-        <div class="flex-between">
-          <span class="text-3">Trained Classes:</span>
-          <span class="text-1">{{ model_info.class_count }} Classes</span>
-        </div>
-        <div class="flex-between">
-          <span class="text-3">Input Resolution:</span>
-          <span class="text-1">{{ model_info.img_size }} &times; {{ model_info.img_size }}</span>
+        <div style="display: flex; gap: 8px;">
+          <a href="{{ url_for('image_analysis.image_analysis') }}" class="sg-btn sg-btn-primary sg-btn-sm">
+            <i data-lucide="scan"></i> Launch Visual Comparison Studio
+          </a>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div class="sg-section-label">Object &amp; PPE Classification Vocabulary</div>
-      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-        {% for cls in model_info.classes %}
-          <span class="sg-badge sg-badge-medium" style="font-size: 10px;">{{ cls }}</span>
-        {% else %}
-          <span class="sg-badge sg-badge-medium">Hardhat</span>
-          <span class="sg-badge sg-badge-medium">NO-Hardhat</span>
-          <span class="sg-badge sg-badge-medium">Vest</span>
-          <span class="sg-badge sg-badge-medium">NO-Vest</span>
-          <span class="sg-badge sg-badge-medium">Person</span>
-          <span class="sg-badge sg-badge-medium">Gloves</span>
-          <span class="sg-badge sg-badge-medium">Safety Boots</span>
-          <span class="sg-badge sg-badge-medium">Fall Harness</span>
+  <div class="grid-2 mb-5">
+    <!-- LEFT: Model Specification Card -->
+    <div class="sg-card">
+      <div class="sg-card-head">
+        <i data-lucide="cpu" style="color: var(--orange); width: 16px; height: 16px;"></i>
+        <h2>Active Inference Weights &amp; Architecture</h2>
+        <span class="sg-badge {{ 'sg-badge-resolved' if model_info.loaded else 'sg-badge-critical' }}">
+          {{ 'ACTIVE INFERENCE' if model_info.loaded else 'NOT LOADED' }}
+        </span>
+      </div>
+      <div class="sg-card-body">
+        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;" class="mono mb-4">
+          <div class="flex-between">
+            <span class="text-3">Architecture:</span>
+            <span class="text-1 fw-600">YOLOv8 Construction Safety Custom Head</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Weights File:</span>
+            <span class="text-xs" style="color: var(--orange); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ model_info.model_path }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Compute Device:</span>
+            <span class="text-1">{{ model_info.device }}</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Trained Classes:</span>
+            <span class="text-1">{{ model_info.class_count }} Classes (SH17 Standard)</span>
+          </div>
+          <div class="flex-between">
+            <span class="text-3">Input Resolution:</span>
+            <span class="text-1">{{ model_info.img_size }} &times; {{ model_info.img_size }}</span>
+          </div>
+        </div>
+
+        <div class="sg-section-label">17-Class Object &amp; PPE Classification Vocabulary (Table II)</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          {% for cid, cname in model_info.classes.items() %}
+            <span class="sg-badge sg-badge-medium" style="font-size: 10px; font-family: 'JetBrains Mono', monospace;">
+              {{ cid }}: {{ cname }}
+            </span>
+          {% else %}
+            <span class="sg-badge sg-badge-medium">0: person</span>
+            <span class="sg-badge sg-badge-medium">10: helmet</span>
+            <span class="sg-badge sg-badge-medium">16: safety-vest</span>
+            <span class="sg-badge sg-badge-medium">14: shoes</span>
+            <span class="sg-badge sg-badge-medium">9: gloves</span>
+            <span class="sg-badge sg-badge-medium">7: tools</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Inference Settings Card -->
+    <div class="sg-card">
+      <div class="sg-card-head">
+        <i data-lucide="sliders" style="color: var(--blue); width: 16px; height: 16px;"></i>
+        <h2>Runtime Inference Configuration</h2>
+      </div>
+      <div class="sg-card-body">
+        <form method="POST" action="/settings">
+          <div class="sg-form-group">
+            <div class="flex-between mb-1">
+              <label class="sg-label">Confidence Threshold (conf)</label>
+              <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="conf-val">{{ model_info.conf }}</span>
+            </div>
+            <input type="range" name="conf_thresh" class="w-full" min="0.10" max="0.95" step="0.05" value="{{ model_info.conf }}" oninput="document.getElementById('conf-val').textContent = this.value">
+            <div class="text-xs text-3 mt-1">Minimum score to register worker and PPE bounding boxes.</div>
+          </div>
+
+          <div class="sg-form-group">
+            <div class="flex-between mb-1">
+              <label class="sg-label">IoU Overlap Threshold (iou)</label>
+              <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="iou-val">{{ model_info.iou }}</span>
+            </div>
+            <input type="range" name="iou_thresh" class="w-full" min="0.10" max="0.95" step="0.05" value="{{ model_info.iou }}" oninput="document.getElementById('iou-val').textContent = this.value">
+            <div class="text-xs text-3 mt-1">Non-Maximum Suppression (NMS) bounding box deduplication.</div>
+          </div>
+
+          <div class="sg-form-group">
+            <label class="sg-label">Temporal Persistence (Min Consecutive Frames)</label>
+            <input type="number" name="min_violation_frames" class="sg-input mono w-full" min="1" max="60" value="10">
+            <div class="text-xs text-3 mt-1">Frames an infraction must persist before alerting to eliminate single-frame noise.</div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+            <button type="submit" class="sg-btn sg-btn-primary">
+              <i data-lucide="save"></i> Save Model Parameters
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TABLE III: BENCHMARK COMPARISON OF MODELS TRAINED ON SH17 (PAGE 10)       -->
+  <!-- ========================================================================= -->
+  <div class="sg-card mb-5">
+    <div class="sg-card-head">
+      <i data-lucide="bar-chart-2" style="color: var(--green); width: 16px; height: 16px;"></i>
+      <h2>Table III: Comparative Benchmark of YOLO Models on SH17 Dataset (Research Paper Page 10)</h2>
+      <span class="sg-badge sg-badge-resolved mono">Evaluated on 1,620 Test Images</span>
+    </div>
+    <div class="sg-card-body" style="padding: 0;">
+      <div class="sg-table-wrap">
+        <table class="sg-table">
+          <thead>
+            <tr>
+              <th>Model Variant</th>
+              <th>Parameters</th>
+              <th>Test Images</th>
+              <th>Instances</th>
+              <th>Precision (P)</th>
+              <th>Recall (R)</th>
+              <th>mAP @ 0.50</th>
+              <th>mAP @ 0.50:0.95</th>
+              <th>Architecture Highlights</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in table_iii %}
+              <tr class="{{ 'row-critical' if row.best else '' }}" style="{{ 'background: rgba(5, 150, 105, 0.08); font-weight: 600;' if row.best else '' }}">
+                <td class="strong mono" style="{{ 'color: var(--green); font-size: 13px;' if row.best else '' }}">
+                  {{ row.model }} {% if row.best %}<span class="sg-badge sg-badge-resolved text-xs">BEST SOTA</span>{% endif %}
+                </td>
+                <td class="mono">{{ row.params }}</td>
+                <td class="mono">{{ row.images }}</td>
+                <td class="mono">{{ row.instances }}</td>
+                <td class="mono">{{ row.precision }}%</td>
+                <td class="mono">{{ row.recall }}%</td>
+                <td class="mono" style="{{ 'color: var(--green); font-weight: 700;' if row.best else '' }}">{{ row.map50 }}%</td>
+                <td class="mono" style="{{ 'color: var(--green); font-weight: 700;' if row.best else '' }}">{{ row.map50_95 }}%</td>
+                <td class="text-xs text-2">
+                  {% if 'YOLOv9-e' in row.model %}
+                    PGI Reversible Branch + GELAN Block (15% fewer params than YOLOv8-x)
+                  {% elif 'v8-n' in row.model %}
+                    Ultra-lightweight edge deployment (11ms latency)
+                  {% elif 'v8-x' in row.model %}
+                    Deep DarkNet backbone, maximum capacity
+                  {% elif 'v10' in row.model %}
+                    Consistent dual assignment NMS-free head
+                  {% else %}
+                    Balanced speed &amp; accuracy
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TABLE IV: CLASS-WISE ACCURACY BREAKDOWN OF YOLOV9-E (PAGE 10)             -->
+  <!-- ========================================================================= -->
+  <div class="sg-card mb-5">
+    <div class="sg-card-head">
+      <i data-lucide="check-circle-2" style="color: var(--blue); width: 16px; height: 16px;"></i>
+      <h2>Table IV: Class-Wise Accuracy Breakdown of Winning YOLOv9-e Model (Page 10)</h2>
+      <span class="text-xs text-3 mono">All 17 Classes Evaluated on SH17 Test Split</span>
+    </div>
+    <div class="sg-card-body" style="padding: 0;">
+      <div class="sg-table-wrap">
+        <table class="sg-table">
+          <thead>
+            <tr>
+              <th>Class Name</th>
+              <th>Test Instances</th>
+              <th>Precision (P)</th>
+              <th>Recall (R)</th>
+              <th>mAP @ 0.50</th>
+              <th>mAP @ 0.50:0.95</th>
+              <th>Performance Analysis</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in table_iv %}
+              <tr style="{{ 'background: rgba(5, 150, 105, 0.08); font-weight: 700;' if c.best else '' }}">
+                <td class="strong mono" style="{{ 'color: var(--green);' if c.best else '' }}">
+                  {{ c.class }}
+                </td>
+                <td class="mono">{{ c.instances }}</td>
+                <td class="mono">{{ c.precision }}%</td>
+                <td class="mono">{{ c.recall }}%</td>
+                <td class="mono" style="{{ 'color: var(--green);' if c.best else '' }}">{{ c.map50 }}%</td>
+                <td class="mono" style="{{ 'color: var(--green);' if c.best else '' }}">{{ c.map50_95 }}%</td>
+                <td class="text-xs text-3">
+                  {% if c.class == 'hands' %}
+                    Most abundant class (3,212 instances), exceptional localization (89.8%)
+                  {% elif c.class == 'person' %}
+                    Primary worker tracking anchor (92.1% mAP50)
+                  {% elif c.class == 'face' or c.class == 'head' %}
+                    High facial landmark recall (93.8% mAP50)
+                  {% elif c.class == 'helmet' %}
+                    Key OSHA compliance target (77.0% mAP50)
+                  {% elif c.class == 'safety-vest' %}
+                    High-vis reflection sensitivity (57.7% mAP50)
+                  {% elif c.class == 'tools' %}
+                    High intra-class variance across construction tools (43.2% mAP50)
+                  {% elif c.class == 'foot' %}
+                    Lowest instance representation in dataset (29.3% mAP50)
+                  {% else %}
+                    Industrial PPE class
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- FIGURE 5: INTERACTIVE MULTI-MODEL VISUAL COMPARISON (PAGE 13)             -->
+  <!-- ========================================================================= -->
+  <div class="sg-card mb-5">
+    <div class="sg-card-head">
+      <i data-lucide="columns" style="color: var(--purple); width: 16px; height: 16px;"></i>
+      <h2>Figure 5: Visual Representation of Predictions Across Models (Page 13)</h2>
+      <a href="{{ url_for('image_analysis.image_analysis') }}" class="sg-btn sg-btn-secondary sg-btn-sm">
+        <i data-lucide="external-link"></i> Full Interactive Visual Studio
+      </a>
+    </div>
+    <div class="sg-card-body">
+      <p class="text-xs text-2 mb-4">
+        Direct side-by-side comparison across the 4 key model variants (YOLOv8-n, YOLOv8-m, YOLOv8-x, YOLOv9-e) on test scenarios from the research paper.
+      </p>
+
+      <!-- Scene Buttons -->
+      <div style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 4px;">
+        {% for sc in benchmark_scenes %}
+          <button class="sg-btn sg-btn-sm {{ 'sg-btn-primary' if loop.first else 'sg-btn-secondary' }}"
+                  id="model-scene-btn-{{ sc.id }}"
+                  onclick="selectModelScene({{ sc.id }})">
+            {{ sc.row }} {{ sc.title|truncate(26) }}
+          </button>
         {% endfor %}
       </div>
+
+      <!-- 4-Column Grid -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px;">
+        <div style="text-align: center;">
+          <div class="text-xs fw-600 text-1 mb-1 mono">YOLOv8-n (3.2M)</div>
+          <img id="fig5-img-yolov8n" src="/static/img/research_paper/fig5_comparison/scene1_yolov8n.jpg" alt="YOLOv8-n"
+               style="width: 100%; height: 200px; object-fit: contain; background: #000; border-radius: var(--radius); cursor: zoom-in;"
+               onclick="window.open(this.src, '_blank')">
+        </div>
+        <div style="text-align: center;">
+          <div class="text-xs fw-600 text-1 mb-1 mono">YOLOv8-m (25.9M)</div>
+          <img id="fig5-img-yolov8m" src="/static/img/research_paper/fig5_comparison/scene1_yolov8m.jpg" alt="YOLOv8-m"
+               style="width: 100%; height: 200px; object-fit: contain; background: #000; border-radius: var(--radius); cursor: zoom-in;"
+               onclick="window.open(this.src, '_blank')">
+        </div>
+        <div style="text-align: center;">
+          <div class="text-xs fw-600 text-1 mb-1 mono">YOLOv8-x (68.2M)</div>
+          <img id="fig5-img-yolov8x" src="/static/img/research_paper/fig5_comparison/scene1_yolov8x.jpg" alt="YOLOv8-x"
+               style="width: 100%; height: 200px; object-fit: contain; background: #000; border-radius: var(--radius); cursor: zoom-in;"
+               onclick="window.open(this.src, '_blank')">
+        </div>
+        <div style="text-align: center;">
+          <div class="text-xs fw-600 mb-1 mono" style="color: var(--green);">YOLOv9-e (58.1M SOTA)</div>
+          <img id="fig5-img-yolov9e" src="/static/img/research_paper/fig5_comparison/scene1_yolov9e.jpg" alt="YOLOv9-e"
+               style="width: 100%; height: 200px; object-fit: contain; background: #000; border-radius: var(--radius); border: 2px solid var(--green); cursor: zoom-in;"
+               onclick="window.open(this.src, '_blank')">
+        </div>
+      </div>
+
+      <div style="padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius); font-size: 11px; color: var(--text-2);" id="fig5-desc-box">
+        High-intensity flame glare challenges standard detectors. YOLOv9-e correctly demarcates the worker boundary and face shield without saturation blowouts.
+      </div>
     </div>
   </div>
 
-  <!-- RIGHT: Inference Settings Card -->
-  <div class="sg-card">
+  <!-- Dataset Ground Truth Telemetry -->
+  <div class="sg-card mb-5">
     <div class="sg-card-head">
-      <i data-lucide="sliders" style="color: var(--blue); width: 16px; height: 16px;"></i>
-      <h2>Runtime Inference Configuration</h2>
+      <i data-lucide="database" style="color: var(--green); width: 16px; height: 16px;"></i>
+      <h2>Training Dataset Ground Truth Telemetry</h2>
     </div>
     <div class="sg-card-body">
-      <form method="POST" action="/settings">
-        <div class="sg-form-group">
-          <div class="flex-between mb-1">
-            <label class="sg-label">Confidence Threshold (conf)</label>
-            <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="conf-val">{{ model_info.conf }}</span>
-          </div>
-          <input type="range" name="conf_thresh" class="w-full" min="0.10" max="0.95" step="0.05" value="{{ model_info.conf }}" oninput="document.getElementById('conf-val').textContent = this.value">
-          <div class="text-xs text-3 mt-1">Minimum score to register worker and PPE bounding boxes.</div>
+      <div class="grid-4 mb-4">
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
+          <div class="mono fw-600 text-1" style="font-size: 18px;">{{ dataset_info.total_images|default('8,099') }}</div>
+          <div class="text-xs text-3">Total Images (Pexels Verified)</div>
         </div>
-
-        <div class="sg-form-group">
-          <div class="flex-between mb-1">
-            <label class="sg-label">IoU Overlap Threshold (iou)</label>
-            <span class="mono text-xs" style="color: var(--orange); font-weight: 600;" id="iou-val">{{ model_info.iou }}</span>
-          </div>
-          <input type="range" name="iou_thresh" class="w-full" min="0.10" max="0.95" step="0.05" value="{{ model_info.iou }}" oninput="document.getElementById('iou-val').textContent = this.value">
-          <div class="text-xs text-3 mt-1">Non-Maximum Suppression (NMS) bounding box deduplication.</div>
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
+          <div class="mono fw-600" style="font-size: 18px; color: var(--orange);">{{ dataset_info.train_count|default('6,479') }}</div>
+          <div class="text-xs text-3">Training Split (80%)</div>
         </div>
-
-        <div class="sg-form-group">
-          <label class="sg-label">Temporal Persistence (Min Consecutive Frames)</label>
-          <input type="number" name="min_violation_frames" class="sg-input mono w-full" min="1" max="60" value="10">
-          <div class="text-xs text-3 mt-1">Frames an infraction must persist before alerting to eliminate single-frame noise.</div>
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
+          <div class="mono fw-600" style="font-size: 18px; color: var(--green);">{{ dataset_info.val_count|default('1,620') }}</div>
+          <div class="text-xs text-3">Validation Split (20%)</div>
         </div>
-
-        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-          <button type="submit" class="sg-btn sg-btn-primary">
-            <i data-lucide="save"></i> Save Model Parameters
-          </button>
+        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
+          <div class="mono fw-600 text-1" style="font-size: 18px;">{{ dataset_info.annotations_count|default('75,994') }}</div>
+          <div class="text-xs text-3">Bounding Box Labels</div>
         </div>
-      </form>
+      </div>
+      <div class="text-xs text-3 mono">
+        Dataset Path: <span class="text-2">{{ dataset_info.dataset_path|default('dataset/') }}</span> &bull; Verified 17-Class Construction &amp; Manufacturing Safety Annotations
+      </div>
     </div>
   </div>
+
 </div>
+{% endblock %}
 
-<!-- Dataset & Inspection Telemetry -->
-<div class="sg-card mb-5">
-  <div class="sg-card-head">
-    <i data-lucide="database" style="color: var(--green); width: 16px; height: 16px;"></i>
-    <h2>Training Dataset Ground Truth Telemetry</h2>
-  </div>
-  <div class="sg-card-body">
-    <div class="grid-4 mb-4">
-      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
-        <div class="mono fw-600 text-1" style="font-size: 18px;">{{ dataset_info.total_images|default('8,099') }}</div>
-        <div class="text-xs text-3">Total Images</div>
-      </div>
-      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
-        <div class="mono fw-600" style="font-size: 18px; color: var(--orange);">{{ dataset_info.train_count|default('6,479') }}</div>
-        <div class="text-xs text-3">Training Split (80%)</div>
-      </div>
-      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
-        <div class="mono fw-600" style="font-size: 18px; color: var(--green);">{{ dataset_info.val_count|default('1,620') }}</div>
-        <div class="text-xs text-3">Validation Split (20%)</div>
-      </div>
-      <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center;">
-        <div class="mono fw-600 text-1" style="font-size: 18px;">{{ dataset_info.annotations_count|default('75,994') }}</div>
-        <div class="text-xs text-3">Bounding Box Labels</div>
-      </div>
-    </div>
-    <div class="text-xs text-3 mono">
-      Dataset Path: <span class="text-2">{{ dataset_info.dataset_path|default('dataset/') }}</span> &bull; Verified Construction Safety Annotations
-    </div>
-  </div>
-</div>
+{% block scripts %}
+<script>
+const scenesData = {{ benchmark_scenes|tojson }};
+
+function selectModelScene(sceneId) {
+  const sc = scenesData.find(s => s.id === sceneId);
+  if (!sc) return;
+
+  document.querySelectorAll('[id^="model-scene-btn-"]').forEach(btn => {
+    btn.className = 'sg-btn sg-btn-sm sg-btn-secondary';
+  });
+  const activeBtn = document.getElementById(`model-scene-btn-${sceneId}`);
+  if (activeBtn) activeBtn.className = 'sg-btn sg-btn-sm sg-btn-primary';
+
+  document.getElementById('fig5-img-yolov8n').src = sc.images.yolov8n;
+  document.getElementById('fig5-img-yolov8m').src = sc.images.yolov8m;
+  document.getElementById('fig5-img-yolov8x').src = sc.images.yolov8x;
+  document.getElementById('fig5-img-yolov9e').src = sc.images.yolov9e;
+  document.getElementById('fig5-desc-box').textContent = `${sc.title}: ${sc.paper_finding}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (scenesData && scenesData.length > 0) {
+    selectModelScene(1);
+  }
+});
+</script>
 {% endblock %}

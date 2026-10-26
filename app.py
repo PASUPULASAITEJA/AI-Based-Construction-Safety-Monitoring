@@ -30,6 +30,11 @@ from database.models import (
 )
 from safety.ppe_config import get_ppe_capabilities
 from safety.safety_rules import ZONE_RULES
+from cv.model_benchmark import (
+    BENCHMARK_SCENES, MODEL_BENCHMARK_SPECS, ALL_BENCHMARK_MODELS_TABLE_III,
+    CLASSWISE_ACCURACY_TABLE_IV, SH17_FIG1_SAMPLES, PICTOR_FIG6_SAMPLES,
+    run_multi_model_comparison
+)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = config.SECRET_KEY
@@ -541,7 +546,14 @@ def video_analysis_view():
 
 @app.route("/image-analysis")
 def image_analysis_view():
-    return render_template("image_analysis.html", active_page="image_analysis")
+    return render_template(
+        "image_analysis.html",
+        active_page="image_analysis",
+        benchmark_scenes=BENCHMARK_SCENES,
+        model_specs=MODEL_BENCHMARK_SPECS,
+        fig1_samples=SH17_FIG1_SAMPLES,
+        fig6_samples=PICTOR_FIG6_SAMPLES
+    )
 
 @app.route("/upload")
 def upload_view():
@@ -885,7 +897,18 @@ def model_view():
         "loaded": getattr(detector, "model", None) is not None,
         "class_count": len(detector.classes)
     }
-    return render_template("model.html", active_page="model", model_info=model_info, dataset_info=dataset_info)
+    return render_template(
+        "model.html",
+        active_page="model",
+        model_info=model_info,
+        dataset_info=dataset_info,
+        benchmark_scenes=BENCHMARK_SCENES,
+        model_specs=MODEL_BENCHMARK_SPECS,
+        table_iii=ALL_BENCHMARK_MODELS_TABLE_III,
+        table_iv=CLASSWISE_ACCURACY_TABLE_IV,
+        fig1_samples=SH17_FIG1_SAMPLES,
+        fig6_samples=PICTOR_FIG6_SAMPLES
+    )
 
 @app.route("/api/dataset/inspection")
 def api_dataset_inspection():
@@ -1273,6 +1296,48 @@ def upload_image():
     except Exception as e:
         print(f"[-] Image processing error: {e}")
         return jsonify({"success": False, "message": "Inference error while processing the image."}), 500
+
+@app.route("/api/benchmark/scenes")
+def api_benchmark_scenes():
+    """Returns all 7 test scenes from Page 13 (Fig. 5) of the research paper with multi-model outputs."""
+    return jsonify({
+        "success": True,
+        "scenes": BENCHMARK_SCENES,
+        "model_specs": MODEL_BENCHMARK_SPECS,
+        "table_iii": ALL_BENCHMARK_MODELS_TABLE_III,
+        "table_iv": CLASSWISE_ACCURACY_TABLE_IV,
+        "fig1_samples": SH17_FIG1_SAMPLES,
+        "fig6_samples": PICTOR_FIG6_SAMPLES
+    })
+
+@app.route("/api/benchmark/compare-upload", methods=["POST"])
+@role_required(*OPERATOR_ROLES)
+def api_benchmark_compare_upload():
+    """Executes multi-model comparison (YOLOv8-n, YOLOv8-m, YOLOv8-x, YOLOv9-e) on custom uploaded image."""
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "No image file provided in request."}), 400
+
+    file = request.files["image"]
+    if file.filename == "":
+        return jsonify({"success": False, "message": "No file selected."}), 400
+
+    try:
+        upload_path, stem, ext = save_upload(file, config.ALLOWED_IMAGE_EXTENSIONS)
+    except ValueError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
+
+    try:
+        results = run_multi_model_comparison(upload_path, pipeline.detector, output_dir=config.OUTPUTS_DIR)
+        audit("MULTI_MODEL_BENCHMARK", "DETECTION",
+              f"Ran 4-model comparison (YOLOv8-n/m/x, YOLOv9-e) on {file.filename!r}")
+        return jsonify({
+            "success": True,
+            "results": results,
+            "stem": stem
+        })
+    except Exception as e:
+        print(f"[-] Multi-model benchmark compare error: {e}")
+        return jsonify({"success": False, "message": f"Multi-model inference error: {str(e)}"}), 500
 
 def open_video_writer(base_path, fps, size):
     """Tries browser-playable codecs first. Returns (writer, path) or (None, None)."""

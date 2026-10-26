@@ -195,3 +195,97 @@ def draw_hud_and_detections(frame, workers, zones=None, fps=0.0, frame_num=0):
                 })
     return _default_annotator.annotate(frame, workers, zones=formatted_zones, fps=fps)
 
+# ==============================================================================
+# Research Paper SH17 Visual Representation & Benchmark Renderer (Fig. 1, 5, 6)
+# ==============================================================================
+
+SH17_CLASS_COLORS = {
+    "person": (72, 30, 225),             # Rose / Red (OSHA Worker anchor)
+    "head": (20, 140, 245),              # Warm Orange
+    "face": (180, 50, 230),              # Pink / Violet
+    "helmet": (240, 200, 0),             # Vivid Cyan / Teal (Hardhat)
+    "safety-vest": (230, 110, 20),        # High-Vis Blue
+    "glasses": (245, 175, 20),           # Sky Blue
+    "face-mask-medical": (180, 210, 30),  # Mint Green
+    "face-guard": (180, 170, 30),         # Teal
+    "ear": (110, 60, 230),               # Magenta
+    "ear-mufs": (210, 90, 150),          # Purple
+    "hands": (70, 210, 40),              # Emerald Green
+    "gloves": (90, 220, 60),             # Lime / Green
+    "shoes": (210, 70, 170),             # Violet / Purple
+    "foot": (210, 50, 210),              # Fuchsia
+    "tools": (0, 215, 255),              # Bright Yellow
+    "safety-suit": (220, 130, 80),       # Indigo
+    "medical-suit": (220, 180, 40),      # Cyan
+}
+
+def draw_sh17_predictions(frame, detections, model_tag=None, latency_ms=None, show_conf=True):
+    """
+    Renders bounding boxes and label tags in the exact visual style of:
+    - Page 6 Fig. 1 (SH17 Ground Truth Annotations)
+    - Page 13 Fig. 5 (Multi-Model Visual Representation: YOLOv8-n, v8-m, v8-x, v9-e)
+    - Page 14 Fig. 6 (Pictor-PPE Cross-Domain Inference)
+    """
+    out = frame.copy()
+    h, w = out.shape[:2]
+
+    # Draw model header banner if specified
+    if model_tag:
+        banner_h = 32
+        overlay = out.copy()
+        cv2.rectangle(overlay, (0, 0), (w, banner_h), (12, 16, 22), -1)
+        cv2.addWeighted(overlay, 0.85, out, 0.15, 0, out)
+        cv2.line(out, (0, banner_h), (w, banner_h), (40, 50, 65), 1)
+
+        tag_text = model_tag
+        if latency_ms:
+            tag_text += f" | Latency: {latency_ms:.1f}ms"
+        tag_text += f" | Detections: {len(detections)}"
+
+        cv2.putText(out, tag_text, (12, 21),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (240, 240, 240), 1, cv2.LINE_AA)
+
+    # Draw each detection with class-specific color
+    for det in detections:
+        bbox = det.get("bbox") or det.get("coordinates")
+        if not bbox or len(bbox) < 4:
+            continue
+        x1, y1, x2, y2 = [int(v) for v in bbox[:4]]
+        cls_name = str(det.get("class_name", det.get("class", det.get("name", "object")))).lower()
+        conf = det.get("confidence", det.get("conf", 0.0))
+
+        color = SH17_CLASS_COLORS.get(cls_name, (0, 220, 220))
+
+        # 1. Main bounding box (thickness 2)
+        cv2.rectangle(out, (x1, y1), (x2, y2), color, 2)
+
+        # 2. Corner accent markers (subtle industrial aesthetic)
+        c_len = max(6, min(14, (x2 - x1) // 5, (y2 - y1) // 5))
+        cv2.line(out, (x1, y1), (x1 + c_len, y1), (255, 255, 255), 2)
+        cv2.line(out, (x1, y1), (x1, y1 + c_len), (255, 255, 255), 2)
+        cv2.line(out, (x2, y2), (x2 - c_len, y2), (255, 255, 255), 2)
+        cv2.line(out, (x2, y2), (x2, y2 - c_len), (255, 255, 255), 2)
+
+        # 3. Label tag above box
+        if show_conf and conf > 0:
+            label_text = f"{cls_name} {int(conf * 100)}%" if conf <= 1.0 else f"{cls_name} {int(conf)}%"
+        else:
+            label_text = cls_name
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.38
+        thickness = 1
+        (tw, th), baseline = cv2.getTextSize(label_text, font, font_scale, thickness)
+
+        ty1 = max(0, y1 - th - 6)
+        ty2 = y1
+        tx2 = min(w, x1 + tw + 8)
+
+        # Dark background with color bar
+        cv2.rectangle(out, (x1, ty1), (tx2, ty2), (15, 18, 24), -1)
+        cv2.rectangle(out, (x1, ty1), (x1 + 3, ty2), color, -1)
+        cv2.putText(out, label_text, (x1 + 6, ty2 - 3),
+                    font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+
+    return out
+

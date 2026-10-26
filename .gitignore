@@ -37,6 +37,7 @@ database/.secret_key
 .idea/
 .DS_Store
 Thumbs.db
+*.pdf
 
 # Frontend Dependencies & Build
 frontend/node_modules/

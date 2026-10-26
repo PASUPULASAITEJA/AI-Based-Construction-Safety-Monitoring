@@ -1,133 +1,409 @@
 {% extends "base.html" %}
 
-{% block title %}Image Inspection Studio — SiteGuard AI{% endblock %}
-{% block page_title %}Image Inspection Studio{% endblock %}
-{% block page_subtitle %}High-resolution static frame inspection with bounding box localization and PPE classification{% endblock %}
+{% block title %}Model Comparison &amp; Inspection — SiteGuard AI{% endblock %}
+{% block page_title %}Research Benchmark &amp; Multi-Model Visual Studio{% endblock %}
+{% block breadcrumb %}Model Visual Representation{% endblock %}
+{% block page_subtitle %}Visual representation of predictions across YOLOv8-n, YOLOv8-m, YOLOv8-x, and YOLOv9-e on SH17 Dataset (arXiv:2407.04590v1){% endblock %}
 
 {% block content %}
-<div style="max-width: 1200px; margin: 0 auto;">
-  <!-- Upload State Container -->
-  <div id="image-upload-card" class="sg-card mb-5">
-    <div class="sg-card-head">
-      <i data-lucide="image" style="color: var(--blue); width: 16px; height: 16px;"></i>
-      <h2>Construction Site Image Inspection Ingestion</h2>
+<div style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Studio Mode Navigation Tabs -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+    <div class="sg-range-tabs" id="studio-mode-tabs">
+      <button class="sg-range-tab active" data-mode="benchmark" onclick="switchStudioMode('benchmark')">
+        <i data-lucide="columns" style="width: 14px; height: 14px;"></i>
+        <span>Multi-Model Benchmark Grid (Page 13 Fig. 5)</span>
+      </button>
+      <button class="sg-range-tab" data-mode="single" onclick="switchStudioMode('single')">
+        <i data-lucide="upload" style="width: 14px; height: 14px;"></i>
+        <span>Single Custom Inspection</span>
+      </button>
+      <button class="sg-range-tab" data-mode="sh17" onclick="switchStudioMode('sh17')">
+        <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
+        <span>SH17 Ground Truth (Page 6 Fig. 1)</span>
+      </button>
+      <button class="sg-range-tab" data-mode="pictor" onclick="switchStudioMode('pictor')">
+        <i data-lucide="layers" style="width: 14px; height: 14px;"></i>
+        <span>Pictor-PPE Cross-Domain (Page 14 Fig. 6)</span>
+      </button>
     </div>
-    <div class="sg-card-body" style="padding: 40px 24px;">
-      <form id="image-form" onsubmit="handleImageUpload(event)">
-        <div id="image-drop-zone" style="border: 2px dashed var(--border-2); border-radius: var(--radius-lg); padding: 48px 24px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all 0.2s;" onclick="document.getElementById('image-input').click()">
-          <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--blue-light); border: 1px solid var(--blue-mid); color: var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
-            <i data-lucide="image" style="width: 28px; height: 28px;"></i>
-          </div>
-          <div style="font-size: 16px; font-weight: 600; color: var(--text-1); margin-bottom: 6px;">Drop construction site photo here</div>
-          <div class="text-xs text-3" style="margin-bottom: 20px;">Supports .jpg, .jpeg, .png &bull; High resolution supported</div>
-          <button type="button" class="sg-btn sg-btn-primary" onclick="event.stopPropagation(); document.getElementById('image-input').click();">
-            <i data-lucide="upload"></i> Browse Files
-          </button>
-          <input type="file" id="image-input" name="image" accept=".jpg,.jpeg,.png" style="display: none;" onchange="onImageSelected(this)">
-          <div id="selected-image-name" class="mono text-xs" style="color: var(--orange); margin-top: 14px; display: none;"></div>
-        </div>
 
-        <div id="image-processing-bar" style="display: none; margin-top: 20px;">
-          <div class="sg-skeleton" style="height: 6px; width: 100%;"></div>
-          <div class="text-xs text-3 mono" style="margin-top: 8px; text-align: center;">Running YOLOv8 spatial inference &amp; PPE rule matrix...</div>
-        </div>
-
-        <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
-          <button type="submit" id="btn-inspect" class="sg-btn sg-btn-primary" style="display: none;">
-            <i data-lucide="scan"></i> Run PPE Inspection
-          </button>
-        </div>
-      </form>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="sg-badge sg-badge-resolved" style="font-family: 'JetBrains Mono', monospace;">
+        <i data-lucide="award" style="width: 12px; height: 12px;"></i> SOTA: YOLOv9-e (70.9% mAP@50)
+      </span>
+      <a href="{{ url_for('model.model') }}" class="sg-btn sg-btn-secondary sg-btn-sm">
+        <i data-lucide="cpu"></i> Model Architecture &amp; Tables
+      </a>
     </div>
   </div>
 
-  <!-- Results State: 50/50 Grid -->
-  <div id="image-results-view" style="display: none;">
-    <div class="grid-2 mb-5">
-      <!-- LEFT: Annotated Image with Zoom -->
-      <div class="sg-card">
-        <div class="sg-card-head">
-          <i data-lucide="zoom-in" style="color: var(--blue); width: 16px; height: 16px;"></i>
-          <h2>Annotated Image Result</h2>
-          <a id="download-annotated-img" href="#" download class="sg-btn sg-btn-secondary sg-btn-sm">
-            <i data-lucide="download"></i> Download Result
-          </a>
+  <!-- ========================================================================= -->
+  <!-- MODE 1: MULTI-MODEL BENCHMARK COMPARISON MATRIX (PAGE 13 FIG. 5)          -->
+  <!-- ========================================================================= -->
+  <div id="section-benchmark" class="studio-section">
+    <!-- Scene Selector Strip -->
+    <div class="sg-card mb-4" style="padding: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="layers" style="color: var(--orange);"></i>
+          <span class="strong text-1" style="font-size: 13px;">Select Test Scenario from Research Paper (Figure 5):</span>
         </div>
-        <div class="sg-card-body" style="padding: 12px; background: #000; text-align: center; overflow: hidden;">
-          <img id="result-img" src="" alt="Annotated Inspection Result" style="max-width: 100%; height: auto; border-radius: var(--radius); transition: transform 0.2s; cursor: zoom-in;" onclick="toggleZoom(this)">
-        </div>
-        <div style="padding: 10px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-3); font-family: 'JetBrains Mono', monospace;">
-          Click image to toggle 1.8&times; zoom &bull; Real YOLOv8 bounding boxes &bull; Color-coded compliance
-        </div>
+        <button class="sg-btn sg-btn-primary sg-btn-sm" onclick="triggerCustomCompareUpload()">
+          <i data-lucide="upload-cloud"></i> Compare Your Own Image
+        </button>
       </div>
 
-      <!-- RIGHT: Detection Breakdown Table & Telemetry -->
-      <div class="sg-card">
-        <div class="sg-card-head">
-          <i data-lucide="list-checks" style="color: var(--green); width: 16px; height: 16px;"></i>
-          <h2>Detection Breakdown</h2>
-          <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="resetImageUpload()">
-            <i data-lucide="rotate-ccw"></i> Inspect Another
+      <!-- 7 Scene Buttons -->
+      <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;" id="scene-selector-pills">
+        {% for sc in benchmark_scenes %}
+          <button class="sg-btn sg-btn-sm {{ 'sg-btn-primary' if loop.first else 'sg-btn-secondary' }}"
+                  id="btn-scene-{{ sc.id }}"
+                  onclick="selectBenchmarkScene({{ sc.id }})"
+                  style="white-space: nowrap;">
+            <span class="mono fw-600">{{ sc.row }}</span> {{ sc.title|truncate(32) }}
           </button>
-        </div>
-        <div class="sg-card-body">
-          <!-- Summary Header -->
-          <div class="grid-3 mb-4">
-            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono fw-600 text-1" style="font-size: 18px;" id="img-worker-count">0</div>
-              <div class="text-xs text-3">Workers Found</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Active Scenario Overview Card -->
+    <div class="sg-card mb-4" style="background: var(--surface-2); border-left: 4px solid var(--orange);">
+      <div class="sg-card-body" style="padding: 14px 18px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 280px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="sg-badge sg-badge-orange mono" id="active-scene-row">(1)</span>
+              <h2 style="font-size: 15px; font-weight: 700; margin: 0;" id="active-scene-title">Metal Smelting &amp; Smelting Furnace</h2>
+              <span class="text-xs text-3 mono" id="active-scene-env">Heavy Industrial Foundry</span>
             </div>
-            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono fw-600" style="font-size: 18px; color: var(--red);" id="img-violation-count">0</div>
-              <div class="text-xs text-3">Violations</div>
-            </div>
-            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center;">
-              <div class="mono fw-600" style="font-size: 18px; color: var(--green);" id="img-comp-rate">88%</div>
-              <div class="text-xs text-3">Compliance Rate</div>
+            <p class="text-xs text-2" style="margin-bottom: 6px;" id="active-scene-desc">
+              Foundry worker standing in close proximity to an active smelting furnace with intense radiative heat and luminous particle glare.
+            </p>
+            <div class="text-xs text-3 mono">
+              <span class="strong text-1">Required PPE:</span> <span id="active-scene-ppe">Face-guard (shield), protective suit, insulated gloves, heavy safety boots.</span>
             </div>
           </div>
-
-          <!-- Table -->
-          <div class="sg-table-wrap">
-            <table class="sg-table">
-              <thead>
-                <tr>
-                  <th>Class</th>
-                  <th>Confidence</th>
-                  <th>Body Zone</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="detection-table-body">
-                <tr class="row-critical">
-                  <td class="strong">Safety Helmet</td>
-                  <td class="mono">94.2%</td>
-                  <td>Head</td>
-                  <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                </tr>
-                <tr class="row-high">
-                  <td class="strong">High-Vis Vest</td>
-                  <td class="mono">91.8%</td>
-                  <td>Torso</td>
-                  <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                </tr>
-                <tr class="row-medium">
-                  <td class="strong">Safety Boots</td>
-                  <td class="mono">88.5%</td>
-                  <td>Feet</td>
-                  <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                </tr>
-                <tr class="row-critical">
-                  <td class="strong">Safety Gloves</td>
-                  <td class="mono">42.0%</td>
-                  <td>Hands</td>
-                  <td><span class="sg-badge sg-badge-critical">MISSING</span></td>
-                </tr>
-              </tbody>
-            </table>
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; max-width: 480px;">
+            <div class="text-xs fw-600" style="color: var(--orange); margin-bottom: 4px; display: flex; align-items: center; gap: 5px;">
+              <i data-lucide="book-open" style="width: 13px; height: 13px;"></i> Research Paper Finding (Section IV):
+            </div>
+            <div class="text-xs text-2" id="active-scene-finding" style="line-height: 1.4;">
+              High-intensity flame glare challenges standard detectors. YOLOv9-e correctly demarcates the worker boundary and face shield without saturation blowouts.
+            </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 4-Column Side-by-Side Model Prediction Matrix (Exact Paper Figure 5 Layout) -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;" id="matrix-grid-container">
+      <!-- COLUMN 1: YOLOv8-n -->
+      <div class="sg-card" style="display: flex; flex-direction: column; overflow: hidden; border-top: 3px solid #64748B;">
+        <div style="padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-1);">YOLOv8-n</div>
+            <div class="text-xs text-3 mono">Nano &bull; 3.2M Params</div>
+          </div>
+          <span class="sg-badge sg-badge-low mono">58.0% mAP50</span>
+        </div>
+        <div style="background: #000; position: relative; height: 260px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+          <img id="img-model-yolov8n" src="/static/img/research_paper/fig5_comparison/scene1_yolov8n.jpg" alt="YOLOv8-n Prediction"
+               style="width: 100%; height: 100%; object-fit: contain; cursor: zoom-in;" onclick="openImageModal(this.src, 'YOLOv8-n Prediction')">
+        </div>
+        <div style="padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; flex: 1;">
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Latency:</span>
+            <span class="text-1 fw-600">~11.2 ms (Fastest)</span>
+          </div>
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Precision / Recall:</span>
+            <span class="text-2">67.5% / 53.6%</span>
+          </div>
+          <div class="text-xs text-3 mt-1" style="line-height: 1.3;">
+            Lightweight backbone; prone to false positives on complex background textures.
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 2: YOLOv8-m -->
+      <div class="sg-card" style="display: flex; flex-direction: column; overflow: hidden; border-top: 3px solid #3B82F6;">
+        <div style="padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-1);">YOLOv8-m</div>
+            <div class="text-xs text-3 mono">Medium &bull; 25.9M Params</div>
+          </div>
+          <span class="sg-badge sg-badge-medium mono">66.6% mAP50</span>
+        </div>
+        <div style="background: #000; position: relative; height: 260px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+          <img id="img-model-yolov8m" src="/static/img/research_paper/fig5_comparison/scene1_yolov8m.jpg" alt="YOLOv8-m Prediction"
+               style="width: 100%; height: 100%; object-fit: contain; cursor: zoom-in;" onclick="openImageModal(this.src, 'YOLOv8-m Prediction')">
+        </div>
+        <div style="padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; flex: 1;">
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Latency:</span>
+            <span class="text-1 fw-600">~26.4 ms</span>
+          </div>
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Precision / Recall:</span>
+            <span class="text-2">77.1% / 60.5%</span>
+          </div>
+          <div class="text-xs text-3 mt-1" style="line-height: 1.3;">
+            Balanced feature pyramid; occasionally detects ground ballast as tools (Scene 2).
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 3: YOLOv8-x -->
+      <div class="sg-card" style="display: flex; flex-direction: column; overflow: hidden; border-top: 3px solid #8B5CF6;">
+        <div style="padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-1);">YOLOv8-x</div>
+            <div class="text-xs text-3 mono">Extra Large &bull; 68.2M Params</div>
+          </div>
+          <span class="sg-badge sg-badge-medium mono">69.3% mAP50</span>
+        </div>
+        <div style="background: #000; position: relative; height: 260px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+          <img id="img-model-yolov8x" src="/static/img/research_paper/fig5_comparison/scene1_yolov8x.jpg" alt="YOLOv8-x Prediction"
+               style="width: 100%; height: 100%; object-fit: contain; cursor: zoom-in;" onclick="openImageModal(this.src, 'YOLOv8-x Prediction')">
+        </div>
+        <div style="padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; flex: 1;">
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Latency:</span>
+            <span class="text-1 fw-600">~51.8 ms</span>
+          </div>
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Precision / Recall:</span>
+            <span class="text-2">77.1% / 63.1%</span>
+          </div>
+          <div class="text-xs text-3 mt-1" style="line-height: 1.3;">
+            Maximum capacity model; high compute footprint (68.2M params) but still trailing v9-e.
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 4: YOLOv9-e (STATE OF THE ART) -->
+      <div class="sg-card" style="display: flex; flex-direction: column; overflow: hidden; border-top: 3px solid #059669; box-shadow: 0 0 16px rgba(5, 150, 105, 0.2);">
+        <div style="padding: 10px 12px; background: rgba(5, 150, 105, 0.08); border-bottom: 1px solid rgba(5, 150, 105, 0.2); display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="crown" style="width: 13px; height: 13px;"></i> YOLOv9-e
+            </div>
+            <div class="text-xs text-3 mono">GELAN+PGI &bull; 58.1M Params</div>
+          </div>
+          <span class="sg-badge sg-badge-resolved mono" style="font-weight: 700;">70.9% mAP50</span>
+        </div>
+        <div style="background: #000; position: relative; height: 260px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+          <img id="img-model-yolov9e" src="/static/img/research_paper/fig5_comparison/scene1_yolov9e.jpg" alt="YOLOv9-e Prediction"
+               style="width: 100%; height: 100%; object-fit: contain; cursor: zoom-in;" onclick="openImageModal(this.src, 'YOLOv9-e Prediction (SOTA)')">
+        </div>
+        <div style="padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; flex: 1;">
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Latency:</span>
+            <span class="text-1 fw-600" style="color: var(--green);">~38.6 ms</span>
+          </div>
+          <div class="flex-between mb-1 mono">
+            <span class="text-3">Precision / Recall:</span>
+            <span class="text-1 fw-600" style="color: var(--green);">81.0% / 65.0% (Best)</span>
+          </div>
+          <div class="text-xs text-3 mt-1" style="line-height: 1.3;">
+            Programmable Gradient Information (PGI) prevents feature loss; superior small object PPE recall.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODE 2: SINGLE CUSTOM IMAGE INSPECTION & MULTI-MODEL COMPARISON TRIGGER   -->
+  <!-- ========================================================================= -->
+  <div id="section-single" class="studio-section" style="display: none;">
+    <!-- Upload Card -->
+    <div id="image-upload-card" class="sg-card mb-5">
+      <div class="sg-card-head">
+        <i data-lucide="image" style="color: var(--blue); width: 16px; height: 16px;"></i>
+        <h2>Upload Construction Site Photo for Automated PPE Inference</h2>
+      </div>
+      <div class="sg-card-body" style="padding: 36px 24px;">
+        <form id="image-form" onsubmit="handleImageUpload(event)">
+          <div id="image-drop-zone" style="border: 2px dashed var(--border-2); border-radius: var(--radius-lg); padding: 40px 24px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all 0.2s;" onclick="document.getElementById('image-input').click()">
+            <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--blue-light); border: 1px solid var(--blue-mid); color: var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto;">
+              <i data-lucide="upload-cloud" style="width: 26px; height: 26px;"></i>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: var(--text-1); margin-bottom: 4px;">Drop construction site image here or click to browse</div>
+            <div class="text-xs text-3" style="margin-bottom: 18px;">Supports JPG, PNG &bull; Resolution up to 4K</div>
+            <button type="button" class="sg-btn sg-btn-primary" onclick="event.stopPropagation(); document.getElementById('image-input').click();">
+              <i data-lucide="folder"></i> Browse Files
+            </button>
+            <input type="file" id="image-input" name="image" accept=".jpg,.jpeg,.png" style="display: none;" onchange="onImageSelected(this)">
+            <div id="selected-image-name" class="mono text-xs" style="color: var(--orange); margin-top: 12px; display: none;"></div>
+          </div>
+
+          <div id="image-processing-bar" style="display: none; margin-top: 18px;">
+            <div class="sg-skeleton" style="height: 6px; width: 100%;"></div>
+            <div class="text-xs text-3 mono" style="margin-top: 8px; text-align: center;">Running YOLO spatial inference &amp; PPE compliance validator...</div>
+          </div>
+
+          <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" id="btn-run-comparison" class="sg-btn sg-btn-secondary" style="display: none;" onclick="runComparisonOnUploadedFile()">
+              <i data-lucide="columns"></i> Run 4-Model Comparison (Fig. 5)
+            </button>
+            <button type="submit" id="btn-inspect" class="sg-btn sg-btn-primary" style="display: none;">
+              <i data-lucide="scan"></i> Inspect Single Model
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Single Results View -->
+    <div id="image-results-view" style="display: none;">
+      <div class="grid-2 mb-5">
+        <div class="sg-card">
+          <div class="sg-card-head">
+            <i data-lucide="zoom-in" style="color: var(--blue); width: 16px; height: 16px;"></i>
+            <h2>Annotated Prediction Result</h2>
+            <div style="display: flex; gap: 6px;">
+              <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="runComparisonOnUploadedFile()">
+                <i data-lucide="columns"></i> 4-Model Comparison
+              </button>
+              <a id="download-annotated-img" href="#" download class="sg-btn sg-btn-secondary sg-btn-sm">
+                <i data-lucide="download"></i> Download
+              </a>
+            </div>
+          </div>
+          <div class="sg-card-body" style="padding: 10px; background: #000; text-align: center; overflow: hidden;">
+            <img id="result-img" src="" alt="Annotated Result" style="max-width: 100%; height: auto; border-radius: var(--radius); cursor: zoom-in;" onclick="openImageModal(this.src, 'Single Image Inspection')">
+          </div>
+        </div>
+
+        <div class="sg-card">
+          <div class="sg-card-head">
+            <i data-lucide="list-checks" style="color: var(--green); width: 16px; height: 16px;"></i>
+            <h2>Detections &amp; Telemetry</h2>
+            <button class="sg-btn sg-btn-secondary sg-btn-sm" onclick="resetImageUpload()">
+              <i data-lucide="rotate-ccw"></i> Inspect Another
+            </button>
+          </div>
+          <div class="sg-card-body">
+            <div class="grid-3 mb-4">
+              <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center;">
+                <div class="mono fw-600 text-1" style="font-size: 18px;" id="img-worker-count">0</div>
+                <div class="text-xs text-3">Workers Found</div>
+              </div>
+              <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center;">
+                <div class="mono fw-600" style="font-size: 18px; color: var(--red);" id="img-violation-count">0</div>
+                <div class="text-xs text-3">Violations</div>
+              </div>
+              <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center;">
+                <div class="mono fw-600" style="font-size: 18px; color: var(--green);" id="img-comp-rate">100%</div>
+                <div class="text-xs text-3">Compliance Rate</div>
+              </div>
+            </div>
+            <div class="sg-table-wrap">
+              <table class="sg-table">
+                <thead>
+                  <tr>
+                    <th>Item Class</th>
+                    <th>Confidence</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="detection-table-body">
+                  <tr>
+                    <td class="strong">Safety Helmet</td>
+                    <td class="mono">92.4%</td>
+                    <td>Head</td>
+                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
+                  </tr>
+                  <tr>
+                    <td class="strong">Safety Vest</td>
+                    <td class="mono">88.6%</td>
+                    <td>Torso</td>
+                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODE 3: SH17 DATASET GROUND TRUTH SAMPLES (PAGE 6 FIG. 1)                 -->
+  <!-- ========================================================================= -->
+  <div id="section-sh17" class="studio-section" style="display: none;">
+    <div class="sg-card mb-4" style="background: var(--surface-2); border-left: 4px solid var(--blue);">
+      <div class="sg-card-body" style="padding: 14px 18px;">
+        <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">SH17 Dataset Ground Truth Annotations (Page 6 Figure 1)</h2>
+        <p class="text-xs text-2" style="margin-bottom: 8px;">
+          Samples showcasing multi-scale industrial manufacturing and construction environments with 17 distinct object classes (person, head, face, helmet, safety-vest, gloves, shoes, tools, ear-mufs, etc.).
+        </p>
+        <span class="text-xs text-3 mono">Total dataset size: 8,099 images &bull; 75,994 instances &bull; Average 9.38 annotations per image</span>
+      </div>
+    </div>
+
+    <!-- 12-Image Grid -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
+      {% for item in fig1_samples %}
+        <div class="sg-card" style="overflow: hidden; cursor: zoom-in;" onclick="openImageModal('{{ item.image }}', 'SH17 Sample #{{ item.id }} (Page 6 Fig. 1)')">
+          <div style="height: 180px; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <img src="{{ item.image }}" alt="SH17 Sample {{ item.id }}" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="padding: 8px 10px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+            <span class="mono fw-600 text-1">SH17 Sample #{{ item.id }}</span>
+            <span class="sg-badge sg-badge-low mono text-xs">Ground Truth</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODE 4: PICTOR-PPE CROSS-DOMAIN RESULTS (PAGE 14 FIG. 6)                  -->
+  <!-- ========================================================================= -->
+  <div id="section-pictor" class="studio-section" style="display: none;">
+    <div class="sg-card mb-4" style="background: var(--surface-2); border-left: 4px solid var(--purple);">
+      <div class="sg-card-body" style="padding: 14px 18px;">
+        <h2 style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">Pictor-PPE Cross-Domain Validation (Page 14 Figure 6)</h2>
+        <p class="text-xs text-2" style="margin-bottom: 8px;">
+          Zero-shot cross-domain generalization of models trained on SH17 and evaluated directly on external construction engineering sites (crane operations, trench excavation, concrete pouring, scaffolding).
+        </p>
+        <span class="text-xs text-3 mono">YOLOv9-e achieved 58.8% mAP on Pictor-PPE with 85.5% person mAP and 55.5% helmet mAP.</span>
+      </div>
+    </div>
+
+    <!-- 12-Image Grid -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
+      {% for item in fig6_samples %}
+        <div class="sg-card" style="overflow: hidden; cursor: zoom-in;" onclick="openImageModal('{{ item.image }}', 'Pictor-PPE Test #{{ item.id }} (Page 14 Fig. 6)')">
+          <div style="height: 180px; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <img src="{{ item.image }}" alt="Pictor PPE {{ item.id }}" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div style="padding: 8px 10px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+            <span class="mono fw-600 text-1">Pictor Test #{{ item.id }}</span>
+            <span class="sg-badge sg-badge-resolved mono text-xs">Inference SOTA</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Fullscreen Modal for High-Resolution Image Inspection -->
+<div class="sg-modal-backdrop" id="img-modal-backdrop" onclick="closeImageModal()">
+  <div class="sg-modal" style="max-width: 90vw; background: #0F172A; border: 1px solid #334155;" onclick="event.stopPropagation()">
+    <div class="sg-modal-head" style="border-bottom: 1px solid #334155;">
+      <h3 id="modal-img-title" style="color: #F8FAFC;">Inspection Preview</h3>
+      <button class="sg-modal-close" onclick="closeImageModal()" style="color: #94A3B8;"><i data-lucide="x"></i></button>
+    </div>
+    <div style="padding: 16px; text-align: center; max-height: 80vh; overflow: auto;">
+      <img id="modal-img-element" src="" alt="Zoom Preview" style="max-width: 100%; max-height: 72vh; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
     </div>
   </div>
 </div>
@@ -135,31 +411,121 @@
 
 {% block scripts %}
 <script>
-let zoomed = false;
-function toggleZoom(img) {
-  zoomed = !zoomed;
-  img.style.transform = zoomed ? 'scale(1.8)' : 'scale(1)';
-  img.style.cursor = zoomed ? 'zoom-out' : 'zoom-in';
+const scenesData = {{ benchmark_scenes|tojson }};
+
+function switchStudioMode(mode) {
+  document.querySelectorAll('#studio-mode-tabs .sg-range-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.getAttribute('data-mode') === mode);
+  });
+  document.querySelectorAll('.studio-section').forEach(sec => sec.style.display = 'none');
+  const target = document.getElementById(`section-${mode}`);
+  if (target) target.style.display = 'block';
+  if (window.lucide) lucide.createIcons();
 }
+
+function selectBenchmarkScene(sceneId) {
+  const scene = scenesData.find(s => s.id === sceneId);
+  if (!scene) return;
+
+  // Update button highlights
+  document.querySelectorAll('#scene-selector-pills button').forEach(btn => {
+    btn.className = 'sg-btn sg-btn-sm sg-btn-secondary';
+  });
+  const activeBtn = document.getElementById(`btn-scene-${sceneId}`);
+  if (activeBtn) activeBtn.className = 'sg-btn sg-btn-sm sg-btn-primary';
+
+  // Update Header details
+  document.getElementById('active-scene-row').textContent = scene.row;
+  document.getElementById('active-scene-title').textContent = scene.title;
+  document.getElementById('active-scene-env').textContent = scene.environment;
+  document.getElementById('active-scene-desc').textContent = scene.description;
+  document.getElementById('active-scene-ppe').textContent = scene.ppe_profile;
+  document.getElementById('active-scene-finding').textContent = scene.paper_finding;
+
+  // Update 4 images
+  document.getElementById('img-model-yolov8n').src = scene.images.yolov8n;
+  document.getElementById('img-model-yolov8m').src = scene.images.yolov8m;
+  document.getElementById('img-model-yolov8x').src = scene.images.yolov8x;
+  document.getElementById('img-model-yolov9e').src = scene.images.yolov9e;
+}
+
+function openImageModal(src, title) {
+  document.getElementById('modal-img-element').src = src;
+  document.getElementById('modal-img-title').textContent = title || 'High-Resolution Inspection';
+  document.getElementById('img-modal-backdrop').classList.add('open');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeImageModal() {
+  document.getElementById('img-modal-backdrop').classList.remove('open');
+}
+
+function triggerCustomCompareUpload() {
+  switchStudioMode('single');
+  document.getElementById('image-input').click();
+}
+
+let uploadedFileObj = null;
 
 function onImageSelected(input) {
   if (input.files && input.files[0]) {
-    const file = input.files[0];
+    uploadedFileObj = input.files[0];
     const lbl = document.getElementById('selected-image-name');
-    lbl.textContent = 'Selected: ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+    lbl.textContent = 'Selected: ' + uploadedFileObj.name + ' (' + (uploadedFileObj.size / 1024).toFixed(0) + ' KB)';
     lbl.style.display = 'block';
     document.getElementById('btn-inspect').style.display = 'inline-flex';
+    document.getElementById('btn-run-comparison').style.display = 'inline-flex';
+  }
+}
+
+async function runComparisonOnUploadedFile() {
+  if (!uploadedFileObj) {
+    document.getElementById('image-input').click();
+    return;
+  }
+  const formData = new FormData();
+  formData.append('image', uploadedFileObj);
+
+  const pBar = document.getElementById('image-processing-bar');
+  pBar.style.display = 'block';
+
+  try {
+    const res = await fetch('/api/benchmark/compare-upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    pBar.style.display = 'none';
+
+    if (data.success && data.results) {
+      switchStudioMode('benchmark');
+      document.getElementById('active-scene-row').textContent = 'CUSTOM';
+      document.getElementById('active-scene-title').textContent = 'Custom Upload Multi-Model Comparison';
+      document.getElementById('active-scene-env').textContent = uploadedFileObj.name;
+      document.getElementById('active-scene-desc').textContent = '4-model multi-scale inference executed simultaneously on custom uploaded photo.';
+      document.getElementById('active-scene-finding').textContent = 'Comparative visual representation rendered across YOLOv8-n, YOLOv8-m, YOLOv8-x, and YOLOv9-e.';
+
+      document.getElementById('img-model-yolov8n').src = data.results.yolov8n.annotated_url;
+      document.getElementById('img-model-yolov8m').src = data.results.yolov8m.annotated_url;
+      document.getElementById('img-model-yolov8x').src = data.results.yolov8x.annotated_url;
+      document.getElementById('img-model-yolov9e').src = data.results.yolov9e.annotated_url;
+
+      sgToast('success', 'Comparison Generated', 'All 4 model outputs rendered successfully.');
+    } else {
+      sgToast('error', 'Comparison Failed', data.message || 'Error processing image.');
+    }
+  } catch (err) {
+    pBar.style.display = 'none';
+    sgToast('error', 'Network Error', err.toString());
   }
 }
 
 async function handleImageUpload(e) {
   e.preventDefault();
-  const fileInput = document.getElementById('image-input');
-  if (!fileInput.files || !fileInput.files[0]) return;
+  if (!uploadedFileObj) return;
 
-  const file = fileInput.files[0];
   const formData = new FormData();
-  formData.append('image', file);
+  formData.append('image', uploadedFileObj);
 
   const pBar = document.getElementById('image-processing-bar');
   const btn = document.getElementById('btn-inspect');
@@ -201,11 +567,17 @@ async function handleImageUpload(e) {
 
 function resetImageUpload() {
   document.getElementById('image-form').reset();
+  uploadedFileObj = null;
   document.getElementById('selected-image-name').style.display = 'none';
   document.getElementById('btn-inspect').style.display = 'none';
+  document.getElementById('btn-run-comparison').style.display = 'none';
   document.getElementById('image-processing-bar').style.display = 'none';
   document.getElementById('image-results-view').style.display = 'none';
   document.getElementById('image-upload-card').style.display = 'block';
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  selectBenchmarkScene(1);
+});
 </script>
 {% endblock %}
