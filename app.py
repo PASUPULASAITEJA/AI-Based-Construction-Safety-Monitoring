@@ -211,11 +211,11 @@ class VideoCamera:
         self.cap = None
         self.is_running = True
         self.lock = threading.Lock()
-        self.mode = "webcam"  # 'webcam' or 'simulator'
+        self.mode = "simulator"  # Default to high-fidelity simulator for instant live output
         self.test_images = []
         self.test_img_idx = 0
+        self._last_open_attempt = 0.0
         self._load_fallback_samples()
-        self._open_hardware_camera()
 
     def _load_fallback_samples(self):
         priority_samples = [
@@ -235,18 +235,20 @@ class VideoCamera:
 
     def set_mode(self, mode):
         with self.lock:
-            self.mode = mode
-            if mode == "simulator":
+            if mode in ("hardware", "webcam"):
+                self.mode = "webcam"
+                self._open_hardware_camera()
+            else:
+                self.mode = "simulator"
                 if self.cap:
                     try:
                         self.cap.release()
                     except Exception:
                         pass
                     self.cap = None
-            elif mode == "webcam":
-                self._open_hardware_camera()
 
     def _open_hardware_camera(self):
+        self._last_open_attempt = time.time()
         try:
             if self.cap is not None and self.cap.isOpened():
                 return True
@@ -273,7 +275,7 @@ class VideoCamera:
             self.is_running = True
             if self.mode == "webcam":
                 if not self._open_hardware_camera():
-                    print("[Camera] Hardware webcam not accessible, falling back to simulator.")
+                    print("[Camera] Hardware webcam not accessible, using simulator.")
                     self.mode = "simulator"
             return True
 
@@ -292,7 +294,7 @@ class VideoCamera:
         with self.lock:
             if not self.is_running:
                 return False
-            if self.cap is not None and self.cap.isOpened():
+            if self.mode == "webcam" and self.cap is not None and self.cap.isOpened():
                 return True
             return len(self.test_images) > 0
 
@@ -301,7 +303,7 @@ class VideoCamera:
             if not self.is_running:
                 return "Offline"
             if self.mode == "simulator":
-                return "Test Pattern Simulator"
+                return "Construction Site Simulator"
             return "Live Optical Hardware"
 
     def get_raw_frame(self):
@@ -314,10 +316,11 @@ class VideoCamera:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 90, 100), 1, cv2.LINE_AA)
                 return idle
 
+            # Simulator Mode: Cycle high-quality construction site inspection frames
             if self.mode == "simulator" and self.test_images:
                 img_path = self.test_images[self.test_img_idx % len(self.test_images)]
                 frame = cv2.imread(img_path)
-                time.sleep(0.06)
+                time.sleep(0.04)
                 self.test_img_idx += 1
                 if frame is not None:
                     return frame
@@ -326,15 +329,23 @@ class VideoCamera:
             if self.cap and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
+                    # Check if webcam lens is completely dark / closed shutter
+                    if frame.mean() < 6.0:
+                        cv2.putText(frame, "WEBCAM ACTIVE (LOW LIGHT / LENS COVERED)", (20, 30),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 180, 255), 2, cv2.LINE_AA)
+                        cv2.putText(frame, "Open shutter or switch to Simulator in top controls", (20, 60),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
                     return frame
 
-            # Retry open
+            # Rate-limited retry open (at most once every 3 seconds to prevent thread stalling)
             if self.mode == "webcam":
-                if self._open_hardware_camera():
-                    ret, frame = self.cap.read()
-                    if ret and frame is not None:
-                        return frame
+                if (time.time() - self._last_open_attempt) > 3.0:
+                    if self._open_hardware_camera():
+                        ret, frame = self.cap.read()
+                        if ret and frame is not None:
+                            return frame
 
+            # Fallback to test images if hardware cannot be read
             if self.test_images:
                 img_path = self.test_images[self.test_img_idx % len(self.test_images)]
                 frame = cv2.imread(img_path)
@@ -1316,6 +1327,7 @@ def api_stats():
         "compliance_rate": worker_stats.get("compliance_rate", 100.0) if worker_stats.get("compliance_rate") is not None else 100.0,
         "total_workers_tracked": worker_stats.get("total_tracked", 0),
         "camera_online": camera.is_open() if 'camera' in globals() else True,
+        "camera_mode": getattr(camera, "mode", "simulator"),
         "uptime": _format_uptime(time.time() - APP_START_TIME)
     })
     return jsonify(response)
@@ -1341,7 +1353,8 @@ def get_detections_frame():
         "critical_count": latest_frame_summary.get("critical_count", 0),
         "workers": latest_frame_summary.get("workers", []),
         "fps": latest_frame_summary.get("fps", 0.0),
-        "camera_online": camera.is_open() if 'camera' in globals() else True
+        "camera_online": camera.is_open() if 'camera' in globals() else True,
+        "camera_mode": getattr(camera, "mode", "simulator")
     })
 
 @app.route("/api/analytics/violations-week")

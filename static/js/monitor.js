@@ -1,53 +1,109 @@
 /**
- * Live Monitoring Controller, Source Switcher, & Personnel Status Poller
+ * SiteGuard AI - Live Monitoring Controller, Source Switcher, & Real-Time Worker Roster
  */
 
 let statusPollInterval = null;
-let currentSource = 'webcam';
+let currentSource = 'simulator';
 let browserStream = null;
 let browserCaptureInterval = null;
 
+// Helper element getters with multi-ID fallbacks
+function getStreamImg() {
+  return document.getElementById('monitor-feed') || document.getElementById('live-video-stream');
+}
+
+function getBrowserVideo() {
+  return document.getElementById('browser-webcam') || document.getElementById('browser-webcam-element');
+}
+
+function getStreamBadge() {
+  return document.getElementById('live-stream-badge') || document.querySelector('.sg-cam-badge');
+}
+
+function getRosterContainer() {
+  return document.getElementById('live-workers-list') || document.getElementById('worker-roster-list');
+}
+
+function getWorkerCountBadge() {
+  return document.getElementById('workers-count-badge') || document.getElementById('worker-count-badge');
+}
+
+function getSourceSelect() {
+  return document.getElementById('monitor-cam-select') || document.getElementById('camera-source-select');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  startPollingStatus();
   setupStreamErrorHandler();
+  startPollingStatus();
+  syncInitialSourceState();
 });
 
+function syncInitialSourceState() {
+  // Sync UI to default mode (simulator)
+  const sel = getSourceSelect();
+  if (sel && sel.value) {
+    currentSource = sel.value;
+  }
+  updateSourceUI(currentSource);
+}
+
 function setupStreamErrorHandler() {
-  const streamImg = document.getElementById('live-video-stream');
+  const streamImg = getStreamImg();
   if (streamImg) {
     streamImg.onerror = () => {
-      console.warn('Video stream disconnected, auto-reconnecting in 1s...');
+      console.warn('[Monitor] Video stream error/disconnect, attempting reconnect...');
       setTimeout(() => {
         if (currentSource !== 'browser') {
-          streamImg.src = '/video_feed?t=' + Date.now();
+          const img = getStreamImg();
+          if (img) img.src = '/video_feed?t=' + Date.now();
         }
-      }, 1000);
+      }, 1200);
     };
   }
 }
 
 function startPollingStatus() {
   if (statusPollInterval) clearInterval(statusPollInterval);
-  statusPollInterval = setInterval(fetchLiveStatus, 600);
+  statusPollInterval = setInterval(fetchLiveStatus, 700);
+  fetchLiveStatus(); // Immediate first fetch
 }
 
 async function fetchLiveStatus() {
   try {
-    const res = await fetch('/api/status');
+    const res = await fetch('/api/detections/frame');
     if (res.ok) {
       const data = await res.json();
       updateWorkerRoster(data.workers || []);
       updateMonitorHeader(data);
     }
   } catch (err) {
-    // Graceful error ignore
+    // Network or background glitch ignored gracefully
   }
 }
 
 function updateMonitorHeader(data) {
-  const countBadge = document.getElementById('worker-count-badge');
+  const countBadge = getWorkerCountBadge();
+  const monitorWorkers = document.getElementById('monitor-workers');
+  const count = data.worker_count !== undefined ? data.worker_count : (data.workers ? data.workers.length : 0);
+
   if (countBadge) {
-    countBadge.innerText = `${data.worker_count || 0} Active`;
+    countBadge.innerText = `${count} Active`;
+  }
+  if (monitorWorkers) {
+    monitorWorkers.innerText = count;
+  }
+
+  const fpsDisplay = document.getElementById('fps-display');
+  const monitorFps = document.getElementById('monitor-fps');
+  if (data.fps !== undefined) {
+    const fpsVal = Number(data.fps).toFixed(1);
+    if (fpsDisplay) fpsDisplay.innerText = fpsVal;
+    if (monitorFps) monitorFps.innerText = fpsVal;
+  }
+
+  const monitorViolations = document.getElementById('monitor-violations');
+  if (monitorViolations && data.violation_count !== undefined) {
+    monitorViolations.innerText = data.violation_count;
   }
 }
 
@@ -73,13 +129,14 @@ function renderPPEBadge(val) {
 }
 
 function updateWorkerRoster(workers) {
-  const container = document.getElementById('worker-roster-list');
+  const container = getRosterContainer();
   if (!container) return;
 
   if (!workers || workers.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
-        No workers currently detected in camera view.
+      <div class="sg-empty" style="padding: 30px 10px; text-align: center; color: var(--text-3, #94a3b8);">
+        <div style="font-size: 26px; margin-bottom: 6px;">👷</div>
+        <p style="font-size: 11px; margin: 0;">Awaiting worker observations in camera stream</p>
       </div>
     `;
     return;
@@ -89,41 +146,55 @@ function updateWorkerRoster(workers) {
   workers.forEach(w => {
     const card = document.createElement('div');
     const isViolation = (w.violations && w.violations.length > 0) || (w.compliance_score !== undefined && w.compliance_score < 0.8);
-    const isCritical = w.status === 'CRITICAL VIOLATION';
     const scoreVal = w.compliance_score !== undefined ? w.compliance_score : 1.0;
     const scorePct = Math.round(scoreVal <= 1.0 ? scoreVal * 100 : scoreVal);
 
-    card.className = `worker-card ${isViolation ? 'violation' : ''}`;
-    card.style.cssText = "background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid " + (scorePct < 70 ? "#ef4444" : "#334155") + ";";
+    card.className = `sg-card mb-2`;
+    card.style.cssText = `background: var(--surface-2, #111827); border-radius: 8px; padding: 10px; margin-bottom: 8px; border: 1px solid ${scorePct < 70 ? 'var(--red, #ef4444)' : 'var(--border, #1f2937)'};`;
 
-    let scoreBadgeColor = scorePct >= 80 ? '#22c55e' : scorePct >= 50 ? '#f59e0b' : '#ef4444';
+    let scoreBadgeClass = scorePct >= 80 ? 'sg-badge-resolved' : scorePct >= 50 ? 'sg-badge-warning' : 'sg-badge-critical';
+    let scoreColor = scorePct >= 80 ? '#22c55e' : scorePct >= 50 ? '#f59e0b' : '#ef4444';
 
-    let ppeGridHtml = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #0f172a; padding: 8px; border-radius: 6px; margin: 8px 0;">';
+    const ppeDict = w.ppe || w;
+    const missingList = (w.missing_ppe || []).map(s => String(s).toLowerCase());
+    const detectedList = (w.detected_ppe || []).map(s => String(s).toLowerCase());
+
+    let ppeGridHtml = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 6px; margin: 8px 0;">';
     PPE_CONFIG.forEach(item => {
-      let val = w[item.key];
-      if (val === undefined && item.altKey && w[item.altKey] !== undefined) {
-        val = w[item.altKey];
+      let val = ppeDict[item.key];
+      if (val === undefined && item.altKey && ppeDict[item.altKey] !== undefined) {
+        val = ppeDict[item.altKey];
       }
+      if (val === undefined) {
+        if (missingList.some(m => m.includes(item.key) || (item.altKey && m.includes(item.altKey)))) {
+          val = false;
+        } else if (detectedList.some(d => d.includes(item.key) || (item.altKey && d.includes(item.altKey)))) {
+          val = true;
+        }
+      }
+
       ppeGridHtml += `
-        <div style="display: flex; flex-direction: column; align-items: center; font-size: 11px; padding: 3px 0;">
-          <span style="font-size: 13px;">${item.icon}</span>
-          <span style="color: #94a3b8; font-size: 9px;">${item.label}</span>
+        <div style="display: flex; flex-direction: column; align-items: center; font-size: 10px; padding: 2px 0;">
+          <span style="font-size: 12px;">${item.icon}</span>
+          <span style="color: #94a3b8; font-size: 8px; text-transform: uppercase;">${item.label}</span>
           <div>${renderPPEBadge(val)}</div>
         </div>
       `;
     });
     ppeGridHtml += '</div>';
 
+    const workerLabel = w.label || (w.worker_id !== undefined ? `Worker #${w.worker_id}` : 'Worker');
+
     card.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-weight: 700; font-size: 14px; color: #f8fafc;">${w.label || w.worker_id}</span>
-        <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: ${scoreBadgeColor}22; color: ${scoreBadgeColor}; border: 1px solid ${scoreBadgeColor}66;">
+        <span style="font-weight: 700; font-size: 12px; color: #f8fafc;">${workerLabel}</span>
+        <span class="sg-badge ${scoreBadgeClass}" style="font-size: 10px; padding: 1px 6px;">
           ${scorePct}% Compliance
         </span>
       </div>
       ${ppeGridHtml}
-      <div style="font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center;">
-        <span>Zone: <strong style="color: #cbd5e1;">${w.zone_name || 'General Site'}</strong></span>
+      <div style="font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center;">
+        <span>Zone: <strong style="color: #cbd5e1;">${w.zone_name || 'Active Site'}</strong></span>
         ${w.missing_ppe && w.missing_ppe.length > 0 ? `<span style="color: #f87171; font-weight: 600;">⚠️ ${w.missing_ppe.slice(0, 2).join(', ')}</span>` : ''}
       </div>
     `;
@@ -132,40 +203,99 @@ function updateWorkerRoster(workers) {
   });
 }
 
-async function switchCameraSource(source) {
-  currentSource = source;
-  stopBrowserWebcam();
+function updateSourceUI(normSource) {
+  // Update top button tabs
+  const tabHw = document.getElementById('tab-hardware');
+  const tabBr = document.getElementById('tab-browser');
+  const tabSim = document.getElementById('tab-simulator');
 
-  if (source === 'browser') {
+  if (tabHw) tabHw.className = (normSource === 'webcam') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+  if (tabBr) tabBr.className = (normSource === 'browser') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+  if (tabSim) tabSim.className = (normSource === 'simulator') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+
+  // Update dropdown select
+  const sel = getSourceSelect();
+  if (sel && sel.value !== normSource) {
+    sel.value = normSource;
+  }
+
+  // Update status badge
+  const badge = getStreamBadge();
+  if (badge) {
+    if (normSource === 'simulator') {
+      badge.innerText = 'SIMULATOR ACTIVE';
+      badge.className = 'sg-cam-badge';
+    } else if (normSource === 'browser') {
+      badge.innerText = 'BROWSER WEBRTC';
+      badge.className = 'sg-cam-badge rec';
+    } else {
+      badge.innerText = 'WEBCAM ONLINE';
+      badge.className = 'sg-cam-badge';
+    }
+  }
+}
+
+async function switchCameraSource(source) {
+  let normSource = source;
+  if (source === 'hardware') normSource = 'webcam';
+  currentSource = normSource;
+
+  updateSourceUI(normSource);
+
+  if (normSource === 'browser') {
     startBrowserWebcam();
   } else {
-    // Send mode change to server
+    stopBrowserWebcam();
+
+    const streamImg = getStreamImg();
+    const videoEl = getBrowserVideo();
+    if (videoEl) videoEl.style.display = 'none';
+    if (streamImg) {
+      streamImg.style.display = 'block';
+      streamImg.src = '/video_feed?t=' + Date.now();
+    }
+
     try {
       await fetch('/camera/mode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: source })
+        body: JSON.stringify({ mode: normSource })
       });
-      const streamImg = document.getElementById('live-video-stream');
-      if (streamImg) streamImg.src = '/video_feed?' + new Date().getTime();
-      document.getElementById('live-stream-badge').innerText = source === 'simulator' ? 'Simulator Active' : 'Camera Online';
-      document.getElementById('live-stream-badge').className = 'badge badge-compliant';
+      if (streamImg) {
+        streamImg.src = '/video_feed?t=' + Date.now();
+      }
     } catch (err) {
-      console.error('Mode switch error:', err);
+      console.error('[Monitor] Mode switch error:', err);
     }
   }
 }
+
+// Global aliases to ensure all HTML onclick bindings work flawlessly
 window.switchCameraSource = switchCameraSource;
+window.switchSource = switchCameraSource;
 window.changeCameraSource = switchCameraSource;
 
 async function startBrowserWebcam() {
-  const videoEl = document.getElementById('browser-webcam-element');
-  const streamImg = document.getElementById('live-video-stream');
-  const captureCanvas = document.getElementById('browser-capture-canvas');
+  const videoEl = getBrowserVideo();
+  const streamImg = getStreamImg();
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    alert('Browser WebRTC camera is not supported on this browser.');
+    if (window.sgToast) {
+      sgToast('error', 'Browser Webcam', 'WebRTC camera is not supported or permission denied.');
+    } else {
+      alert('Browser WebRTC camera is not supported on this browser.');
+    }
+    switchCameraSource('simulator');
     return;
+  }
+
+  // Ensure capture canvas exists
+  let captureCanvas = document.getElementById('browser-capture-canvas');
+  if (!captureCanvas) {
+    captureCanvas = document.createElement('canvas');
+    captureCanvas.id = 'browser-capture-canvas';
+    captureCanvas.style.display = 'none';
+    document.body.appendChild(captureCanvas);
   }
 
   try {
@@ -173,11 +303,15 @@ async function startBrowserWebcam() {
       video: { width: { ideal: 640 }, height: { ideal: 480 } },
       audio: false
     });
-    videoEl.srcObject = browserStream;
-    await videoEl.play();
 
-    document.getElementById('live-stream-badge').innerText = 'Browser WebRTC Active';
-    document.getElementById('live-stream-badge').className = 'badge badge-compliant';
+    if (videoEl) {
+      videoEl.srcObject = browserStream;
+      videoEl.style.display = 'none'; // Keep hidden, display AI-annotated frames on streamImg
+      await videoEl.play();
+    }
+    if (streamImg) {
+      streamImg.style.display = 'block';
+    }
 
     const ctx = captureCanvas.getContext('2d');
     captureCanvas.width = 640;
@@ -187,12 +321,12 @@ async function startBrowserWebcam() {
 
     if (browserCaptureInterval) clearInterval(browserCaptureInterval);
     browserCaptureInterval = setInterval(async () => {
-      if (isProcessing || !browserStream) return;
+      if (isProcessing || !browserStream || !videoEl) return;
       isProcessing = true;
 
       try {
         ctx.drawImage(videoEl, 0, 0, 640, 480);
-        const b64 = captureCanvas.toDataURL('image/jpeg', 0.7);
+        const b64 = captureCanvas.toDataURL('image/jpeg', 0.75);
 
         const res = await fetch('/api/process_browser_frame', {
           method: 'POST',
@@ -202,7 +336,7 @@ async function startBrowserWebcam() {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.annotated_image) {
+          if (data.annotated_image && streamImg) {
             streamImg.src = data.annotated_image;
           }
           if (data.summary) {
@@ -211,15 +345,23 @@ async function startBrowserWebcam() {
           }
         }
       } catch (e) {
-        console.error('Browser frame error:', e);
+        console.warn('[Monitor] Browser frame processing:', e);
       } finally {
         isProcessing = false;
       }
-    }, 100); // 10 FPS streaming
+    }, 120); // ~8 FPS WebRTC stream to server for ultra-responsive low-latency processing
+
+    if (window.sgToast) {
+      sgToast('success', 'Webcam Connected', 'Browser camera is now streaming with live PPE inference.');
+    }
   } catch (err) {
-    alert('Could not access browser camera: ' + err.message);
-    document.getElementById('camera-source-select').value = 'webcam';
-    switchCameraSource('webcam');
+    console.error('Could not access browser camera:', err);
+    if (window.sgToast) {
+      sgToast('error', 'Webcam Error', 'Could not open browser camera: ' + err.message);
+    } else {
+      alert('Could not access browser camera: ' + err.message);
+    }
+    switchCameraSource('simulator');
   }
 }
 
@@ -231,6 +373,11 @@ function stopBrowserWebcam() {
   if (browserStream) {
     browserStream.getTracks().forEach(t => t.stop());
     browserStream = null;
+  }
+  const videoEl = getBrowserVideo();
+  if (videoEl) {
+    videoEl.srcObject = null;
+    videoEl.style.display = 'none';
   }
 }
 
@@ -244,21 +391,25 @@ async function startCamera() {
     const res = await fetch('/camera/start', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      const streamImg = document.getElementById('live-video-stream');
-      if (streamImg) streamImg.src = '/video_feed?' + new Date().getTime();
-      document.getElementById('live-stream-badge').innerText = 'Camera Online';
-      document.getElementById('live-stream-badge').className = 'badge badge-compliant';
+      const streamImg = getStreamImg();
+      if (streamImg) streamImg.src = '/video_feed?t=' + Date.now();
+      const badge = getStreamBadge();
+      if (badge) {
+        badge.innerText = 'Camera Online';
+      }
+      if (window.sgToast) sgToast('success', 'Camera Started', 'Video stream resumed.');
     }
   } catch (err) {
-    alert('Camera start error: ' + err.message);
+    console.error('Camera start error:', err);
   }
 }
+window.startCamera = startCamera;
 
 async function stopCamera() {
   if (currentSource === 'browser') {
     stopBrowserWebcam();
-    document.getElementById('live-stream-badge').innerText = 'Camera Paused';
-    document.getElementById('live-stream-badge').className = 'badge badge-medium';
+    const badge = getStreamBadge();
+    if (badge) badge.innerText = 'Camera Paused';
     return;
   }
 
@@ -266,10 +417,12 @@ async function stopCamera() {
     const res = await fetch('/camera/stop', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      document.getElementById('live-stream-badge').innerText = 'Camera Paused';
-      document.getElementById('live-stream-badge').className = 'badge badge-medium';
+      const badge = getStreamBadge();
+      if (badge) badge.innerText = 'Camera Paused';
+      if (window.sgToast) sgToast('info', 'Camera Paused', 'Video feed paused.');
     }
   } catch (err) {
     console.error('Stop camera error:', err);
   }
 }
+window.stopCamera = stopCamera;

@@ -11,13 +11,13 @@
   <div style="height: 54px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; gap: 12px;">
     <!-- Left: Source Switcher -->
     <div style="display: flex; align-items: center; gap: 6px;">
-      <button class="sg-btn sg-btn-sm sg-btn-primary" id="tab-hardware" onclick="switchSource('hardware')">
+      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="tab-hardware" onclick="switchSource('hardware')">
         <i data-lucide="video"></i> Hardware Stream
       </button>
       <button class="sg-btn sg-btn-sm sg-btn-secondary" id="tab-browser" onclick="switchSource('browser')">
         <i data-lucide="camera"></i> Browser Camera
       </button>
-      <button class="sg-btn sg-btn-sm sg-btn-secondary" id="tab-simulator" onclick="switchSource('simulator')">
+      <button class="sg-btn sg-btn-sm sg-btn-primary" id="tab-simulator" onclick="switchSource('simulator')">
         <i data-lucide="play-circle"></i> Simulator
       </button>
     </div>
@@ -130,7 +130,7 @@
             <div class="sg-cam-info">
               <div class="sg-dot sg-dot-green"></div>
               <span class="sg-cam-name">CAM-01: Scaffolding North (Primary)</span>
-              <span class="sg-cam-badge">LIVE RTSP</span>
+              <span class="sg-cam-badge" id="live-stream-badge">SIMULATOR ACTIVE</span>
             </div>
             <div class="sg-cam-tools">
               <button class="sg-cam-btn" title="Expand to 1x1 Focus View" onclick="event.stopPropagation(); setGridMode('1x1'); focusCameraTile(1);">
@@ -456,34 +456,6 @@ async function deleteZone(zoneId) {
   }
 }
 
-async function switchSource(source) {
-  currentSource = source;
-  document.getElementById('tab-hardware').className = (source === 'hardware') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
-  document.getElementById('tab-browser').className = (source === 'browser') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
-  document.getElementById('tab-simulator').className = (source === 'simulator') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
-
-  const feedImg = document.getElementById('monitor-feed');
-  const webCam = document.getElementById('browser-webcam');
-
-  if (source === 'browser') {
-    feedImg.style.display = 'none';
-    webCam.style.display = 'block';
-    try {
-      browserStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      webCam.srcObject = browserStream;
-    } catch (e) {
-      sgToast('error', 'Camera Error', 'Could not access browser camera: ' + e);
-    }
-  } else {
-    if (browserStream) {
-      browserStream.getTracks().forEach(t => t.stop());
-      browserStream = null;
-    }
-    webCam.style.display = 'none';
-    feedImg.style.display = 'block';
-  }
-}
-
 async function toggleInference(start) {
   const url = start ? '/camera/start' : '/camera/stop';
   try {
@@ -503,29 +475,9 @@ async function toggleInference(start) {
   }
 }
 
-// Live Telemetry Poller
-setInterval(async () => {
-  try {
-    const res = await fetch('/api/detections/frame');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.fps !== undefined) {
-      const fpsStr = Number(data.fps).toFixed(1);
-      document.getElementById('monitor-fps').textContent = fpsStr;
-      document.getElementById('fps-display').textContent = fpsStr;
-    }
-    if (data.worker_count !== undefined) {
-      document.getElementById('monitor-workers').textContent = data.worker_count;
-      document.getElementById('workers-count-badge').textContent = data.worker_count + ' Active';
-    }
-    if (data.violation_count !== undefined) {
-      document.getElementById('monitor-violations').textContent = data.violation_count;
-    }
-  } catch (e) {}
-}, 2000);
-
 document.addEventListener('DOMContentLoaded', () => {
   setGridMode('1x1');
 });
 </script>
+<script src="{{ url_for('static', filename='js/monitor.js') }}"></script>
 {% endblock %}
