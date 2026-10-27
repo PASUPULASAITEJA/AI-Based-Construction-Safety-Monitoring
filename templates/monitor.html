@@ -502,10 +502,9 @@ async function startBrowserCapture() {
   const webCam = document.getElementById('browser-webcam');
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    sgToast('error', 'Camera Unavailable', 'Browsers only allow camera access on secure pages. Open the app at http://localhost:5000 or use HTTPS.');
+    sgToast('error', 'Camera Unavailable', 'Browsers only allow camera access on secure pages. Open the app at http://localhost:{{ request.host.split(":")[-1] if ":" in request.host else "5000" }} (not an IP address) or use HTTPS.');
     return false;
   }
-
   try {
     browserStream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 640 }, height: { ideal: 480 } },
@@ -516,10 +515,11 @@ async function startBrowserCapture() {
     return false;
   }
 
+  // Keep the raw <video> hidden and show the server-annotated frames in the feed image instead.
   webCam.srcObject = browserStream;
   await webCam.play();
   webCam.style.display = 'none';
-  if (feedImg) feedImg.style.display = 'block';
+  feedImg.style.display = 'block';
 
   const grab = document.createElement('canvas');
   grab.width = 640;
@@ -538,12 +538,7 @@ async function startBrowserCapture() {
         body: JSON.stringify({ image: grab.toDataURL('image/jpeg', 0.7) })
       });
       const data = await res.json();
-      if (data.success && data.annotated_image && currentSource === 'browser' && feedImg) {
-        feedImg.src = data.annotated_image;
-      }
-      if (data.summary && window.updateWorkerRoster) {
-        updateWorkerRoster(data.summary.workers || []);
-      }
+      if (data.success && data.annotated_image && currentSource === 'browser') feedImg.src = data.annotated_image;
     } catch (e) {
       console.error('Browser frame error:', e);
     } finally {
@@ -557,6 +552,7 @@ async function switchSource(source) {
   stopBrowserCapture();
   syncSourceUI(source);
   try {
+    // Release/acquire the hardware webcam on the server first; the browser can't open a device the server holds.
     await setServerMode(SERVER_MODE[source]);
   } catch (e) {
     sgToast('error', 'Network Error', e.toString());
@@ -578,17 +574,18 @@ async function switchSource(source) {
     });
     const json = await res.json();
     if (!json.hardware_ok) {
-      sgToast('warning', 'Hardware Camera Unavailable', (json.message || 'Device busy') + ' Try "Browser Camera" instead.');
+      sgToast('warning', 'Hardware Camera Unavailable', json.message + ' Try "Browser Camera" instead.');
       syncSourceUI('simulator');
     }
   }
   refreshFeed();
 }
 
+// Dropdown in the control strip
 function switchCameraSource(value) {
   if (value === 'browser') return switchSource('browser');
   if (value === 'simulator') return switchSource('simulator');
-  return switchSource('hardware');
+  return switchSource('hardware');  // 'webcam' or a configured site camera
 }
 
 async function toggleInference(start) {
@@ -613,9 +610,11 @@ async function toggleInference(start) {
   }
 }
 
+// Live Telemetry Poller handled in monitor.js
 document.addEventListener('DOMContentLoaded', () => {
   setGridMode('1x1');
-  const serverMode = '{{ camera_mode|default("simulator") }}';
+  // Reflect the server's actual source; browser capture needs a click to (re)grant the camera.
+  const serverMode = '{{ camera_mode|default("webcam") }}';
   syncSourceUI(serverMode === 'webcam' ? 'hardware' : (serverMode === 'browser' ? 'simulator' : serverMode));
   if (serverMode === 'browser') setServerMode('simulator');
 });
