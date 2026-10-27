@@ -141,7 +141,7 @@
           {% if stream_active %}
             <img src="{{ url_for('video_feed') }}" alt="Live Hardware Camera Feed" class="sg-feed-img" id="live-feed-img">
             <div class="sg-feed-hud">
-              <div class="sg-hud-chip"><i data-lucide="cpu"></i> FPS: <span id="hud-fps">24.8</span></div>
+              <div class="sg-hud-chip"><i data-lucide="cpu"></i> FPS: <span id="hud-fps">–</span></div>
               <div class="sg-hud-chip"><i data-lucide="users"></i> Workers: <span id="hud-workers">{{ stats.workers_count if stats else 0 }}</span></div>
               <div class="sg-hud-chip"><i data-lucide="alert-circle"></i> Hazards: <span id="hud-hazards">{{ stats.violations_count if stats else 0 }}</span></div>
             </div>
@@ -426,6 +426,21 @@ if (ctxCompliance) {
       }
     }
   });
+}
+
+// Live feed HUD chips: these were rendered once at page load (FPS hard-coded), so they
+// showed stale counts. Refresh them from the stream's latest frame.
+if (document.getElementById('hud-workers')) {
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/detections/frame');
+      if (!res.ok) return;
+      const data = await res.json();
+      document.getElementById('hud-fps').textContent = Number(data.fps || 0).toFixed(1);
+      document.getElementById('hud-workers').textContent = data.worker_count ?? 0;
+      document.getElementById('hud-hazards').textContent = data.violation_count ?? 0;
+    } catch (e) {}
+  }, 1000);
 }
 </script>
 {% endblock %}

@@ -118,7 +118,9 @@ class WorkerTracker:
         # Prepare active results
         active_workers = []
         for tid, t in self.tracks.items():
-            if t.time_since_update == 0: # Only return workers detected in current frame
+            # Only workers detected in this frame, and only once seen min_hits times
+            # (one-frame false detections never reach the worker count)
+            if t.time_since_update == 0 and t.hits >= self.min_hits:
                 active_workers.append({
                     "worker_id": tid,
                     "label": f"Worker #{tid}",

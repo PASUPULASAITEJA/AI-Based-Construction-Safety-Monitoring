@@ -27,7 +27,7 @@ class TemporalPPETracker:
         self,
         min_absence_frames: int = 10,
         high_conf_missing_threshold: float = 0.60,
-        uncertainty_threshold: float = 0.35
+        uncertainty_threshold: float = 0.15  # keep in line with PPEAssociator.min_detection_confidence
     ):
         self.min_absence_frames = min_absence_frames
         self.high_conf_missing_threshold = high_conf_missing_threshold

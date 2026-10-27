@@ -549,8 +549,8 @@ async function handleImageUpload(e) {
       document.getElementById('download-annotated-img').href = data.annotated_url;
 
       if (data.stats) {
-        document.getElementById('img-worker-count').textContent = data.stats.worker_count || 1;
-        document.getElementById('img-violation-count').textContent = (data.stats.incidents && data.stats.incidents.length) || 0;
+        document.getElementById('img-worker-count').textContent = data.stats.worker_count ?? 0;
+        document.getElementById('img-violation-count').textContent = data.stats.violation_count ?? 0;
       }
       sgToast('success', 'Inspection Complete', 'Spatial bounding boxes identified.');
     } else {

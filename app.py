@@ -239,7 +239,8 @@ class VideoCamera:
                 self.mode = "webcam"
                 self._open_hardware_camera()
             else:
-                self.mode = "simulator"
+                self.mode = mode
+                # 'browser' and 'simulator' must release hardware device so browser can access it
                 if self.cap:
                     try:
                         self.cap.release()
@@ -270,13 +271,17 @@ class VideoCamera:
             print(f"[-] Hardware camera open error: {e}")
         return False
 
-    def start(self):
+    def start(self, mode=None):
+        """Returns True if the requested source is live, False if it fell back to the simulator."""
         with self.lock:
             self.is_running = True
+            if mode:
+                self.mode = mode
             if self.mode == "webcam":
                 if not self._open_hardware_camera():
                     print("[Camera] Hardware webcam not accessible, using simulator.")
                     self.mode = "simulator"
+                    return False
             return True
 
     def stop(self):
@@ -315,6 +320,10 @@ class VideoCamera:
                 cv2.putText(idle, "Click 'Start Camera' to resume", (165, 265),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 90, 100), 1, cv2.LINE_AA)
                 return idle
+
+            # Browser frames arrive via /api/process_browser_frame; don't overwrite their telemetry
+            if self.mode == "browser":
+                return None
 
             # Simulator Mode: Cycle high-quality construction site inspection frames
             if self.mode == "simulator" and self.test_images:
@@ -433,11 +442,13 @@ def dashboard_view():
         "resolved_this_week": IncidentModel.get_count(status="RESOLVED"),
         "compliance_rate": int(worker_stats.get("compliance_rate", 100.0) if worker_stats.get("compliance_rate") is not None else 100)
     }
-    return render_template("index.html", active_page="dashboard", recent_alerts=recent, stats=summary_stats)
+    return render_template("index.html", active_page="dashboard", recent_alerts=recent, stats=summary_stats,
+                           stream_active=camera.is_running)
 
 @app.route("/monitor")
 def monitor_view():
-    return render_template("monitor.html", active_page="monitor")
+    return render_template("monitor.html", active_page="monitor",
+                           stream_active=camera.is_running, camera_mode=camera.mode)
 
 @app.route("/video-analysis")
 def video_analysis_view():
@@ -978,6 +989,19 @@ def set_camera_mode():
     camera.set_mode(mode)
     return jsonify({"success": True, "mode": camera.mode})
 
+@app.route("/camera/start", methods=["POST"])
+def start_camera():
+    data = request.get_json(silent=True) or {}
+    requested = data.get("mode")
+    ok = camera.start(requested)
+    message = None if ok else "Hardware webcam could not be opened (in use by another app, privacy shutter/switch, or OS permission). Showing simulator instead."
+    return jsonify({"success": True, "mode": camera.mode, "hardware_ok": ok, "message": message})
+
+@app.route("/camera/stop", methods=["POST"])
+def stop_camera():
+    camera.stop()
+    return jsonify({"success": True})
+
 @app.route("/api/process_browser_frame", methods=["POST"])
 def process_browser_frame():
     """Receives a base64 frame from browser webcam, processes it through CV pipeline, and returns annotated frame + telemetry."""
@@ -1437,4 +1461,6 @@ def serve_output(filename):
 
 if __name__ == "__main__":
     print(f"[Server] Starting Construction Safety Monitoring App on http://127.0.0.1:{config.PORT}")
-    app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG)
+    # The debug reloader imports this module twice; the watcher process would grab the webcam
+    # at import time and the serving process could never open it.
+    app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG, use_reloader=False)

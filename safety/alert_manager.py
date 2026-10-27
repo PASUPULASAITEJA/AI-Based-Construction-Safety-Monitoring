@@ -71,7 +71,9 @@ class AlertManager:
         )
 
         # Worker Track Stats
-        track_code = incident_data.get("track_code") or f"TRK-{worker_id:03d}"
+        # worker_id is an int from the tracker or a "W-001" string from PPEAssociator
+        track_code = incident_data.get("track_code") or (
+            f"TRK-{worker_id:03d}" if isinstance(worker_id, int) else f"TRK-{str(worker_id).replace('W-', '')}")
         WorkerTrackModel.record_observation(
             track_code=track_code,
             label=worker_label,
