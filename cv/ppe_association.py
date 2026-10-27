@@ -106,6 +106,67 @@ def is_point_inside(point: Tuple[float, float], box: List[float]) -> bool:
     return box[0] <= x <= box[2] and box[1] <= y <= box[3]
 
 
+def _crop(frame: np.ndarray, box: List[float]) -> Optional[np.ndarray]:
+    ih, iw = frame.shape[:2]
+    x1, y1 = max(0, int(box[0])), max(0, int(box[1]))
+    x2, y2 = min(iw, int(box[2])), min(ih, int(box[3]))
+    if x2 - x1 < 4 or y2 - y1 < 4:
+        return None
+    return frame[y1:y2, x1:x2]
+
+
+def _non_skin_mask(region: np.ndarray) -> np.ndarray:
+    # Skin in YCrCb; tanned skin otherwise passes as "orange" under warm light
+    skin = cv2.inRange(cv2.cvtColor(region, cv2.COLOR_BGR2YCrCb), (0, 133, 77), (255, 173, 127))
+    return cv2.bitwise_not(skin)
+
+
+def hivis_ratio(region: Optional[np.ndarray]) -> float:
+    """Fraction of pixels that are fluorescent yellow/green or orange (and not skin)."""
+    if region is None or region.size == 0:
+        return 0.0
+    hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    # Fluorescent yellow-green measured at H 30-45; plain yellow shirts sit at H 21-23
+    yellow_green = cv2.inRange(hsv, (27, 120, 150), (55, 255, 255))
+    orange = cv2.inRange(hsv, (3, 150, 130), (20, 255, 255))
+    mask = cv2.bitwise_and(cv2.bitwise_or(yellow_green, orange), _non_skin_mask(region))
+    return cv2.countNonZero(mask) / float(region.shape[0] * region.shape[1])
+
+
+def hardhat_ratio(region: Optional[np.ndarray]) -> float:
+    """Fraction of pixels with a typical hard-hat colour (yellow/orange/white/red/blue/green, not skin/hair)."""
+    if region is None or region.size == 0:
+        return 0.0
+    hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    masks = [
+        cv2.inRange(hsv, (15, 70, 120), (35, 255, 255)),    # yellow (incl. faded/dusty shells)
+        cv2.inRange(hsv, (5, 120, 120), (15, 255, 255)),    # orange
+        cv2.inRange(hsv, (0, 0, 185), (180, 40, 255)),      # white
+        cv2.inRange(hsv, (0, 120, 90), (5, 255, 255)),      # red
+        cv2.inRange(hsv, (170, 120, 90), (180, 255, 255)),  # red (wrap)
+        cv2.inRange(hsv, (95, 90, 70), (130, 255, 255)),    # blue
+        cv2.inRange(hsv, (40, 90, 70), (85, 255, 255)),     # green
+    ]
+    mask = masks[0]
+    for m in masks[1:]:
+        mask = cv2.bitwise_or(mask, m)
+    mask = cv2.bitwise_and(mask, _non_skin_mask(region))
+    return cv2.countNonZero(mask) / float(region.shape[0] * region.shape[1])
+
+
+def weak_box_colour_ok(frame: Optional[np.ndarray], category: str, box: List[float]) -> bool:
+    """Accept a low-confidence helmet/vest box only if its pixels look like the real thing."""
+    if frame is None:
+        return False
+    if category == "vest":
+        return hivis_ratio(_crop(frame, box)) >= 0.15
+    if category == "helmet":
+        x1, y1, x2, y2 = box
+        top = [x1, y1, x2, y1 + 0.6 * (y2 - y1)]  # shell, not the face below it
+        return hardhat_ratio(_crop(frame, top)) >= 0.30
+    return False
+
+
 class PPEAssociator:
     """
     Anatomical Body-Zone PPE-to-Worker Association Engine.
@@ -119,11 +180,21 @@ class PPEAssociator:
     def __init__(
         self,
         min_overlap: float = 0.05,
-        min_detection_confidence: float = 0.25,
+        min_detection_confidence: float = 0.15,  # same as the detector's helmet/vest thresholds
         head_span: Tuple[float, float] = (0.00, 0.25),
         torso_span: Tuple[float, float] = (0.25, 0.70),
-        lower_span: Tuple[float, float] = (0.70, 1.00)
+        lower_span: Tuple[float, float] = (0.70, 1.00),
+        required_ppe: Optional[List[str]] = None,
+        cv_fallback_categories: Tuple[str, ...] = ("vest",)
     ):
+        if required_ppe is None:
+            import config
+            required_ppe = getattr(config, "REQUIRED_PPE", ["helmet", "vest"])
+        self.required_ppe = list(required_ppe)
+        # Only the hi-vis vest colour check is reliable enough to override the model; the
+        # edge/colour heuristics for helmet (any white wall), harness, boots, goggles etc.
+        # marked people as wearing PPE they did not have.
+        self.cv_fallback_categories = set(cv_fallback_categories)
         self.min_overlap = min_overlap
         self.min_conf = min_detection_confidence
         self.head_span = head_span
@@ -273,12 +344,8 @@ class PPEAssociator:
                 torso = p_crop[ty1:ty2, :]
                 if torso.size == 0:
                     return False, 0.0
-                hsv = cv2.cvtColor(torso, cv2.COLOR_BGR2HSV)
-                mask_yellow = cv2.inRange(hsv, (20, 70, 90), (45, 255, 255))
-                mask_orange = cv2.inRange(hsv, (4, 110, 100), (19, 255, 255))
-                vis_pixels = cv2.countNonZero(mask_yellow) + cv2.countNonZero(mask_orange)
-                ratio = vis_pixels / float(torso.shape[0] * torso.shape[1])
-                if ratio >= 0.08:
+                ratio = hivis_ratio(torso)
+                if ratio >= 0.10:
                     return True, round(min(0.98, 0.65 + ratio * 1.5), 3)
                 return False, 0.0
 
@@ -413,7 +480,14 @@ class PPEAssociator:
 
         # Detect caller signature: if detections is actually workers list and workers is detections
         if isinstance(detections, list) and isinstance(workers, list):
-            if len(detections) > 0 and ("worker_id" in detections[0] or "label" in detections[0]) and "category" not in detections[0]:
+            # First arg is the worker list if its items lack "category", or (when it is empty)
+            # if the second arg holds raw detections. Otherwise an empty worker list would
+            # make every PPE box be treated as a worker.
+            first_is_workers = (
+                (len(detections) > 0 and "category" not in detections[0])
+                or (len(detections) == 0 and len(workers) > 0 and "category" in workers[0])
+            )
+            if first_is_workers:
                 actual_workers = detections
                 actual_detections = workers
                 return_as_list = True
@@ -455,11 +529,14 @@ class PPEAssociator:
                 lookup = LABEL_LOOKUP.get(cat_str)
                 if lookup:
                     cat_name, is_pos = lookup
+                    if det.get("weak") and not weak_box_colour_ok(frame, cat_name, bbox):
+                        continue
                     parsed_detections.append({
                         "category": cat_name,
                         "is_positive": is_pos,
                         "bbox": bbox,
-                        "confidence": conf,
+                        # A colour-verified weak box counts as a minimum-confidence detection
+                        "confidence": max(conf, self.min_conf) if det.get("weak") else conf,
                         "raw_label": cat_str
                     })
 
@@ -521,12 +598,9 @@ class PPEAssociator:
                 for cat in PPE_CATEGORIES
             }
 
-        if not active_workers or not parsed_detections:
-            for wid, item in results.items():
-                item["missing_ppe"] = list(PPE_CATEGORIES)
-                item["compliance_score"] = 0.0
+        if not active_workers:
             if return_as_list:
-                return list(results.values())
+                return []
             return results
 
         # Step 3: Associate each PPE detection to the best matching worker
@@ -570,7 +644,7 @@ class PPEAssociator:
                 eff_conf = pos_c if raw_present else max(neg_c, 0.0)
 
                 # Anatomical Computer Vision fallback if model did not detect it
-                if not raw_present and frame is not None and neg_c < 0.40:
+                if not raw_present and frame is not None and neg_c < 0.40 and cat in self.cv_fallback_categories:
                     cv_pres, cv_c = self.verify_anatomical_ppe_presence(frame, worker_bbox, cat)
                     if cv_pres:
                         raw_present = True
@@ -599,6 +673,8 @@ class PPEAssociator:
                     results[wid]["glasses"] = status
                 elif cat == "earmuff":
                     results[wid]["earmuffs"] = status
+                if cat not in self.required_ppe:
+                    continue
                 if status is True:
                     compliant_count += 1
                 elif status is False:
@@ -607,7 +683,7 @@ class PPEAssociator:
                 elif status == "uncertain":
                     compliant_count += 0.5
 
-            score = round(compliant_count / float(len(PPE_CATEGORIES)), 2)
+            score = round(compliant_count / float(max(1, len(self.required_ppe))), 2)
             results[wid]["compliance_score"] = score
             results[wid]["missing_ppe"] = missing_list
             results[wid]["has_HEAD"] = bool(results[wid].get("helmet"))

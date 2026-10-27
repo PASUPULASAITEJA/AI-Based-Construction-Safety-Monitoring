@@ -456,48 +456,155 @@ async function deleteZone(zoneId) {
   }
 }
 
-async function switchSource(source) {
+const SERVER_MODE = { hardware: 'webcam', simulator: 'simulator', browser: 'browser' };
+let browserCaptureTimer = null;
+
+function syncSourceUI(source) {
   currentSource = source;
-  document.getElementById('tab-hardware').className = (source === 'hardware') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
-  document.getElementById('tab-browser').className = (source === 'browser') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
-  document.getElementById('tab-simulator').className = (source === 'simulator') ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+  ['hardware', 'browser', 'simulator'].forEach(s => {
+    document.getElementById('tab-' + s).className = (s === source) ? 'sg-btn sg-btn-sm sg-btn-primary' : 'sg-btn sg-btn-sm sg-btn-secondary';
+  });
+  const select = document.getElementById('monitor-cam-select');
+  if (select && select.querySelector(`option[value="${SERVER_MODE[source]}"]`)) select.value = SERVER_MODE[source];
+}
 
+function refreshFeed() {
   const feedImg = document.getElementById('monitor-feed');
-  const webCam = document.getElementById('browser-webcam');
+  feedImg.src = '{{ url_for("video_feed") }}?t=' + Date.now();
+}
 
-  if (source === 'browser') {
-    feedImg.style.display = 'none';
-    webCam.style.display = 'block';
-    try {
-      browserStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      webCam.srcObject = browserStream;
-    } catch (e) {
-      sgToast('error', 'Camera Error', 'Could not access browser camera: ' + e);
-    }
-  } else {
-    if (browserStream) {
-      browserStream.getTracks().forEach(t => t.stop());
-      browserStream = null;
-    }
-    webCam.style.display = 'none';
-    feedImg.style.display = 'block';
+function describeCameraError(e) {
+  switch (e && e.name) {
+    case 'NotAllowedError': return 'Camera permission was denied. Click the camera icon in the address bar, allow access, and try again.';
+    case 'NotFoundError': return 'No camera was found on this device.';
+    case 'NotReadableError': return 'The camera is in use by another application (Zoom, Teams, Camera app…) or the privacy shutter/F-key camera switch is off.';
+    default: return (e && e.message) || String(e);
   }
 }
 
-async function toggleInference(start) {
-  const url = start ? '/camera/start' : '/camera/stop';
+function stopBrowserCapture() {
+  if (browserCaptureTimer) { clearInterval(browserCaptureTimer); browserCaptureTimer = null; }
+  if (browserStream) { browserStream.getTracks().forEach(t => t.stop()); browserStream = null; }
+}
+
+async function setServerMode(mode) {
+  const res = await fetch('/camera/mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: mode })
+  });
+  return res.json();
+}
+
+async function startBrowserCapture() {
+  const feedImg = document.getElementById('monitor-feed');
+  const webCam = document.getElementById('browser-webcam');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    sgToast('error', 'Camera Unavailable', 'Browsers only allow camera access on secure pages. Open the app at http://localhost:{{ request.host.split(":")[-1] if ":" in request.host else "5000" }} (not an IP address) or use HTTPS.');
+    return false;
+  }
+
   try {
-    const res = await fetch(url, {
+    browserStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+  } catch (e) {
+    sgToast('error', 'Camera Error', describeCameraError(e));
+    return false;
+  }
+
+  // Keep the raw <video> hidden and show the server-annotated frames in the feed image instead.
+  webCam.srcObject = browserStream;
+  await webCam.play();
+  webCam.style.display = 'none';
+  feedImg.style.display = 'block';
+
+  const grab = document.createElement('canvas');
+  grab.width = 640;
+  grab.height = 480;
+  const gctx = grab.getContext('2d');
+  let busy = false;
+
+  browserCaptureTimer = setInterval(async () => {
+    if (busy || !browserStream) return;
+    busy = true;
+    try {
+      gctx.drawImage(webCam, 0, 0, grab.width, grab.height);
+      const res = await fetch('/api/process_browser_frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: grab.toDataURL('image/jpeg', 0.7) })
+      });
+      const data = await res.json();
+      if (data.success && data.annotated_image && currentSource === 'browser') feedImg.src = data.annotated_image;
+    } catch (e) {
+      console.error('Browser frame error:', e);
+    } finally {
+      busy = false;
+    }
+  }, 100);
+  return true;
+}
+
+async function switchSource(source) {
+  stopBrowserCapture();
+  syncSourceUI(source);
+  try {
+    // Release/acquire the hardware webcam on the server first; the browser can't open a device the server holds.
+    await setServerMode(SERVER_MODE[source]);
+  } catch (e) {
+    sgToast('error', 'Network Error', e.toString());
+    return;
+  }
+
+  if (source === 'browser') {
+    if (!(await startBrowserCapture())) {
+      await switchSource('simulator');
+    }
+    return;
+  }
+
+  if (source === 'hardware') {
+    const res = await fetch('/camera/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source: 0 })
+      body: JSON.stringify({ mode: 'webcam' })
     });
     const json = await res.json();
-    if (json.success) {
-      window.location.reload();
-    } else {
-      sgToast('error', 'Inference Error', json.message || 'Operation failed.');
+    if (!json.hardware_ok) {
+      sgToast('warning', 'Hardware Camera Unavailable', json.message + ' Try "Browser Camera" instead.');
+      syncSourceUI('simulator');
     }
+  }
+  refreshFeed();
+}
+
+// Dropdown in the control strip
+function switchCameraSource(value) {
+  if (value === 'browser') return switchSource('browser');
+  if (value === 'simulator') return switchSource('simulator');
+  return switchSource('hardware');  // 'webcam' or a configured site camera
+}
+
+async function toggleInference(start) {
+  try {
+    if (!start) stopBrowserCapture();
+    const res = await fetch(start ? '/camera/start' : '/camera/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(start ? { mode: SERVER_MODE[currentSource] } : {})
+    });
+    const json = await res.json();
+    if (!json.success) {
+      sgToast('error', 'Inference Error', json.message || 'Operation failed.');
+      return;
+    }
+    if (start && json.hardware_ok === false) {
+      sgToast('warning', 'Hardware Camera Unavailable', json.message + ' Try "Browser Camera" instead.');
+    }
+    setTimeout(() => window.location.reload(), start && json.hardware_ok === false ? 2500 : 0);
   } catch (e) {
     sgToast('error', 'Network Error', e.toString());
   }
@@ -526,6 +633,10 @@ setInterval(async () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   setGridMode('1x1');
+  // Reflect the server's actual source; browser capture needs a click to (re)grant the camera.
+  const serverMode = '{{ camera_mode|default("webcam") }}';
+  syncSourceUI(serverMode === 'webcam' ? 'hardware' : (serverMode === 'browser' ? 'simulator' : serverMode));
+  if (serverMode === 'browser') setServerMode('simulator');
 });
 </script>
 {% endblock %}

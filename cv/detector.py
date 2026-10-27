@@ -9,6 +9,14 @@ import numpy as np
 from ultralytics import YOLO
 import config
 
+# Helmet/vest boxes scoring between WEAK_PPE_MIN_CONF and STRONG_PPE_CONF are flagged "weak"
+# and only counted if their pixels pass a colour check (PPEAssociator). This recovers real
+# hi-vis vests the model scores at ~0.1 and rejects 0.2-0.3 "vests" on yellow T-shirts and
+# "helmets" on bare heads.
+WEAK_PPE_CATEGORIES = {"helmet", "vest"}
+WEAK_PPE_MIN_CONF = 0.05
+STRONG_PPE_CONF = 0.35
+
 class ConstructionDetector:
     def __init__(self, model_path=None, data_yaml=config.DATA_YAML_PATH, conf=config.CONFIDENCE_THRESHOLD, iou=config.IOU_THRESHOLD):
         self.conf = conf
@@ -32,6 +40,43 @@ class ConstructionDetector:
         self.classes = {}
         self.canonical_map = {}
         self._load_classes()
+
+        # General-purpose COCO person detector. The PPE model only learned "Person" from
+        # construction-site photos and misses people in other settings (webcam close-ups,
+        # suits, crowds); its boxes are merged with the PPE model's before de-duplication.
+        self.person_model = None
+        if getattr(config, "USE_PERSON_MODEL", False) and os.path.exists(config.PERSON_MODEL_PATH) \
+                and os.path.abspath(self.model_path) != os.path.abspath(config.PERSON_MODEL_PATH):
+            try:
+                self.person_model = YOLO(config.PERSON_MODEL_PATH)
+                print(f"[Detector] Person model loaded from: {config.PERSON_MODEL_PATH}")
+            except Exception as e:
+                print(f"[-] Warning: person model unavailable ({e}); using PPE model persons only")
+
+    def _detect_coco_persons(self, image_or_frame):
+        """Person boxes from the COCO model (class 0), in the same dict format as detect()."""
+        if self.person_model is None:
+            return []
+        results = self.person_model.predict(
+            source=image_or_frame,
+            conf=config.PERSON_MODEL_CONF,
+            iou=self.iou,
+            classes=[0],
+            imgsz=config.IMG_SIZE,
+            device=self.device,
+            verbose=False
+        )
+        persons = []
+        for box in results[0].boxes if results and results[0].boxes is not None else []:
+            x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].cpu().numpy().tolist()]
+            persons.append({
+                "bbox": [x1, y1, x2, y2],
+                "confidence": round(float(box.conf[0].cpu().numpy()), 4),
+                "class_id": 0,
+                "class_name": "person",
+                "category": "person"
+            })
+        return persons
 
     def _load_classes(self):
         # 1. Always prioritize the model's own internal names dictionary
@@ -114,23 +159,18 @@ class ConstructionDetector:
         c_thresh = conf if conf is not None else self.conf
         i_thresh = iou if iou is not None else self.iou
 
+        # Predict below the working threshold so weak helmet/vest boxes can be colour-verified
+        # downstream (the model often scores real hi-vis vests at 0.10-0.15).
         results = self.model.predict(
             source=image_or_frame,
-            conf=c_thresh,
+            conf=min(c_thresh, WEAK_PPE_MIN_CONF),
             iou=i_thresh,
             imgsz=config.IMG_SIZE,
             device=self.device,
             verbose=False
         )
 
-        if not results or len(results) == 0:
-            return []
-
-        r = results[0]
-        boxes = r.boxes
-
-        if boxes is None or len(boxes) == 0:
-            return []
+        boxes = results[0].boxes if results and results[0].boxes is not None else []
 
         # Class-specific confidence filtering thresholds
         min_thresholds = {
@@ -164,8 +204,18 @@ class ConstructionDetector:
             category = self._normalize_category(class_name)
 
             # Check threshold
-            req_conf = min_thresholds.get(category, min_thresholds["other"])
-            if confidence >= req_conf:
+            req_conf = max(c_thresh, min_thresholds.get(category, min_thresholds["other"]))
+            if category in WEAK_PPE_CATEGORIES and WEAK_PPE_MIN_CONF <= confidence < max(req_conf, STRONG_PPE_CONF):
+                # Only counted by PPEAssociator if the box passes a colour check
+                raw_candidates.append({
+                    "bbox": [x1, y1, x2, y2],
+                    "confidence": round(confidence, 4),
+                    "class_id": class_id,
+                    "class_name": class_name,
+                    "category": category,
+                    "weak": True
+                })
+            elif confidence >= req_conf:
                 raw_candidates.append({
                     "bbox": [x1, y1, x2, y2],
                     "confidence": round(confidence, 4),
@@ -185,6 +235,7 @@ class ConstructionDetector:
             d for d in raw_candidates 
             if d["category"] == "person" and d["confidence"] >= min_thresholds["person"]
         ]
+        person_candidates += self._detect_coco_persons(image_or_frame)
         person_candidates = sorted(person_candidates, key=lambda x: x["confidence"], reverse=True)
 
         clean_persons = []
@@ -213,8 +264,9 @@ class ConstructionDetector:
                 iou_val = inter / union if union > 0 else 0
                 containment = inter / min(a1, a2) if min(a1, a2) > 0 else 0
 
-                # Suppress if heavily nested (>70%) or high IoU (>0.45)
-                if containment > 0.70 or iou_val > 0.45:
+                # Suppress if almost fully nested (>85%) or high IoU (>0.50). Looser values
+                # merged neighbouring workers standing shoulder to shoulder.
+                if containment > 0.85 or iou_val > 0.50:
                     keep = False
                     break
 
@@ -226,28 +278,6 @@ class ConstructionDetector:
             if keep:
                 clean_persons.append(cand)
 
-        # 3. Recover any partially occluded / background worker wearing a confirmed vest
-        for v in filtered_ppe:
-            if v["category"] == "vest" and v["confidence"] >= 0.08:
-                vx1, vy1, vx2, vy2 = v["bbox"]
-                vw, vh = vx2 - vx1, vy2 - vy1
-                is_covered = False
-                for p in clean_persons:
-                    px1, py1, px2, py2 = p["bbox"]
-                    if not (vx2 < px1 or vx1 > px2 or vy2 < py1 or vy1 > py2):
-                        is_covered = True
-                        break
-                if not is_covered:
-                    px1 = max(0, vx1 - int(vw * 0.25))
-                    py1 = max(0, vy1 - int(vh * 0.45))
-                    px2 = vx2 + int(vw * 0.25)
-                    py2 = vy2 + int(vh * 0.85)
-                    clean_persons.append({
-                        "bbox": [px1, py1, px2, py2],
-                        "confidence": v["confidence"],
-                        "class_id": 6,
-                        "class_name": "Person",
-                        "category": "person"
-                    })
-
+        # (Inventing "workers" around stray vest boxes was removed: with the COCO person
+        # model they are no longer needed, and they produced phantom workers.)
         return clean_persons + filtered_ppe

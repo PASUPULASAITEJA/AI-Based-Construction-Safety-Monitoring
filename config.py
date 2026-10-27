@@ -16,6 +16,19 @@ MODEL_DIR = os.path.join(BASE_DIR, "model")
 MODEL_PATH = os.path.join(MODEL_DIR, "best.pt")
 FALLBACK_MODEL = "yolov8n.pt"
 
+# Secondary COCO-pretrained person detector (helps when the PPE model misses people
+# outside construction scenes). Set USE_PERSON_MODEL = False to use the PPE model alone.
+USE_PERSON_MODEL = True
+# yolov8s finds people in close-ups / crowds that yolov8n misses (~2x slower on CPU)
+PERSON_MODEL_PATH = next(
+    (p for p in (os.path.join(MODEL_DIR, n) for n in ("yolov8s.pt", "yolov8n.pt")) if os.path.exists(p)),
+    os.path.join(MODEL_DIR, "yolov8n.pt"))
+PERSON_MODEL_CONF = 0.30
+
+# PPE that every worker must wear. Compliance score and missing-PPE lists are computed
+# over these only; other categories are shown when the model detects them but never penalized.
+REQUIRED_PPE = ["helmet", "vest"]
+
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
 SNAPSHOTS_DIR = os.path.join(BASE_DIR, "snapshots")

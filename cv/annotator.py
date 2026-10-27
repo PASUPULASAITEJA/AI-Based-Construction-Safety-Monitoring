@@ -8,6 +8,7 @@ temporal compliance badges (green check, red X, grey ?), zones, and dashboard HU
 import cv2
 import numpy as np
 from typing import Dict, List, Any, Optional
+import config
 
 # Color Palette (BGR)
 COLOR_COMPLIANT = (46, 204, 113)     # Emerald Green
@@ -171,11 +172,17 @@ class FrameAnnotator:
         - Grey question mark (?) = uncertain
         - Compliance score % badge
         """
+        # Required PPE is always listed; optional items only when actually detected, so the
+        # panel never shows [x] for categories the model cannot see (earmuff, harness, ...).
+        required = getattr(config, "REQUIRED_PPE", [i["key"] for i in PPE_CHECKLIST_CONFIG])
+        items = [i for i in PPE_CHECKLIST_CONFIG
+                 if i["key"] in required or worker.get(i["key"]) is True]
+
         h_frame, w_frame = frame.shape[:2]
         panel_w = 110
         item_h = 16
         header_h = 24
-        panel_h = header_h + (len(PPE_CHECKLIST_CONFIG) * item_h) + 6
+        panel_h = header_h + (len(items) * item_h) + 6
 
         # Keep panel inside frame boundaries
         if panel_x + panel_w > w_frame - 5:
@@ -232,7 +239,7 @@ class FrameAnnotator:
 
         # 3. 8 PPE checklist items
         curr_y = panel_y + header_h + 12
-        for item in PPE_CHECKLIST_CONFIG:
+        for item in items:
             key = item["key"]
             abbr = item["abbr"]
             val = worker.get(key, False)

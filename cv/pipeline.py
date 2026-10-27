@@ -193,7 +193,7 @@ class SafetyPipeline:
                 union = a1 + a2 - inter
                 iou = inter / union if union > 0 else 0
                 containment = inter / min(a1, a2) if min(a1, a2) > 0 else 0
-                if iou > 0.50 or containment > 0.75:
+                if iou > 0.50 or containment > 0.85:
                     keep = False
                     break
             if keep:

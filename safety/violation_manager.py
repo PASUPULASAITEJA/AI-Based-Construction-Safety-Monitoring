@@ -152,6 +152,9 @@ class ViolationManager:
                         val = w[k]
                         if isinstance(val, bool):
                             conf = 1.0 if val else 0.0
+                        elif val == "uncertain":
+                            # Transient miss (<3 frames) from TemporalPPETracker; not yet absent
+                            conf = 0.5
                         elif isinstance(val, (int, float)):
                             conf = float(val)
                         break
