@@ -172,11 +172,13 @@ class FrameAnnotator:
         - Grey question mark (?) = uncertain
         - Compliance score % badge
         """
-        # Required PPE is always listed; optional items only when actually detected, so the
-        # panel never shows [x] for categories the model cannot see (earmuff, harness, ...).
+        # Required PPE is always listed; optional items only when seen as present or explicitly
+        # absent (e.g. the model detected "No-Glove"), never just because they are out of view.
         required = getattr(config, "REQUIRED_PPE", [i["key"] for i in PPE_CHECKLIST_CONFIG])
+        evidence = worker.get("ppe_evidence", {})
         items = [i for i in PPE_CHECKLIST_CONFIG
-                 if i["key"] in required or worker.get(i["key"]) is True]
+                 if i["key"] in required or worker.get(i["key"]) is True
+                 or evidence.get(i["key"]) == "absent"]
 
         h_frame, w_frame = frame.shape[:2]
         panel_w = 110

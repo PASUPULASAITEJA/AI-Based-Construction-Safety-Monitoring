@@ -297,7 +297,7 @@
                 <div class="text-xs text-3">Violations</div>
               </div>
               <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center;">
-                <div class="mono fw-600" style="font-size: 18px; color: var(--green);" id="img-comp-rate">100%</div>
+                <div class="mono fw-600" style="font-size: 18px; color: var(--green);" id="img-comp-rate">–</div>
                 <div class="text-xs text-3">Compliance Rate</div>
               </div>
             </div>
@@ -312,18 +312,7 @@
                   </tr>
                 </thead>
                 <tbody id="detection-table-body">
-                  <tr>
-                    <td class="strong">Safety Helmet</td>
-                    <td class="mono">92.4%</td>
-                    <td>Head</td>
-                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                  </tr>
-                  <tr>
-                    <td class="strong">Safety Vest</td>
-                    <td class="mono">88.6%</td>
-                    <td>Torso</td>
-                    <td><span class="sg-badge sg-badge-resolved">PRESENT</span></td>
-                  </tr>
+                  <!-- Filled from the inspection result by renderDetectionTable() -->
                 </tbody>
               </table>
             </div>
@@ -551,6 +540,7 @@ async function handleImageUpload(e) {
       if (data.stats) {
         document.getElementById('img-worker-count').textContent = data.stats.worker_count ?? 0;
         document.getElementById('img-violation-count').textContent = data.stats.violation_count ?? 0;
+        renderDetectionTable(data.stats);
       }
       sgToast('success', 'Inspection Complete', 'Spatial bounding boxes identified.');
     } else {
@@ -563,6 +553,79 @@ async function handleImageUpload(e) {
     pBar.style.display = 'none';
     btn.disabled = false;
   }
+}
+
+// All 8 PPE categories. Required items are PRESENT / MISSING; the others are PRESENT,
+// MISSING (model explicitly saw e.g. "No-Glove"), NOT VISIBLE, or NOT SUPPORTED by the models.
+const PPE_ROWS = [
+  { key: 'helmet', label: 'Safety Helmet', zone: 'Head', required: true },
+  { key: 'vest', label: 'Safety Vest', zone: 'Torso', required: true },
+  { key: 'goggles', label: 'Eye Protection', zone: 'Head', required: false },
+  { key: 'earmuff', label: 'Hearing Protection', zone: 'Head', required: false },
+  { key: 'gloves', label: 'Gloves', zone: 'Hands', required: false },
+  { key: 'boots', label: 'Safety Boots', zone: 'Feet', required: false },
+  { key: 'harness', label: 'Harness / Lanyard', zone: 'Torso', required: false },
+  { key: 'safety_pants', label: 'Chaps / Safety Pants', zone: 'Legs', required: false }
+];
+const PPE_STATUS = {
+  present: ['PRESENT', 'sg-badge-resolved'],
+  absent: ['MISSING', 'sg-badge-critical'],
+  uncertain: ['UNCERTAIN', 'sg-badge-medium'],
+  none: ['NOT VISIBLE', 'sg-badge-low'],
+  unsupported: ['NOT SUPPORTED', 'sg-badge-low']
+};
+
+function ppeStatus(w, item, supported) {
+  if (w[item.key] === true) return 'present';
+  if (item.required) return 'absent';
+  if (supported && !supported.includes(item.key)) return 'unsupported';
+  const ev = (w.ppe_evidence || {})[item.key];
+  return PPE_STATUS[ev] ? ev : 'none';
+}
+
+function renderDetectionTable(stats) {
+  const tbody = document.getElementById('detection-table-body');
+  const rate = document.getElementById('img-comp-rate');
+  const workers = (stats && stats.workers) || [];
+  tbody.innerHTML = '';
+
+  if (!workers.length) {
+    rate.textContent = '–';
+    rate.style.color = 'var(--text-3)';
+    const tr = tbody.insertRow();
+    const td = tr.insertCell();
+    td.colSpan = 4;
+    td.className = 'text-3';
+    td.style.textAlign = 'center';
+    td.textContent = 'No workers detected in this image.';
+    return;
+  }
+
+  const compliant = workers.filter(w => !(w.violations && w.violations.length)).length;
+  const pct = Math.round((compliant / workers.length) * 100);
+  rate.textContent = pct + '%';
+  rate.style.color = pct >= 80 ? 'var(--green)' : (pct >= 50 ? 'var(--orange)' : 'var(--red)');
+
+  const supported = stats.supported_ppe || null;
+  workers.forEach(w => {
+    const conf = w.ppe_confidence || {};
+    PPE_ROWS.forEach(item => {
+      const status = ppeStatus(w, item, supported);
+      const tr = tbody.insertRow();
+      const name = tr.insertCell();
+      name.className = 'strong';
+      name.textContent = (workers.length > 1 ? (w.worker_id + ' · ') : '') + item.label;
+      const c = tr.insertCell();
+      c.className = 'mono';
+      c.textContent = (status === 'present' || status === 'absent') && conf[item.key] > 0
+        ? (conf[item.key] * 100).toFixed(1) + '%' : '–';
+      tr.insertCell().textContent = item.zone;
+      const badge = document.createElement('span');
+      badge.className = 'sg-badge ' + PPE_STATUS[status][1];
+      badge.textContent = PPE_STATUS[status][0];
+      tr.insertCell().appendChild(badge);
+    });
+  });
 }
 
 function resetImageUpload() {
