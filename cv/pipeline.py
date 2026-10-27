@@ -18,7 +18,7 @@ from cv.small_ppe_handler import TemporalPPETracker, HighResZoneInference
 class SafetyPipeline:
     def __init__(self, model_path=None, conf=config.CONFIDENCE_THRESHOLD, iou=config.IOU_THRESHOLD):
         self.detector = ConstructionDetector(model_path=model_path, conf=conf, iou=iou)
-        self.tracker = WorkerTracker()
+        self.tracker = WorkerTracker(min_hits=3)
         self.ppe_associator = PPEAssociator()
         self.temporal_tracker = TemporalPPETracker()
         self.high_res_zone_inference = HighResZoneInference(detector_model=getattr(self.detector, 'model', None))
@@ -49,6 +49,35 @@ class SafetyPipeline:
         if min_v_frames is not None or min_z_frames is not None:
             self.violation_manager.set_thresholds(min_v_frames, min_z_frames)
 
+    def _filter_live_persons(self, persons, frame_shape):
+        """
+        Stricter person filtering for live camera frames, where people sit close to the
+        lens. Measured on a webcam close-up of one person, the count read 3-4 because of
+        (a) a sliver of an arm/shoulder at the frame edge and (b) small low-confidence
+        boxes beside the face.
+        """
+        h, w = frame_shape[:2]
+        if any(p.get("source") == "coco" for p in persons):
+            # The PPE model's "Person" class is tuned for construction photos and misfires on close-ups
+            persons = [p for p in persons if p.get("source") == "coco"]
+        persons = [p for p in persons if p["confidence"] >= 0.35]
+        if not persons:
+            return []
+
+        max_h = max(p["bbox"][3] - p["bbox"][1] for p in persons)
+        kept = []
+        for p in persons:
+            x1, y1, x2, y2 = p["bbox"]
+            bw, bh = x2 - x1, y2 - y1
+            conf = p["confidence"]
+            at_side_edge = x1 <= 0.01 * w or x2 >= 0.99 * w
+            if at_side_edge and bw < 0.20 * w and conf < 0.65:
+                continue  # partial arm / shoulder cut off by the frame
+            if bh < 0.35 * max_h and conf < 0.60:
+                continue  # small fragment next to a much larger (closer) person
+            kept.append(p)
+        return kept
+
     def process_frame(self, frame, source="Webcam"):
         """
         Executes full safety pipeline on a single video/camera frame.
@@ -75,7 +104,8 @@ class SafetyPipeline:
         detections = self.detector.detect(frame)
 
         # 2. Worker Filtering & Tracking
-        person_detections = [d for d in detections if d["category"] == "person"]
+        person_detections = self._filter_live_persons(
+            [d for d in detections if d["category"] == "person"], frame.shape)
         tracked_workers = self.tracker.update(person_detections)
 
         # Optional second-pass zoomed crop inference for small PPE (only on GPU to maintain real-time FPS)
@@ -91,12 +121,16 @@ class SafetyPipeline:
                     detections.extend(zoomed_dets)
 
         # 3. Spatial PPE Association with Temporal Verification
-        enriched_workers = self.ppe_associator.associate(
-            detections=detections,
-            workers=tracked_workers,
-            frame=frame,
-            temporal_tracker=self.temporal_tracker
-        )
+        # With no confirmed tracks, associate() would fall back to the raw (unfiltered)
+        # person boxes in `detections` and count them as workers, so skip it.
+        enriched_workers = []
+        if tracked_workers:
+            enriched_workers = self.ppe_associator.associate(
+                detections=detections,
+                workers=tracked_workers,
+                frame=frame,
+                temporal_tracker=self.temporal_tracker
+            )
         if isinstance(enriched_workers, dict):
             enriched_workers = list(enriched_workers.values())
 

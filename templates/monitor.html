@@ -147,7 +147,7 @@
             <canvas id="cv-canvas" class="sg-cam-canvas"></canvas>
 
             <div class="sg-cam-hud">
-              <div class="sg-cam-hud-item"><i data-lucide="zap"></i>FPS: <span id="monitor-fps">24.5</span></div>
+              <div class="sg-cam-hud-item"><i data-lucide="zap"></i>FPS: <span id="monitor-fps">–</span></div>
               <div class="sg-cam-hud-item"><i data-lucide="users"></i>Workers: <span id="monitor-workers">{{ live_workers|length }}</span></div>
               <div class="sg-cam-hud-item" style="color: #F87171;"><i data-lucide="alert-triangle"></i>Hazards: <span id="monitor-violations">0</span></div>
             </div>
@@ -285,7 +285,7 @@
           </div>
           <div class="flex-between">
             <span class="text-3">Inference FPS:</span>
-            <span style="color: var(--green); font-weight: 600;" id="fps-display">24.5</span>
+            <span style="color: var(--green); font-weight: 600;" id="fps-display">–</span>
           </div>
         </div>
       </div>
@@ -629,7 +629,7 @@ setInterval(async () => {
       document.getElementById('monitor-violations').textContent = data.violation_count;
     }
   } catch (e) {}
-}, 2000);
+}, 1000);
 
 document.addEventListener('DOMContentLoaded', () => {
   setGridMode('1x1');

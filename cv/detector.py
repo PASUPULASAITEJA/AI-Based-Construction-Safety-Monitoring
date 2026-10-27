@@ -74,7 +74,8 @@ class ConstructionDetector:
                 "confidence": round(float(box.conf[0].cpu().numpy()), 4),
                 "class_id": 0,
                 "class_name": "person",
-                "category": "person"
+                "category": "person",
+                "source": "coco"
             })
         return persons
 
