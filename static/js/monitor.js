@@ -52,21 +52,21 @@ function updateMonitorHeader(data) {
 }
 
 const PPE_CONFIG = [
-  { key: 'helmet', label: 'Helmet', icon: '🪖' },
-  { key: 'goggles', label: 'Goggles', icon: '🥽' },
-  { key: 'earmuff', label: 'Earmuff', icon: '🎧' },
-  { key: 'vest', label: 'Vest', icon: '🦺' },
-  { key: 'harness', label: 'Harness', icon: '🪢' },
-  { key: 'safety_pants', label: 'Pants', icon: '👖' },
-  { key: 'gloves', label: 'Gloves', icon: '🧤' },
-  { key: 'boots', label: 'Boots', icon: '🥾' }
+  { key: 'helmet', altKey: 'hardhat', label: 'Helmet', icon: '🪖' },
+  { key: 'goggles', altKey: 'glasses', label: 'Goggles', icon: '🥽' },
+  { key: 'earmuff', altKey: 'earmuffs', label: 'Earmuff', icon: '🎧' },
+  { key: 'vest', altKey: 'safety_vest', label: 'Vest', icon: '🦺' },
+  { key: 'harness', altKey: 'safety_harness', label: 'Harness', icon: '🪢' },
+  { key: 'safety_pants', altKey: 'pants', label: 'Pants', icon: '👖' },
+  { key: 'gloves', altKey: 'glove', label: 'Gloves', icon: '🧤' },
+  { key: 'boots', altKey: 'shoes', label: 'Boots', icon: '🥾' }
 ];
 
 function renderPPEBadge(val) {
-  if (val === true || val === 'compliant') {
+  if (val === true || val === 'compliant' || val === 1) {
     return `<span style="color: #4ade80; font-weight: 700;">✓</span>`;
   } else if (val === 'uncertain' || val === '?') {
-    return `<span style="color: #94a3b8; font-weight: 700;" title="Uncertain">?</span>`;
+    return `<span style="color: #94a3b8; font-weight: 700;" title="Uncertain / Verifying">?</span>`;
   } else {
     return `<span style="color: #f87171; font-weight: 700;">✕</span>`;
   }
@@ -100,7 +100,10 @@ function updateWorkerRoster(workers) {
 
     let ppeGridHtml = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #0f172a; padding: 8px; border-radius: 6px; margin: 8px 0;">';
     PPE_CONFIG.forEach(item => {
-      const val = w[item.key];
+      let val = w[item.key];
+      if (val === undefined && item.altKey && w[item.altKey] !== undefined) {
+        val = w[item.altKey];
+      }
       ppeGridHtml += `
         <div style="display: flex; flex-direction: column; align-items: center; font-size: 11px; padding: 3px 0;">
           <span style="font-size: 13px;">${item.icon}</span>
@@ -152,6 +155,8 @@ async function switchCameraSource(source) {
     }
   }
 }
+window.switchCameraSource = switchCameraSource;
+window.changeCameraSource = switchCameraSource;
 
 async function startBrowserWebcam() {
   const videoEl = document.getElementById('browser-webcam-element');

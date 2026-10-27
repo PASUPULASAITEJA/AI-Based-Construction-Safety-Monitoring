@@ -47,12 +47,19 @@
 
     <!-- Right: Zone & Inference Controls -->
     <div style="display: flex; align-items: center; gap: 8px;">
-      <select class="sg-select text-xs" id="monitor-cam-select" style="width: 170px; padding: 6px 10px;" onchange="changeCameraSource(this.value)">
-        {% for cam in cameras %}
-          <option value="{{ cam.id }}" {% if cam.status == 'ONLINE' %}selected{% endif %}>{{ cam.name }}</option>
-        {% else %}
-          <option value="0">Default Primary Camera</option>
-        {% endfor %}
+      <select class="sg-select text-xs" id="monitor-cam-select" style="min-width: 230px; padding: 6px 10px;" onchange="switchCameraSource(this.value)">
+        <optgroup label="Stream Sources">
+          <option value="simulator" selected>🎬 Construction Site Simulator (Full PPE)</option>
+          <option value="webcam">📷 Hardware Webcam</option>
+          <option value="browser">🌐 Browser Webcam (WebRTC)</option>
+        </optgroup>
+        {% if cameras %}
+        <optgroup label="Configured Site Cameras">
+          {% for cam in cameras %}
+            <option value="{{ cam.id }}">{{ cam.name }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
       </select>
 
       <button class="sg-btn sg-btn-sm sg-btn-secondary" id="btn-toggle-draw" onclick="toggleZoneDrawing()" title="Draw hazard zones on stream">

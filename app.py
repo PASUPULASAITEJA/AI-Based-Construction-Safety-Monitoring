@@ -218,18 +218,20 @@ class VideoCamera:
         self._open_hardware_camera()
 
     def _load_fallback_samples(self):
-        candidates = [
-            os.path.join(config.BASE_DIR, "construction", "images", "val"),
-            os.path.join(config.BASE_DIR, "construction", "images", "test"),
-            os.path.join(config.BASE_DIR, "dataset", "images")
+        priority_samples = [
+            os.path.join(config.BASE_DIR, "dataset", "images", "pexels-photo-12314551.jpeg"),
+            os.path.join(config.BASE_DIR, "dataset", "images", "work-chinese-industrial-professional.jpg"),
+            os.path.join(config.BASE_DIR, "dataset", "images", "pexels-photo-16045267.jpeg"),
+            os.path.join(config.BASE_DIR, "dataset", "images", "pexels-photo-15947586.jpeg"),
+            os.path.join(config.BASE_DIR, "dataset", "images", "pexels-photo-15923443.jpeg"),
+            os.path.join(config.BASE_DIR, "dataset", "images", "pexels-photo-15923439.jpeg"),
+            os.path.join(config.BASE_DIR, "dataset", "images", "pexels-photo-15806963.jpeg"),
         ]
-        self.test_images = []
-        for d in candidates:
+        self.test_images = [p for p in priority_samples if os.path.exists(p)]
+        if not self.test_images:
+            d = os.path.join(config.BASE_DIR, "dataset", "images")
             if os.path.exists(d):
-                imgs = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
-                if imgs:
-                    self.test_images.extend(imgs)
-        self.test_images.sort()
+                self.test_images = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.png', '.jpeg'))][:20]
 
     def set_mode(self, mode):
         with self.lock:
