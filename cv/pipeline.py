@@ -101,7 +101,7 @@ class SafetyPipeline:
         self.last_frame_time = now
 
         # 1. Object Detection
-        detections = self.detector.detect(frame)
+        detections = self.detector.detect(frame, aux_every_n=getattr(config, "AUX_LIVE_EVERY_N_FRAMES", 1))
 
         # 2. Worker Filtering & Tracking
         person_detections = self._filter_live_persons(
@@ -319,5 +319,6 @@ class SafetyPipeline:
             "violation_count": sum(1 for w in annotated_workers if w["violations"]),
             "workers": annotated_workers,
             "incidents": detected_incidents,
-            "raw_detections": len(detections)
+            "raw_detections": len(detections),
+            "supported_ppe": self.detector.supported_ppe
         }

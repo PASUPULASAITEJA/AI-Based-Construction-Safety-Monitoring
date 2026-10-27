@@ -154,17 +154,23 @@ def hardhat_ratio(region: Optional[np.ndarray]) -> float:
     return cv2.countNonZero(mask) / float(region.shape[0] * region.shape[1])
 
 
-def weak_box_colour_ok(frame: Optional[np.ndarray], category: str, box: List[float]) -> bool:
-    """Accept a low-confidence helmet/vest box only if its pixels look like the real thing."""
+def weak_box_colour_score(frame: Optional[np.ndarray], category: str, box: List[float]) -> float:
+    """
+    Colour verification of a low-confidence helmet/vest box. Returns 0.0 if its pixels
+    don't look like the real thing, otherwise a confidence for the verified item (same
+    scale as verify_anatomical_ppe_presence: 0.65 + ratio * 1.5, capped).
+    """
     if frame is None:
-        return False
+        return 0.0
     if category == "vest":
-        return hivis_ratio(_crop(frame, box)) >= 0.15
+        ratio = hivis_ratio(_crop(frame, box))
+        return round(min(0.98, 0.65 + ratio * 1.5), 3) if ratio >= 0.15 else 0.0
     if category == "helmet":
         x1, y1, x2, y2 = box
         top = [x1, y1, x2, y1 + 0.6 * (y2 - y1)]  # shell, not the face below it
-        return hardhat_ratio(_crop(frame, top)) >= 0.30
-    return False
+        ratio = hardhat_ratio(_crop(frame, top))
+        return round(min(0.95, 0.60 + ratio * 0.5), 3) if ratio >= 0.30 else 0.0
+    return 0.0
 
 
 class PPEAssociator:
@@ -529,14 +535,16 @@ class PPEAssociator:
                 lookup = LABEL_LOOKUP.get(cat_str)
                 if lookup:
                     cat_name, is_pos = lookup
-                    if det.get("weak") and not weak_box_colour_ok(frame, cat_name, bbox):
-                        continue
+                    if det.get("weak"):
+                        colour_conf = weak_box_colour_score(frame, cat_name, bbox)
+                        if colour_conf <= 0.0:
+                            continue
+                        conf = max(conf, colour_conf)
                     parsed_detections.append({
                         "category": cat_name,
                         "is_positive": is_pos,
                         "bbox": bbox,
-                        # A colour-verified weak box counts as a minimum-confidence detection
-                        "confidence": max(conf, self.min_conf) if det.get("weak") else conf,
+                        "confidence": conf,
                         "raw_label": cat_str
                     })
 
@@ -591,7 +599,12 @@ class PPEAssociator:
                 "boots": False,
                 "compliance_score": 0.0,
                 "missing_ppe": [],
-                "associated_items": {}
+                "associated_items": {},
+                # Confidence behind each status: the detection (or colour check) when present,
+                # the model's explicit "no-<item>" score when absent, 0 when nothing was seen
+                "ppe_confidence": {},
+                # "present" | "absent" (model saw e.g. "No-Glove") | "none" (not visible) | "uncertain"
+                "ppe_evidence": {}
             }
             worker_ppe_state[wid] = {
                 cat: {"pos_conf": 0.0, "neg_conf": 0.0, "best_box": None}
@@ -664,6 +677,14 @@ class PPEAssociator:
                     status = raw_present
 
                 results[wid][cat] = status
+                results[wid]["ppe_confidence"][cat] = round(float(eff_conf), 3)
+                if status is True:
+                    evidence = "present"
+                elif status == "uncertain":
+                    evidence = "uncertain"
+                else:
+                    evidence = "absent" if neg_c > 0 else "none"
+                results[wid]["ppe_evidence"][cat] = evidence
                 # Set aliases for template and UI compatibility
                 if cat == "safety_pants":
                     results[wid]["pants"] = status

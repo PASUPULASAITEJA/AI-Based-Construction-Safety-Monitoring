@@ -17,6 +17,19 @@ WEAK_PPE_CATEGORIES = {"helmet", "vest"}
 WEAK_PPE_MIN_CONF = 0.05
 STRONG_PPE_CONF = 0.35
 
+# Auxiliary model class (lower-case) -> pipeline category. Helmets stay with the main model +
+# colour verification. Vests from the aux model are added because the main model + hi-vis
+# colour check miss non-fluorescent safety/utility vests (e.g. dark work vests).
+AUX_CLASS_MAP = {
+    "ear-protection": "earmuff", "no-ear-protection": "no-earmuff",
+    "glass": "goggles", "no-glass": "no-goggles",
+    "glove": "gloves", "no-glove": "no-gloves",
+    "boots": "boots", "no-boots": "no-boots",
+    "vest": "vest", "no-vest": "no-vest",
+}
+# Stricter than AUX_PPE_POS_CONF where a false positive would hide a violation
+AUX_POS_CONF_OVERRIDES = {"vest": 0.45}
+
 class ConstructionDetector:
     def __init__(self, model_path=None, data_yaml=config.DATA_YAML_PATH, conf=config.CONFIDENCE_THRESHOLD, iou=config.IOU_THRESHOLD):
         self.conf = conf
@@ -52,6 +65,73 @@ class ConstructionDetector:
                 print(f"[Detector] Person model loaded from: {config.PERSON_MODEL_PATH}")
             except Exception as e:
                 print(f"[-] Warning: person model unavailable ({e}); using PPE model persons only")
+
+        self.aux_model = None
+        self._aux_cache = []
+        self._aux_calls = 0
+        if getattr(config, "USE_AUX_PPE_MODEL", False) and os.path.exists(config.AUX_PPE_MODEL_PATH):
+            try:
+                self.aux_model = YOLO(config.AUX_PPE_MODEL_PATH)
+                print(f"[Detector] Aux PPE model loaded from: {config.AUX_PPE_MODEL_PATH}")
+            except Exception as e:
+                print(f"[-] Warning: aux PPE model unavailable ({e}); ear/eye/hand/foot PPE limited")
+
+    @property
+    def supported_ppe(self):
+        """PPE categories at least one loaded model can detect."""
+        cats = {c for c in self.canonical_map if c in
+                ("helmet", "vest", "goggles", "gloves", "boots", "earmuff", "harness", "safety-pants")}
+        if self.aux_model is not None:
+            cats |= {"goggles", "gloves", "boots", "earmuff"}
+        return sorted(c.replace("safety-pants", "safety_pants") for c in cats)
+
+    def _detect_aux_ppe(self, image_or_frame, every_n=1):
+        """Ear/eye/hand/foot PPE from the auxiliary model. With every_n > 1 (live video) the
+        model runs on every Nth call and the last result is reused in between."""
+        if self.aux_model is None:
+            return []
+        self._aux_calls += 1
+        if every_n > 1 and (self._aux_calls - 1) % every_n != 0:
+            return self._aux_cache
+        results = self.aux_model.predict(
+            source=image_or_frame,
+            conf=min(config.AUX_PPE_POS_CONF, config.AUX_PPE_NEG_CONF),
+            iou=self.iou,
+            imgsz=config.IMG_SIZE,
+            device=self.device,
+            verbose=False
+        )
+        found = []
+        r = results[0] if results else None
+        for box in (r.boxes if r is not None and r.boxes is not None else []):
+            category = AUX_CLASS_MAP.get(str(r.names[int(box.cls[0])]).strip().lower())
+            if category is None:
+                continue
+            confidence = float(box.conf[0].cpu().numpy())
+            min_conf = config.AUX_PPE_NEG_CONF if category.startswith("no-") else \
+                AUX_POS_CONF_OVERRIDES.get(category, config.AUX_PPE_POS_CONF)
+            if confidence < min_conf:
+                continue
+            x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].cpu().numpy().tolist()]
+            found.append({
+                "bbox": [x1, y1, x2, y2],
+                "confidence": round(confidence, 4),
+                "class_id": int(box.cls[0]),
+                "class_name": r.names[int(box.cls[0])],
+                "category": category,
+                "source": "aux"
+            })
+
+        # When the model calls the same region both "Vest" and "No-Vest" (e.g. 0.57 vs 0.45 on
+        # an open winter coat) it is unsure; drop the positive so the item is not marked present.
+        negatives = [d for d in found if d["category"].startswith("no-")]
+        found = [d for d in found if d["category"].startswith("no-") or not any(
+            n["category"] == "no-" + d["category"]
+            and self._overlap(d["bbox"], n["bbox"])[0] > 0.5
+            and d["confidence"] - n["confidence"] < 0.20
+            for n in negatives)]
+        self._aux_cache = found
+        return found
 
     def _detect_coco_persons(self, image_or_frame):
         """Person boxes from the COCO model (class 0), in the same dict format as detect()."""
@@ -181,7 +261,7 @@ class ConstructionDetector:
             return "no-harness"
         return s
 
-    def detect(self, image_or_frame, conf=None, iou=None):
+    def detect(self, image_or_frame, conf=None, iou=None, aux_every_n=1):
         """
         Run inference on a single image (numpy array or filepath).
         Returns a list of structured detection dictionaries across all 17 classes.
@@ -256,9 +336,10 @@ class ConstructionDetector:
 
         # 1. Filter PPE detections
         filtered_ppe = [
-            d for d in raw_candidates 
+            d for d in raw_candidates
             if d["category"] not in ["person", "worker"]
         ]
+        filtered_ppe += self._detect_aux_ppe(image_or_frame, every_n=aux_every_n)
 
         # 2. Filter & Deduplicate Person boxes (NMS + Containment suppression)
         person_candidates = [

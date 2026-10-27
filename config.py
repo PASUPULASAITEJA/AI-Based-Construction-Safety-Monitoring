@@ -25,6 +25,17 @@ PERSON_MODEL_PATH = next(
     os.path.join(MODEL_DIR, "yolov8n.pt"))
 PERSON_MODEL_CONF = 0.25
 
+# Auxiliary PPE model for ear protection, goggles, gloves and boots (the main model only
+# detects helmet and vest reliably). Created by `python download_aux_ppe_model.py`; skipped if absent.
+USE_AUX_PPE_MODEL = True
+AUX_PPE_MODEL_PATH = os.path.join(MODEL_DIR, "ppe_aux.pt")
+AUX_PPE_POS_CONF = 0.25   # "Glove", "Glass", ...
+AUX_PPE_NEG_CONF = 0.30   # "No-Glove", "No-Glass", ...
+AUX_LIVE_EVERY_N_FRAMES = 5  # live video: run it every Nth frame and reuse the result (CPU cost ~0.35 s)
+
+# The 8 PPE categories and whether the loaded models can detect them at all
+UNSUPPORTED_PPE = ["harness", "safety_pants"]
+
 # PPE that every worker must wear. Compliance score and missing-PPE lists are computed
 # over these only; other categories are shown when the model detects them but never penalized.
 REQUIRED_PPE = ["helmet", "vest"]
