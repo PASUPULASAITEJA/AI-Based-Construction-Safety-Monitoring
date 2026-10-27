@@ -53,13 +53,19 @@ class ConstructionDetector:
         if not self.classes:
             self.classes = {i: name for i, name in enumerate(config.CLASSES_17)}
 
-        # Build canonical map (normalized lowercase name -> list of class ids)
+        # Build canonical map (normalized lowercase name -> list of class ids) and category_map
         self.canonical_map = {}
+        self.category_map = {}
         for cid, cname in self.classes.items():
             norm = self._normalize_category(cname)
+            self.category_map[cid] = norm
             if norm not in self.canonical_map:
                 self.canonical_map[norm] = []
             self.canonical_map[norm].append(cid)
+
+    @property
+    def person_cids(self):
+        return self.canonical_map.get("person", [0])
 
     @staticmethod
     def _normalize_category(raw_name: str) -> str:

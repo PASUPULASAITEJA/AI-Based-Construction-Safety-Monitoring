@@ -200,6 +200,10 @@ class PPEAssociator:
         else:
             return [person_box]
 
+    get_head_box = get_head_zone
+    get_torso_box = get_torso_zone
+    get_lower_box = get_lower_zone
+
     # -------------------------------------------------------------------------
     # Spatial Proximity & Scoring
     # -------------------------------------------------------------------------
@@ -440,6 +444,13 @@ class PPEAssociator:
             score = round(compliant_count / float(len(PPE_CATEGORIES)), 2)
             results[wid]["compliance_score"] = score
             results[wid]["missing_ppe"] = missing_list
+            results[wid]["has_HEAD"] = bool(results[wid].get("helmet"))
+            results[wid]["has_VISIBILITY"] = bool(results[wid].get("vest"))
+            results[wid]["has_FALL_PROTECTION"] = bool(results[wid].get("harness"))
+            results[wid]["has_FOOT"] = bool(results[wid].get("boots"))
+            results[wid]["has_HAND"] = bool(results[wid].get("gloves"))
+            results[wid]["has_EYE"] = bool(results[wid].get("goggles"))
+            results[wid]["has_HEARING"] = bool(results[wid].get("earmuff"))
 
         if return_as_list:
             enriched = []

@@ -48,8 +48,8 @@
       {{ stats.violations_today if stats else (today_violations_count if today_violations_count is defined else 0) }}
     </div>
     <div class="sg-kpi-label">Today's Violations</div>
-    <div class="sg-kpi-trend {% if stats and stats.violations_today > 0 %}kpi-down{% else %}kpi-up{% endif %}">
-      {% if stats and stats.violations_today > 0 %}
+    <div class="sg-kpi-trend {% if stats and stats.violations_today|default(0) > 0 %}kpi-down{% else %}kpi-up{% endif %}">
+      {% if stats and stats.violations_today|default(0) > 0 %}
         <div class="sg-dot sg-dot-red" style="margin-right: 4px;"></div>
         <span>Immediate Attention</span>
       {% else %}
