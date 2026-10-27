@@ -23,7 +23,7 @@ USE_PERSON_MODEL = True
 PERSON_MODEL_PATH = next(
     (p for p in (os.path.join(MODEL_DIR, n) for n in ("yolov8s.pt", "yolov8n.pt")) if os.path.exists(p)),
     os.path.join(MODEL_DIR, "yolov8n.pt"))
-PERSON_MODEL_CONF = 0.30
+PERSON_MODEL_CONF = 0.25
 
 # PPE that every worker must wear. Compliance score and missing-PPE lists are computed
 # over these only; other categories are shown when the model detects them but never penalized.

@@ -78,6 +78,35 @@ class ConstructionDetector:
             })
         return persons
 
+    @staticmethod
+    def _overlap(b1, b2):
+        """Returns (iou, fraction of b1 inside b2, fraction of b2 inside b1)."""
+        a1 = max(1, (b1[2] - b1[0]) * (b1[3] - b1[1]))
+        a2 = max(1, (b2[2] - b2[0]) * (b2[3] - b2[1]))
+        iw = max(0, min(b1[2], b2[2]) - max(b1[0], b2[0]))
+        ih = max(0, min(b1[3], b2[3]) - max(b1[1], b2[1]))
+        inter = iw * ih
+        return inter / float(a1 + a2 - inter), inter / float(a1), inter / float(a2)
+
+    def _same_or_group(self, b1, b2):
+        """True if b1 is the same person as b2, or a box spanning b2 and its neighbours."""
+        iou, in_b2, b2_in = self._overlap(b1, b2)
+        return iou > 0.30 or in_b2 > 0.60 or b2_in > 0.60
+
+    def _drop_group_boxes(self, persons):
+        """Removes boxes that enclose 2+ other people, and near-duplicates (IoU > 0.7)."""
+        kept = []
+        for p in sorted(persons, key=lambda x: x["confidence"], reverse=True):
+            enclosed = sum(1 for o in persons if o is not p and self._overlap(o["bbox"], p["bbox"])[1] >= 0.80
+                           and (o["bbox"][2] - o["bbox"][0]) * (o["bbox"][3] - o["bbox"][1])
+                           < (p["bbox"][2] - p["bbox"][0]) * (p["bbox"][3] - p["bbox"][1]))
+            if enclosed >= 2:
+                continue
+            if any(self._overlap(p["bbox"], k["bbox"])[0] > 0.70 for k in kept):
+                continue
+            kept.append(p)
+        return kept
+
     def _load_classes(self):
         # 1. Always prioritize the model's own internal names dictionary
         # because the network's output logits directly correspond to model.names!
@@ -232,10 +261,20 @@ class ConstructionDetector:
 
         # 2. Filter & Deduplicate Person boxes (NMS + Containment suppression)
         person_candidates = [
-            d for d in raw_candidates 
+            d for d in raw_candidates
             if d["category"] == "person" and d["confidence"] >= min_thresholds["person"]
         ]
-        person_candidates += self._detect_coco_persons(image_or_frame)
+        coco_persons = self._detect_coco_persons(image_or_frame)
+        if coco_persons:
+            # The COCO model is the authority on people (already NMS'd by YOLO). The PPE
+            # model often returns one high-confidence box around two neighbouring workers;
+            # ranking that first suppressed both real boxes and counted 2 workers as 1.
+            clean_persons = self._drop_group_boxes(coco_persons)
+            for cand in sorted(person_candidates, key=lambda x: x["confidence"], reverse=True):
+                if not any(self._same_or_group(cand["bbox"], k["bbox"]) for k in clean_persons):
+                    clean_persons.append(cand)
+            return clean_persons + filtered_ppe
+
         person_candidates = sorted(person_candidates, key=lambda x: x["confidence"], reverse=True)
 
         clean_persons = []

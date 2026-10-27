@@ -108,7 +108,10 @@ class SafetyPipeline:
 
         # 6. Record New Incidents to Database & Snapshots
         for inc in new_incidents:
-            self.alert_manager.record_incident(inc, frame=frame, source=source)
+            try:
+                self.alert_manager.record_incident(inc, frame=frame, source=source)
+            except Exception as e:
+                print(f"[-] Could not record incident: {e}")
 
         # 7. Visual Overlay Annotation
         annotated_frame = self.annotator.annotate(
@@ -193,7 +196,9 @@ class SafetyPipeline:
                 union = a1 + a2 - inter
                 iou = inter / union if union > 0 else 0
                 containment = inter / min(a1, a2) if min(a1, a2) > 0 else 0
-                if iou > 0.50 or containment > 0.85:
+                # The detector already de-duplicated people; only drop exact repeats here, so a
+                # worker standing partly behind another (box nested in theirs) is kept.
+                if iou > 0.70:
                     keep = False
                     break
             if keep:
@@ -248,15 +253,20 @@ class SafetyPipeline:
             annotated_workers.append(w_copy)
 
             for v in v_list:
-                inc_entry = self.alert_manager.record_incident({
-                    "worker_id": w["worker_id"],
-                    "label": w["label"],
-                    "violation_type": v["type"],
-                    "description": v["description"],
-                    "severity": v["severity"],
-                    "confidence": w["confidence"],
-                    "bbox": w["bbox"]
-                }, frame=frame, source=source)
+                # Logging an incident must never turn a finished inspection into an error
+                try:
+                    inc_entry = self.alert_manager.record_incident({
+                        "worker_id": w["worker_id"],
+                        "label": w["label"],
+                        "violation_type": v["type"],
+                        "description": v["description"],
+                        "severity": v["severity"],
+                        "confidence": w["confidence"],
+                        "bbox": w["bbox"]
+                    }, frame=frame, source=source)
+                except Exception as e:
+                    print(f"[-] Could not record incident: {e}")
+                    inc_entry = {"violation_type": v["type"], "severity": v["severity"]}
                 detected_incidents.append(inc_entry)
 
         # Annotate
